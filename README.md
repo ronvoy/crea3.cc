@@ -14,7 +14,7 @@ chmod +x setup.sh
 
 ## Default Credentials
 
-- Username: `admin`
+- Username: `unina`
 - Password: `admin123`
 
 ## Features

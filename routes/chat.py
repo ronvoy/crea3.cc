@@ -1,11 +1,16 @@
 from flask import Blueprint, request, jsonify
 import requests
 import os
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 chat_bp = Blueprint('chat', __name__)
 
 # Chat API configuration
-CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://143.225.28.74:8080/chat')
+# CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://143.225.28.74:8080/chat')
+CHAT_API_URL = os.environ.get('CHAT_API_URL', 'https://crea3_chatbot.idealunina.work/chat')
+    
 CHAT_API_TIMEOUT = 30  # seconds
 
 @chat_bp.route('/proxy', methods=['POST', 'OPTIONS'])
@@ -36,7 +41,8 @@ def chat_proxy():
             CHAT_API_URL,
             json=data,
             headers={'Content-Type': 'application/json'},
-            timeout=CHAT_API_TIMEOUT
+            timeout=CHAT_API_TIMEOUT,
+            verify=False  # Disable SSL verification
         )
         
         # Check if request was successful
@@ -76,7 +82,8 @@ def chat_health():
     try:
         response = requests.get(
             CHAT_API_URL.replace('/chat', '/health'),
-            timeout=5
+            timeout=5,
+            verify=False  # Disable SSL verification
         )
         return jsonify({
             'status': 'available' if response.status_code == 200 else 'degraded',

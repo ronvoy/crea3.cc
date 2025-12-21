@@ -14,7 +14,7 @@ chmod +x setup.sh
 
 ## Default Credentials
 
-- Username: `unina`
+- Username: `admin`
 - Password: `admin123`
 
 ## Features
@@ -69,7 +69,7 @@ Edit `.env` file:
 FLASK_ENV=development
 PORT=8081
 SECRET_KEY=your-secret-key
-CHAT_API_URL=http://143.225.28.74:8080/chat
+CHAT_API_URL=https://crea3_chatbot.idealunina.work/chat
 ```
 
 ## Adding Users
@@ -82,6 +82,7 @@ id,username,password_hash
 ```
 
 Generate hash:
+
 ```python
 import hashlib
 print(hashlib.sha256(b"password").hexdigest())

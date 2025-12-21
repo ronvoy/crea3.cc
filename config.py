@@ -7,7 +7,8 @@ load_dotenv()
 class Config:
     """Base configuration"""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://143.225.28.74:8080/chat')
+    # CHAT_API_URL = os.environ.get('CHAT_API_URL', 'http://143.225.28.74:8080/chat')
+    CHAT_API_URL = os.environ.get('CHAT_API_URL', 'https://crea3_chatbot.idealunina.work/chat')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max request size
 
 class DevelopmentConfig(Config):

@@ -1,89 +1,50 @@
-# CREA Dashboard - Flask Application
+# CREA3 (Recreated) - Full-stack starter
 
-A modern Flask-based dashboard with authentication and chat widget.
+This is a *recreated* version of the CREA3 PoC app:
+- FastAPI + SQLModel backend
+- React + Vite + Tailwind frontend
+- Keycloak-based authentication (register, email verification, login, refresh)
+- Disputes: create/manage, agents, goods, preferences (bids/rates), proposal generation, acceptance, report PDF
 
-## Quick Start
+> Security note: refresh tokens are handled by the frontend in localStorage for simplicity.
+> For production, prefer httpOnly secure cookies + CSRF protection.
 
-```bash
-# Make script executable
-chmod +x setup.sh
+## Start Keycloak + Mailpit (recommended)
 
-# Run the script
-./setup.sh
-```
-
-## Default Credentials
-
-- Username: `admin`
-- Password: `admin123`
-
-## Features
-
-- User authentication with CSV storage
-- Chat widget with HTTP to HTTPS proxy
-- Responsive Bootstrap 5 design
-- Particle effects on login
-- Auto port detection (8081 local, 5000 production)
-
-## Manual Start
+This project includes a docker-compose bundle:
 
 ```bash
-source venv/bin/activate
-python3 passenger_wsgi.py
+docker compose up -d
 ```
 
-Access at: http://localhost:8081
+- Keycloak: http://localhost:8080
+- Mailpit inbox UI: http://localhost:8025
 
-## Production Deployment
+The realm `crea` is imported automatically, including:
+- public client `crea-frontend` (Direct Access Grants enabled)
+- service account client `crea-backend` (used by the backend to create users, mark emails verified, change passwords)
+
+## Run backend
 
 ```bash
-export FLASK_ENV=production
-export PORT=5000
-gunicorn -w 4 -b 0.0.0.0:5000 passenger_wsgi:application
+cd backend
+cp .env.example .env
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Project Structure
+For local email verification (SMTP), keep defaults in `backend/.env`:
+- SMTP host `localhost`, port `1025` (Mailpit)
 
-```
-├── passenger_wsgi.py       # Main application entry
-├── app.py                  # Flask app factory
-├── config.py              # Configuration
-├── routes/                # API routes
-│   ├── auth.py           # Authentication
-│   ├── chat.py           # Chat proxy
-│   └── main.py           # Main routes
-├── static/               # Static files
-│   ├── css/style.css    # Chat widget styles
-│   └── js/widget.js     # Chat widget JS
-├── templates/           # HTML templates
-│   └── index.html      # Main dashboard
-└── data/               # Data files
-    └── user.csv       # User credentials
+## Run frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-## Environment Variables
-
-Edit `.env` file:
-
-```env
-FLASK_ENV=development
-PORT=8081
-SECRET_KEY=your-secret-key
-CHAT_API_URL=https://crea3_chatbot.idealunina.work/chat
-```
-
-## Adding Users
-
-Edit `data/user.csv`:
-
-```csv
-id,username,password_hash
-2,newuser,<sha256_hash_of_password>
-```
-
-Generate hash:
-
-```python
-import hashlib
-print(hashlib.sha256(b"password").hexdigest())
-```
+Frontend defaults to API at http://localhost:8000

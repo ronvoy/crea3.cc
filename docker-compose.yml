@@ -83,8 +83,8 @@ services:
       SMTP_SSL: ${SMTP_SSL:-false}
     volumes:
       - ./scripts/keycloak:/scripts:ro
-    entrypoint: ["/bin/bash", "-lc"]
-    command: ["/scripts/apply-smtp.sh"]
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["cp /scripts/apply-smtp.sh /tmp/apply-smtp.sh && sed -i 's/\\r//g' /tmp/apply-smtp.sh && bash /tmp/apply-smtp.sh"]
 
   mailpit:
     image: axllent/mailpit:latest

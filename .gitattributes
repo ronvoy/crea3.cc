@@ -1,0 +1,2 @@
+# Always LF for shell scripts (prevents CRLF breaking Linux containers)
+*.sh text eol=lf

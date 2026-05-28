@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # If true, reject API calls when token has email_verified=false
     keycloak_require_verified_email: bool = True
 
+    email_verification_ttl_minutes: int = 60
+
     # SMTP settings (used to send verification emails during registration)
     smtp_host: str = "localhost"
     smtp_port: int = 1025

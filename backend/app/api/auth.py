@@ -73,9 +73,9 @@ def register(payload: RegisterIn, session: Session = Depends(get_session)):
         email=email,
         username=display_username,
         role="user",
-        is_verified=False,
-        verification_token=token,
-        token_expires=expires_at,
+        email_verified=False,
+        email_verification_token=token,
+        email_verification_expires_at=expires_at,
     )
     session.add(user)
     session.commit()
@@ -99,11 +99,11 @@ def verify_email(body: VerifyEmailIn, session: Session = Depends(get_session)) -
     The frontend sends: {"token": "..."}
     """
 
-    user = session.exec(select(User).where(User.verification_token == body.token)).first()
+    user = session.exec(select(User).where(User.email_verification_token == body.token)).first()
     if not user:
         raise HTTPException(status_code=400, detail="Invalid verification token")
 
-    if user.token_expires and user.token_expires.replace(tzinfo=timezone.utc) < _now_utc():
+    if user.email_verification_expires_at and user.email_verification_expires_at.replace(tzinfo=timezone.utc) < _now_utc():
         raise HTTPException(status_code=400, detail="Verification token expired")
 
     if not user.keycloak_sub:
@@ -117,9 +117,9 @@ def verify_email(body: VerifyEmailIn, session: Session = Depends(get_session)) -
     except KeycloakError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    user.is_verified = True
-    user.verification_token = None
-    user.token_expires = None
+    user.email_verified = True
+    user.email_verification_token = None
+    user.email_verification_expires_at = None
     session.add(user)
     session.commit()
 
@@ -148,7 +148,7 @@ def login(payload: LoginIn, session: Session = Depends(get_session)) -> TokenOut
             user = session.exec(select(User).where(User.email == _normalize_email(identifier))).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not user.is_verified:
+    if not user.email_verified:
         raise HTTPException(status_code=403, detail="Email address is not verified")
 
     kc_auth = KeycloakAuth.from_settings(settings)

@@ -6,7 +6,7 @@ from .db import init_db
 from sqlmodel import Session, select
 from .models import User
 from .core.security import hash_password
-from .api import auth, users, disputes, agents, goods, preferences, proposals, reports, notifications, strategy, ready, mediation, chat, metrics, stats, admin, admin_ui
+from .api import auth, users, disputes, agents, goods, preferences, proposals, reports, notifications, strategy, ready, mediation, chat, metrics, stats, admin, admin_ui, db_browser
 
 app = FastAPI(title="CREA3 Recreated API", version="0.1.0")
 
@@ -47,6 +47,7 @@ app.include_router(stats.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)
 app.include_router(admin_ui.router)
+app.include_router(db_browser.router)
 
 
 def seed_mock_mediators():

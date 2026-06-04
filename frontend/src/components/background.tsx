@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react'
+import { useA11y } from './a11y-provider'
 
 type Point = { x: number; y: number; vx: number; vy: number }
 
 export default function NetworkBackground({ fixed = true }: { fixed?: boolean }) {
+  const { reduceMotion } = useA11y()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const ptsRef = useRef<Point[]>([])
@@ -39,7 +41,7 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
       ptsRef.current = pts
     }
 
-    function draw() {
+    function draw(singleFrame: boolean = false) {
       const w = window.innerWidth
       const h = window.innerHeight
       // background gradient
@@ -97,17 +99,22 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
         ctx.fill()
       }
 
-      rafRef.current = requestAnimationFrame(draw)
+      if (!singleFrame) rafRef.current = requestAnimationFrame(() => draw(false))
     }
 
     resize()
-    draw()
+    if (reduceMotion) {
+      // Draw a single frame and stop (WCAG: reduced motion)
+      draw(true)
+    } else {
+      draw()
+    }
     window.addEventListener('resize', resize)
     return () => {
       window.removeEventListener('resize', resize)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [])
+  }, [reduceMotion])
 
   return (
     <div className={`${fixed ? 'fixed' : 'absolute'} inset-0 -z-10`}>

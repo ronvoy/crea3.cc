@@ -1,27 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from ..db import get_session
-from ..models import Dispute, DisputeAgent, Good, AuditEvent, User
-from ..schemas import DisputeCreateIn, DisputeOut
-from .deps import get_current_user
-def can_access_dispute(dispute_id: int, user: User, session: Session) -> Dispute:
-    """Authorization helper used by dispute endpoints.
 
-    - Admins can access any dispute.
-    - A dispute is accessible if the caller is the owner/creator or the assigned agent (when present).
-    """
-    dispute = session.get(Dispute, dispute_id)
-    if not dispute:
-        raise HTTPException(status_code=404, detail="Dispute not found")
-    if user.role == "admin":
-        return dispute
-    # Owner / creator
-    if getattr(dispute, "owner_id", None) == user.id:
-        return dispute
-    # Assigned agent (if any)
-    if getattr(dispute, "agent_id", None) == user.id:
-        return dispute
-    raise HTTPException(status_code=403, detail="Not allowed to access this dispute")
+from ..db import get_session
+from ..models import AuditEvent, Dispute, DisputeAgent, User
+from ..schemas import DisputeCreateIn, DisputeOut
+from .deps import can_access_dispute, get_current_user
 
 router = APIRouter(prefix="/api/disputes", tags=["disputes"])
 

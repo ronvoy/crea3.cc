@@ -15,7 +15,6 @@ def ensure_unlocked(dispute: Dispute):
 @router.get("")
 def get_strategy(dispute_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     dispute = can_access_dispute(dispute_id, user, session)
-    ensure_unlocked(dispute)
     participant = get_participant(dispute_id, user, session)
     # Mediators can view all strategies
     if participant and (participant.role_in_dispute == "mediator"):
@@ -29,10 +28,10 @@ def get_strategy(dispute_id: int, user: User = Depends(get_current_user), sessio
 
 @router.post("")
 def upsert_strategy(dispute_id: int, payload: StrategyUpsertIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    can_access_dispute(dispute_id, user, session)
-    participant = require_participant_role(dispute_id, user, session, deny_roles=("mediator",))
-    if not participant:
-        raise HTTPException(status_code=403, detail="Not a participant")
+    dispute = can_access_dispute(dispute_id, user, session)
+    ensure_unlocked(dispute)
+    participant = get_participant(dispute_id, user, session)
+    participant = require_participant_role(participant, deny_roles=("mediator",))
     existing = session.exec(select(Strategy).where(Strategy.dispute_id == dispute_id, Strategy.agent_id == participant.id)).first()
     if existing:
         existing.text = payload.text

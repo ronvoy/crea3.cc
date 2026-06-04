@@ -59,32 +59,38 @@ services:
 
   # One-shot job that configures SMTP on the realm from env vars.
   # Re-run it any time you change SMTP_* in .env:
-  #   docker compose up -d keycloak-init
+  #   docker compose up -d --force-recreate keycloak-init
   keycloak-init:
     image: quay.io/keycloak/keycloak:24.0.5
     depends_on:
       keycloak:
         condition: service_healthy
     restart: "no"
+
+    # ✅ FORCE load the project's .env into this container
+    env_file:
+      - ./.env
+
     environment:
       KEYCLOAK_INTERNAL_URL: http://keycloak:8080
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-crea}
 
-      # SMTP provider settings (Keycloak uses these to send verification emails)
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_FROM: ${SMTP_FROM:-no-reply@crea.local}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-CREA}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
-      SMTP_SSL: ${SMTP_SSL:-false}
+      # ✅ SMTP settings MUST come from .env (no silent defaults)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_STARTTLS: ${SMTP_STARTTLS}
+      SMTP_SSL: ${SMTP_SSL}
+
     volumes:
       - ./scripts/keycloak:/scripts:ro
-    entrypoint: ["/bin/bash", "-c"]
-    command: ["cp /scripts/apply-smtp.sh /tmp/apply-smtp.sh && sed -i 's/\\r//g' /tmp/apply-smtp.sh && bash /tmp/apply-smtp.sh"]
+    entrypoint: ["/bin/bash", "-lc"]
+    command: ["/scripts/apply-smtp.sh"]
 
   mailpit:
     image: axllent/mailpit:latest

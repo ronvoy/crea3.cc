@@ -34,6 +34,7 @@ docker run --rm \
   -v "$SCRIPT_DIR/backend":/app \
   --env-file "$SCRIPT_DIR/backend/.env" \
   -e KEYCLOAK_URL=http://keycloak:8080 \
+  -e KEYCLOAK_PUBLIC_URL=http://localhost:8080 \
   -e SMTP_HOST=mailpit \
   -e SMTP_PORT=1025 \
   crea3-backend

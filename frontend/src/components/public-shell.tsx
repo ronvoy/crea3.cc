@@ -1,16 +1,20 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import Background from "./background";
+import SkipLink from "./skip-link";
 import SiteFooter from "./site-footer";
 import { Button } from "./ui";
 import { useAuth } from "../store/auth";
+import { useI18n } from "../i18n";
 
 export default function PublicShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const loc = useLocation();
+  const { t } = useI18n();
 
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <SkipLink />
       <Background />
       <div className="relative z-10 flex min-h-screen flex-col">
         <header className="px-4 pt-6">

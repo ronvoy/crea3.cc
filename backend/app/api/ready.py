@@ -10,9 +10,8 @@ router = APIRouter(prefix="/api/disputes/{dispute_id}/ready", tags=["ready"])
 @router.post("")
 def set_ready(dispute_id: int, payload: ReadyIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     dispute = can_access_dispute(dispute_id, user, session)
-    participant = require_participant_role(dispute_id, user, session, deny_roles=("mediator",))
-    if not participant:
-        raise HTTPException(status_code=403, detail="Not a participant")
+    participant = get_participant(dispute_id, user, session)
+    participant = require_participant_role(participant, deny_roles=("mediator",))
     participant.ready = bool(payload.ready)
     session.add(participant)
     session.add(AuditEvent(dispute_id=dispute_id, actor_user_id=user.id, event_type="ParticipantReadySet", payload={"ready": participant.ready, "agent_id": participant.id}))

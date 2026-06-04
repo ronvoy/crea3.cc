@@ -221,3 +221,20 @@ class NotificationInviteOut(_ORMModel):
     token: str
     accepted: bool
     created_at: datetime
+
+
+class InvitationOut(_ORMModel):
+    agent_id: int
+    dispute_id: int
+    dispute_title: str
+    invited_as: str
+    invite_status: str
+    entitlement_share: float
+    invited_at: datetime
+    invited_by_email: Optional[str] = None
+    invited_by_username: Optional[str] = None
+
+
+class InvitationRespondIn(BaseModel):
+    accept: bool
+    comment: Optional[str] = Field(default=None, max_length=2000)

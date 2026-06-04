@@ -1,50 +1,98 @@
-# CREA3 (Recreated) - Full-stack starter
+# CREA Platform (Keycloak-first) — Local Runbook (Windows-friendly)
 
-This is a *recreated* version of the CREA3 PoC app:
-- FastAPI + SQLModel backend
-- React + Vite + Tailwind frontend
-- Keycloak-based authentication (register, email verification, login, refresh)
-- Disputes: create/manage, agents, goods, preferences (bids/rates), proposal generation, acceptance, report PDF
+This project uses **Keycloak** for:
+- Public registration
+- Email verification (mandatory)
+- Login (OIDC Authorization Code Flow / PKCE)
 
-> Security note: refresh tokens are handled by the frontend in localStorage for simplicity.
-> For production, prefer httpOnly secure cookies + CSRF protection.
+✅ **Email provider is configurable** (Mailpit / Gmail / Postmark / SES / SendGrid / etc.).  
+Keycloak is the source of truth for verification emails.
 
-## Start Keycloak + Mailpit (recommended)
+---
 
-This project includes a docker-compose bundle:
+## 0) Configure SMTP provider (optional, but recommended)
 
-```bash
-docker compose up -d
+Copy the root env file:
+
+```powershell
+copy .env.example .env
 ```
 
-- Keycloak: http://localhost:8080
-- Mailpit inbox UI: http://localhost:8025
+By default, `.env.example` uses **Mailpit** (local inbox UI).  
+To switch provider, edit `.env` using one of the examples in `env/*.env.example`.
 
-The realm `crea` is imported automatically, including:
-- public client `crea-frontend` (Direct Access Grants enabled)
-- service account client `crea-backend` (used by the backend to create users, mark emails verified, change passwords)
+After changing SMTP settings, re-apply them to Keycloak:
 
-## Run backend
+```powershell
+docker compose up -d keycloak-init
+```
 
-```bash
+---
+
+## 1) Start infrastructure (Keycloak + Postgres + Mailpit)
+
+From the project root (where `docker-compose.yml` is), run:
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+Or use the helper script:
+
+```powershell
+.\scripts\windows\start-local.ps1
+```
+
+Key URLs:
+- Keycloak Admin: `http://localhost:8080/admin` (admin/admin)
+- Mailpit Inbox: `http://localhost:8025`
+
+> If Keycloak is not Up yet: `docker compose logs -f keycloak`
+
+---
+
+## 2) Run backend
+
+```powershell
 cd backend
-cp .env.example .env
+copy .env.example .env
+
 python -m venv .venv
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-For local email verification (SMTP), keep defaults in `backend/.env`:
-- SMTP host `localhost`, port `1025` (Mailpit)
+Backend: `http://127.0.0.1:8000`
 
-## Run frontend
+---
 
-```bash
+## 3) Run frontend
+
+```powershell
 cd frontend
+copy .env.example .env
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Frontend defaults to API at http://localhost:8000
+Frontend: `http://localhost:5173`
+
+---
+
+## 4) Test the verification flow
+
+### Using Mailpit (default)
+1. Open `http://localhost:5173/register` → redirects to Keycloak
+2. Register a user
+3. Open `http://localhost:8025` (Mailpit) and click the verification email link
+4. Login at `http://localhost:5173/login`
+5. Use the app
+
+### Using a real provider (e.g., Gmail)
+1. Set SMTP in `.env` (see `env/gmail.env.example`)
+2. Run: `docker compose up -d keycloak-init`
+3. Register a user → verify via the real email
+
+The backend rejects requests if the token claim `email_verified=false`.

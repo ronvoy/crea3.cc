@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './app'
 import './index.css'
 
+import { A11yProvider } from './components/a11y-provider'
+import { I18nProvider } from './i18n'
+import SettingsDock from './components/settings-dock'
+
 import { keycloak } from './keycloak'
 import { useAuth } from './store/auth'
 
@@ -44,9 +48,14 @@ async function boot() {
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <A11yProvider>
+        <I18nProvider>
+          <BrowserRouter>
+            <SettingsDock />
+            <App />
+          </BrowserRouter>
+        </I18nProvider>
+      </A11yProvider>
     </React.StrictMode>,
   )
 }

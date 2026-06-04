@@ -6,6 +6,14 @@
   "verifyEmail": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "agent", "description": "Dispute participant / agent" },
+      { "name": "mediator", "description": "Read-only mediator (proposal only)" },
+      { "name": "admin", "description": "Platform administrator" }
+    ]
+  },
   "clients": [
     {
       "clientId": "crea-frontend",
@@ -16,25 +24,13 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": [
-        "http://localhost:5173/*"
-      ],
-      "webOrigins": [
-        "http://localhost:5173"
-      ],
-      "baseUrl": "http://localhost:5173",
-      "rootUrl": "http://localhost:5173",
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "defaultClientScopes": ["profile", "email", "roles", "web-origins"],
+      "optionalClientScopes": ["offline_access"],
       "attributes": {
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*"
-      },
-      "defaultClientScopes": [
-        "profile",
-        "email"
-      ],
-      "optionalClientScopes": [
-        "roles"
-      ]
+        "pkce.code.challenge.method": "S256"
+      }
     },
     {
       "clientId": "crea-backend",
@@ -45,7 +41,21 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
+      "secret": "change-me",
+      "defaultClientScopes": ["profile", "email", "roles"],
+      "optionalClientScopes": ["offline_access"],
       "attributes": {}
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-crea-backend",
+      "enabled": true,
+      "emailVerified": true,
+      "serviceAccountClientId": "crea-backend",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users", "query-users", "manage-realm"]
+      }
     }
   ]
 }

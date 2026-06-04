@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useI18n, type I18nKey } from '../i18n'
 import { Button, Card, CardHeader, Pill } from '../components/ui'
 import NetworkBackground from '../components/background'
 import SiteFooter from '../components/site-footer'
@@ -90,15 +91,9 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="rounded-3xl bg-white/5 border border-white/15 p-5 md:p-6">
-              <div className="text-sm font-semibold">Workflow at a glance</div>
-              <div className="mt-4 grid gap-3">
-                <Step n="1" title="Create a dispute" text="Choose Bids or Rates. Add goods & estimated values." />
-                <Step n="2" title="Invite parties and mediators" text="Add email addresses. Participants can accept invitations from their notifications." />
-                <Step n="3" title="Collect strategy + preferences" text="Each party submits notes + bids/stars per good." />
-                <Step n="4" title="Proposal → accept or decline" text="If declined, mediation opens with conferencing tools." />
-              </div>
-            </div>
+	            <div className="rounded-3xl bg-white/5 border border-white/15 p-5 md:p-6">
+	              <WorkflowCarousel />
+	            </div>
           </div>
         </div>
       </div>
@@ -166,6 +161,241 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
         <div className="font-semibold">{title}</div>
       </div>
       <div className="mt-1 text-sm text-white/80">{text}</div>
+    </div>
+  )
+}
+
+type WorkflowSlideDef = {
+  id: number
+  titleKey: I18nKey
+  descriptionKey: I18nKey
+  imageSrc: string
+  imageAltKey: I18nKey
+}
+
+type WorkflowSlide = {
+  id: number
+  title: string
+  description: string
+  imageSrc: string
+  imageAlt: string
+}
+
+const WORKFLOW_SLIDES: WorkflowSlideDef[] = [
+  {
+    id: 1,
+    titleKey: 'landingWorkflowStep1Title',
+    descriptionKey: 'landingWorkflowStep1Desc',
+    imageSrc: '/workflow/dispute.png',
+    imageAltKey: 'landingWorkflowStep1Alt',
+  },
+  {
+    id: 2,
+    titleKey: 'landingWorkflowStep2Title',
+    descriptionKey: 'landingWorkflowStep2Desc',
+    imageSrc: '/workflow/invite-party.webp',
+    imageAltKey: 'landingWorkflowStep2Alt',
+  },
+  {
+    id: 3,
+    titleKey: 'landingWorkflowStep3Title',
+    descriptionKey: 'landingWorkflowStep3Desc',
+    imageSrc: '/workflow/mediation-strategy.webp',
+    imageAltKey: 'landingWorkflowStep3Alt',
+  },
+  {
+    id: 4,
+    titleKey: 'landingWorkflowStep4Title',
+    descriptionKey: 'landingWorkflowStep4Desc',
+    imageSrc: '/workflow/proposal.webp',
+    imageAltKey: 'landingWorkflowStep4Alt',
+  },
+]
+
+function WorkflowCarousel() {
+  const { t } = useI18n()
+  const slides: WorkflowSlide[] = useMemo(
+    () =>
+      WORKFLOW_SLIDES.map((s) => ({
+        id: s.id,
+        title: t(s.titleKey),
+        description: t(s.descriptionKey),
+        imageSrc: s.imageSrc,
+        imageAlt: t(s.imageAltKey),
+      })),
+    [t]
+  )
+  const total = slides.length
+
+  const [active, setActive] = useState(0)
+  const intervalRef = useRef<number | null>(null)
+  const wheelLockRef = useRef(0)
+  const pointerStartX = useRef<number | null>(null)
+
+  const stop = useCallback(() => {
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+  }, [])
+
+  const start = useCallback(() => {
+    stop()
+    intervalRef.current = window.setInterval(() => {
+      setActive((i) => (i + 1) % total)
+    }, 3000)
+  }, [stop, total])
+
+  const step = useCallback(
+    (delta: number) => {
+      setActive((i) => (i + delta + total) % total)
+      start() // reset autoplay after user interaction
+    },
+    [start, total]
+  )
+
+  const goTo = useCallback(
+    (index: number) => {
+      setActive(((index % total) + total) % total)
+      start() // reset autoplay after user interaction
+    },
+    [start, total]
+  )
+
+  useEffect(() => {
+    start()
+    return stop
+  }, [start, stop])
+
+  const onWheel = (e: React.WheelEvent) => {
+    // Only treat horizontal scroll gestures (trackpads) or Shift+wheel as navigation.
+    const delta = e.deltaX !== 0 ? e.deltaX : e.shiftKey ? e.deltaY : 0
+    if (delta === 0) return
+    if (Math.abs(delta) < 20) return
+
+    const now = Date.now()
+    if (now - wheelLockRef.current < 650) return
+    wheelLockRef.current = now
+    delta > 0 ? step(1) : step(-1)
+  }
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    pointerStartX.current = e.clientX
+    stop()
+  }
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const startX = pointerStartX.current
+    pointerStartX.current = null
+
+    if (startX === null) {
+      start()
+      return
+    }
+
+    const dx = e.clientX - startX
+    if (Math.abs(dx) >= 70) {
+      dx < 0 ? step(1) : step(-1)
+      return
+    }
+
+    start()
+  }
+
+  return (
+    <div
+      className="select-none"
+      onWheel={onWheel}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => {
+        pointerStartX.current = null
+        start()
+      }}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          step(-1)
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          step(1)
+        }
+      }}
+      aria-label="Workflow carousel"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold">{t('landingWorkflowHeading')}</div>
+        <div className="text-xs text-white/60 hidden sm:block">{t('landingWorkflowHint')}</div>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/10">
+        <div
+          className="flex transition-transform duration-700 ease-out"
+          style={{ transform: `translateX(-${active * 100}%)` }}
+        >
+          {slides.map((s, i) => (
+            <div key={s.id} className="w-full shrink-0">
+              <div className="relative h-52 md:h-56">
+                <img
+                  src={s.imageSrc}
+                  alt={s.imageAlt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
+                  <div className="text-white">
+                    <div className="text-lg font-semibold leading-snug">{s.title}</div>
+                  </div>
+                  <Pill className="bg-white/10 border border-white/15 text-white/80">{i + 1} / {total}</Pill>
+                </div>
+              </div>
+              <div className="p-4">
+                <p className="text-sm leading-relaxed text-white/80">{s.description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Go to step ${i + 1}`}
+              onClick={() => goTo(i)}
+              className={
+                `h-2 w-2 rounded-full transition-all ${
+                  i === active ? 'bg-white/80 scale-110' : 'bg-white/25 hover:bg-white/40'
+                }`
+              }
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            className="h-9 w-9 rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/15 p-0"
+            onClick={() => step(-1)}
+            aria-label="Previous step"
+          >
+            ‹
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-9 w-9 rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/15 p-0"
+            onClick={() => step(1)}
+            aria-label="Next step"
+          >
+            ›
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

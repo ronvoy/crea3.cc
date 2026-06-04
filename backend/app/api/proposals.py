@@ -1,234 +1,79 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session, select
-from hashlib import sha256
-from typing import Dict, Any, List
 
 from ..db import get_session
-from ..models import (
-    Dispute,
-    DisputeAgent,
-    Good,
-    Preference,
-    Strategy,
-    AllocationProposal,
-    Acceptance,
-    AuditEvent,
-    User,
-)
-from ..schemas import ProposalOut, AcceptIn
+from ..models import Acceptance, AllocationProposal, AuditEvent, Dispute, DisputeAgent, User
+from ..schemas import ProposalOut
+from ..services.proposals_service import ensure_latest_proposal
 from .deps import get_current_user, can_access_dispute
 
 router = APIRouter(prefix="/api/disputes/{dispute_id}/proposals", tags=["proposals"])
 
 
-def _inputs_hash(payload: Dict[str, Any]) -> str:
-    raw = sha256(repr(payload).encode("utf-8")).hexdigest()
-    return raw
+class AcceptIn(BaseModel):
+    accepted: bool
+    comment: str | None = None
 
 
-def _build_inputs(dispute_id: int, session: Session) -> Dict[str, Any]:
-    dispute = session.get(Dispute, dispute_id)
-    if not dispute:
-        raise HTTPException(status_code=404, detail="Dispute not found")
-
-    agents = session.exec(select(DisputeAgent).where(DisputeAgent.dispute_id == dispute_id)).all()
-    goods = session.exec(select(Good).where(Good.dispute_id == dispute_id)).all()
-    prefs = session.exec(select(Preference).where(Preference.dispute_id == dispute_id)).all()
-    strategies = session.exec(select(Strategy).where(Strategy.dispute_id == dispute_id)).all()
-
-    return {
-        "dispute": {"id": dispute.id, "method": dispute.method, "status": dispute.status},
-        "agents": [
-            {
-                "id": a.id,
-                "email": a.email,
-                "name": a.name,
-                "share": a.share,
-                "role": a.role_in_dispute,
-                "invite_status": a.invite_status,
-                "ready": a.ready,
-            }
-            for a in agents
-        ],
-        "goods": [
-            {
-                "id": g.id,
-                "name": g.name,
-                "estimated_value": g.estimated_value,
-                "indivisible": g.indivisible,
-                "meta": g.meta or {},
-            }
-            for g in goods
-        ],
-        "preferences": [
-            {
-                "id": p.id,
-                "agent_id": p.agent_id,
-                "good_id": p.good_id,
-                "method": p.method,
-                "score": p.score,
-            }
-            for p in prefs
-        ],
-        "strategies": [{"agent_id": s.agent_id, "text": s.text} for s in strategies],
-    }
-
-
-def _require_all_ready(agents: List[DisputeAgent]) -> None:
-    blocking = []
-    for a in agents:
-        if (a.role_in_dispute or "agent") == "mediator":
-            continue
-        if a.invite_status != "joined":
-            blocking.append({"agent_id": a.id, "email": a.email, "reason": "not_joined"})
-        elif not a.ready:
-            blocking.append({"agent_id": a.id, "email": a.email, "reason": "preferences_missing"})
-    if blocking:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": "Proposal requires all parties to join and submit preferences.",
-                "blocking": blocking,
-            },
+def _get_participant_any(dispute_id: int, user: User, session: Session) -> DisputeAgent | None:
+    # Works both for linked (user_id) and email-only invitations.
+    return session.exec(
+        select(DisputeAgent).where(
+            DisputeAgent.dispute_id == dispute_id,
+            ((DisputeAgent.user_id == user.id) | (DisputeAgent.email == user.email)),
         )
+    ).first()
 
 
-def _compute_allocation(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    goods = inputs["goods"]
-    agents = inputs["agents"]
-    prefs = inputs["preferences"]
-
-    # Map (good_id, agent_id) -> score
-    pref_map: Dict[tuple[int, int], float] = {}
-    for p in prefs:
-        key = (int(p["good_id"]), int(p["agent_id"]))
-        pref_map[key] = float(p["score"] or 0.0)
-
-    allocations = []
-    utility: Dict[int, float] = {int(a["id"]): 0.0 for a in agents}
-
-    for g in goods:
-        gid = int(g["id"])
-        # choose best agent by score
-        best_agent_id = None
-        best_score = None
-        for a in agents:
-            if (a.get("role") or "agent") == "mediator":
-                continue
-            aid = int(a["id"])
-            score = pref_map.get((gid, aid), 0.0)
-            if best_score is None or score > best_score:
-                best_score = score
-                best_agent_id = aid
-
-        if best_agent_id is None:
-            continue
-
-        allocations.append({"good_id": gid, "assigned_agent_id": best_agent_id})
-        utility[best_agent_id] += float(best_score or 0.0)
-
-    # Basic fairness metrics
-    util_vals = list(utility.values()) or [0.0]
-    metrics = {
-        "utility_total": float(sum(util_vals)),
-        "utility_min": float(min(util_vals)),
-        "utility_max": float(max(util_vals)),
-    }
-
-    explanation = (
-        "This proposal is computed by assigning each good to the party who expressed the highest "
-        "preference score for that good (Bids/Rates). It is a baseline allocation intended for pilot use."
-    )
-
-    return {"allocations": allocations, "utility": utility, "metrics": metrics, "explanation": explanation}
+def _ensure_not_mediator(user: User, participant: DisputeAgent | None) -> None:
+    if getattr(user, "role", None) == "mediator":
+        raise HTTPException(status_code=403, detail="Mediators can only view proposals.")
+    if participant and (participant.role_in_dispute or "").lower() == "mediator":
+        raise HTTPException(status_code=403, detail="Mediators can only view proposals.")
 
 
 @router.get("", response_model=list[ProposalOut])
 def list_proposals(dispute_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    # allow mediator to list proposals (but nothing else)
     can_access_dispute(dispute_id, user, session)
+
+    # If a realm-level mediator is trying to access, ensure they are actually invited as mediator.
+    if getattr(user, "role", None) == "mediator":
+        participant = _get_participant_any(dispute_id, user, session)
+        if not participant or (participant.role_in_dispute or "").lower() != "mediator":
+            raise HTTPException(status_code=403, detail="Mediator access denied for this dispute.")
+
     props = session.exec(
-        select(AllocationProposal).where(AllocationProposal.dispute_id == dispute_id).order_by(AllocationProposal.id.desc())
+        select(AllocationProposal)
+        .where(AllocationProposal.dispute_id == dispute_id)
+        .order_by(AllocationProposal.created_at.desc())
     ).all()
-    return [
-        ProposalOut(
-            id=p.id,
-            dispute_id=p.dispute_id,
-            algorithm_version=p.algorithm_version,
-            outputs=p.outputs,
-            metrics=p.metrics,
-            explanation=p.explanation,
-            created_at=p.created_at,
-        )
-        for p in props
-    ]
+    return props
 
 
 @router.post("", response_model=ProposalOut)
 def generate_proposal(dispute_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     dispute = can_access_dispute(dispute_id, user, session)
-    # Only dispute creator/admin can generate
-    if user.role != "admin" and dispute.created_by_id != user.id:
-        raise HTTPException(status_code=403, detail="Not permitted to generate a proposal")
+    participant = _get_participant_any(dispute_id, user, session)
 
-    agents = session.exec(select(DisputeAgent).where(DisputeAgent.dispute_id == dispute_id)).all()
-    _require_all_ready(agents)
+    _ensure_not_mediator(user, participant)
 
-    inputs = _build_inputs(dispute_id, session)
-    ihash = _inputs_hash(inputs)
+    is_owner_or_admin = getattr(user, "role", None) == "admin" or dispute.created_by_id == user.id
+    if not is_owner_or_admin:
+        # only joined agents can trigger generation
+        if not participant or participant.invite_status != "joined":
+            raise HTTPException(status_code=403, detail="You must accept the invite first.")
+        if (participant.role_in_dispute or "agent").lower() != "agent":
+            raise HTTPException(status_code=403, detail="Not allowed.")
 
-    existing = session.exec(
-        select(AllocationProposal).where(
-            AllocationProposal.dispute_id == dispute_id,
-            AllocationProposal.inputs_hash == ihash,
-        )
-    ).first()
-    if existing:
-        return ProposalOut(
-            id=existing.id,
-            dispute_id=existing.dispute_id,
-            algorithm_version=existing.algorithm_version,
-            outputs=existing.outputs,
-            metrics=existing.metrics,
-            explanation=existing.explanation,
-            created_at=existing.created_at,
-        )
-
-    result = _compute_allocation(inputs)
-
-    proposal = AllocationProposal(
-        dispute_id=dispute_id,
-        algorithm_version="v12-baseline",
-        inputs_hash=ihash,
-        outputs={"allocations": result["allocations"], "utility": result["utility"]},
-        metrics=result["metrics"],
-        explanation=result["explanation"],
-    )
-    session.add(proposal)
-    session.commit()
-    session.refresh(proposal)
-
-    # initialize acceptances
-    for a in agents:
-        if (a.role_in_dispute or "agent") == "mediator":
-            continue
-        session.add(Acceptance(proposal_id=proposal.id, agent_id=a.id, accepted=False))
-    session.add(AuditEvent(dispute_id=dispute_id, actor_user_id=user.id, action="proposal_generated", payload={"proposal_id": proposal.id}))
-    # mark dispute status
-    dispute.status = "proposed"
-    session.add(dispute)
-    session.commit()
-
-    return ProposalOut(
-        id=proposal.id,
-        dispute_id=proposal.dispute_id,
-        algorithm_version=proposal.algorithm_version,
-        outputs=proposal.outputs,
-        metrics=proposal.metrics,
-        explanation=proposal.explanation,
-        created_at=proposal.created_at,
-    )
+    try:
+        proposal = ensure_latest_proposal(session, dispute_id=dispute_id, actor_user_id=user.id, require_min_ready=2)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return proposal
 
 
 @router.post("/{proposal_id}/accept")
@@ -239,30 +84,71 @@ def accept_proposal(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    can_access_dispute(dispute_id, user, session)
-    agent = session.exec(
-        select(DisputeAgent).where(DisputeAgent.dispute_id == dispute_id, DisputeAgent.email == user.email)
+    dispute = can_access_dispute(dispute_id, user, session)
+    participant = _get_participant_any(dispute_id, user, session)
+    _ensure_not_mediator(user, participant)
+
+    if not participant or participant.invite_status != "joined":
+        raise HTTPException(status_code=403, detail="You must accept the invite first.")
+
+    # Proposal exists and belongs to dispute
+    proposal = session.get(AllocationProposal, proposal_id)
+    if not proposal or proposal.dispute_id != dispute_id:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    existing = session.exec(
+        select(Acceptance).where(Acceptance.proposal_id == proposal_id, Acceptance.agent_id == participant.id)
     ).first()
-    if not agent:
-        raise HTTPException(status_code=403, detail="Only dispute parties may accept/decline")
 
-    acc = session.exec(select(Acceptance).where(Acceptance.proposal_id == proposal_id, Acceptance.agent_id == agent.id)).first()
-    if not acc:
-        raise HTTPException(status_code=404, detail="Acceptance row not found")
+    if existing:
+        existing.accepted = bool(payload.accepted)
+        existing.comment = payload.comment
+        session.add(existing)
+    else:
+        session.add(
+            Acceptance(
+                proposal_id=proposal_id,
+                agent_id=participant.id,
+                accepted=bool(payload.accepted),
+                comment=payload.comment,
+            )
+        )
 
-    acc.accepted = bool(payload.accepted)
-    acc.comment = payload.comment
-    session.add(acc)
+    session.add(
+        AuditEvent(
+            dispute_id=dispute_id,
+            actor_user_id=user.id,
+            event_type="ProposalAccepted" if payload.accepted else "ProposalRejected",
+            payload={"proposal_id": proposal_id, "accepted": bool(payload.accepted)},
+        )
+    )
+
     session.commit()
 
-    # if all accepted -> mark dispute accepted
-    all_acc = session.exec(select(Acceptance).where(Acceptance.proposal_id == proposal_id)).all()
-    if all(a.accepted for a in all_acc) and all_acc:
-        dispute = session.get(Dispute, dispute_id)
-        if dispute:
-            dispute.status = "accepted"
-            session.add(dispute)
-            session.add(AuditEvent(dispute_id=dispute_id, actor_user_id=user.id, action="proposal_accepted_all", payload={"proposal_id": proposal_id}))
-            session.commit()
+    # Mark dispute as accepted when all joined non-mediator agents accepted
+    joined_agents = session.exec(
+        select(DisputeAgent).where(
+            DisputeAgent.dispute_id == dispute_id,
+            DisputeAgent.invite_status == "joined",
+        )
+    ).all()
+    joined_agents = [a for a in joined_agents if (a.role_in_dispute or "agent").lower() != "mediator"]
+
+    if joined_agents:
+        accs = session.exec(select(Acceptance).where(Acceptance.proposal_id == proposal_id)).all()
+        acc_by_agent = {a.agent_id: a for a in accs}
+        if all(acc_by_agent.get(a.id) and acc_by_agent[a.id].accepted for a in joined_agents):
+            if dispute.status != "accepted":
+                dispute.status = "accepted"
+                session.add(dispute)
+                session.add(
+                    AuditEvent(
+                        dispute_id=dispute_id,
+                        actor_user_id=user.id,
+                        event_type="DisputeAcceptedAll",
+                        payload={"proposal_id": proposal_id},
+                    )
+                )
+                session.commit()
 
     return {"ok": True}

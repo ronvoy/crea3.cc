@@ -59,7 +59,6 @@ class KeycloakAdmin:
         The wrapper already reads configuration from `app.core.config.settings`,
         so we can safely ignore the passed argument.
         """
-
         return cls()
 
     def _client(self) -> httpx.Client:
@@ -76,11 +75,11 @@ class KeycloakAdmin:
                         "client_secret": settings.keycloak_admin_client_secret,
                     },
                 )
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             raise KeycloakConnectionError(
                 f"Cannot connect to Keycloak token endpoint at {self._token_url}. Is Keycloak running and reachable?"
             )
-        except httpx.RequestError as e:
+        except httpx.RequestError:
             raise KeycloakConnectionError(
                 f"Request to Keycloak token endpoint failed ({self._token_url})."
             )
@@ -96,10 +95,13 @@ class KeycloakAdmin:
             )
         return token
 
-
     def _headers(self) -> dict[str, str]:
         token = self._get_admin_access_token()
         return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # ---------------------------------------------------------------------
+    # Existing methods (kept for compatibility)
+    # ---------------------------------------------------------------------
 
     def create_user(self, *, email: str, username: str, password: str, enabled: bool = True) -> str:
         payload = {
@@ -134,8 +136,7 @@ class KeycloakAdmin:
         return location.rstrip("/").split("/")[-1]
 
     def enable_and_verify_email(self, user_id: str) -> None:
-        # Update representation (partial update via PUT works; Keycloak expects full-ish object.
-        # We send only the fields we need; Keycloak accepts it.
+        # Partial update is accepted by Keycloak.
         payload = {"enabled": True, "emailVerified": True}
         with self._client() as client:
             r = client.put(
@@ -146,7 +147,13 @@ class KeycloakAdmin:
         if r.status_code >= 400:
             raise KeycloakAuthError(f"Failed to update user: {r.status_code} {r.text}")
 
-    def send_verify_email(self, user_id: str, *, client_id: str | None = None, redirect_uri: str | None = None) -> None:
+    def send_verify_email(
+        self,
+        user_id: str,
+        *,
+        client_id: str | None = None,
+        redirect_uri: str | None = None,
+    ) -> None:
         """Trigger Keycloak to send a verification email to the user.
 
         Notes:
@@ -212,6 +219,128 @@ class KeycloakAdmin:
             raise KeycloakAuthError(f"Failed to read user: {r.status_code} {r.text}")
         return bool(r.json().get("enabled"))
 
+    # ---------------------------------------------------------------------
+    # New methods: role assignment + invite email via execute-actions-email
+    # ---------------------------------------------------------------------
+
+    def create_user_without_password(self, *, email: str, username: str, enabled: bool = True) -> str:
+        """Create a Keycloak user without setting a password.
+
+        Password will be set by Keycloak required-action (UPDATE_PASSWORD).
+        """
+        payload = {
+            "username": username,
+            "email": email,
+            "enabled": enabled,
+            "emailVerified": False,
+        }
+
+        with self._client() as client:
+            r = client.post(
+                f"{self._admin_base}/users",
+                headers=self._headers(),
+                json=payload,
+            )
+
+        if r.status_code == 409:
+            raise KeycloakAuthError("A user with this email/username already exists")
+        if r.status_code >= 400:
+            raise KeycloakAuthError(f"Failed to create user: {r.status_code} {r.text}")
+
+        location = r.headers.get("Location", "")
+        if not location:
+            raise KeycloakAuthError("Keycloak did not return user Location header")
+        return location.rstrip("/").split("/")[-1]
+
+    def _get_realm_role_representation(self, role_name: str) -> dict:
+        with self._client() as client:
+            r = client.get(
+                f"{self._admin_base}/roles/{role_name}",
+                headers=self._headers(),
+            )
+        if r.status_code == 404:
+            raise KeycloakAuthError(f"Realm role not found: {role_name}")
+        if r.status_code >= 400:
+            raise KeycloakAuthError(f"Failed to read realm role: {r.status_code} {r.text}")
+        role = r.json()
+        if not isinstance(role, dict) or "name" not in role:
+            raise KeycloakUnexpectedResponse("Invalid realm role representation from Keycloak.")
+        return role
+
+    def assign_realm_role(self, user_id: str, role_name: str) -> None:
+        """Assign a realm role (e.g. agent/mediator) to a user."""
+        role = self._get_realm_role_representation(role_name)
+        with self._client() as client:
+            r = client.post(
+                f"{self._admin_base}/users/{user_id}/role-mappings/realm",
+                headers=self._headers(),
+                json=[role],
+            )
+        if r.status_code >= 400:
+            raise KeycloakAuthError(f"Failed to assign realm role: {r.status_code} {r.text}")
+
+    def execute_actions_email(
+        self,
+        user_id: str,
+        *,
+        actions: list[str],
+        client_id: str | None = None,
+        redirect_uri: str | None = None,
+    ) -> None:
+        """Send an email containing required actions (UPDATE_PASSWORD, VERIFY_EMAIL, etc.).
+
+        Keycloak endpoint: PUT /users/{id}/execute-actions-email
+        """
+        params: dict[str, str] = {}
+        if client_id:
+            params["client_id"] = client_id
+        if redirect_uri:
+            params["redirect_uri"] = redirect_uri
+
+        with self._client() as client:
+            r = client.put(
+                f"{self._admin_base}/users/{user_id}/execute-actions-email",
+                headers=self._headers(),
+                params=params or None,
+                json=actions,
+            )
+        if r.status_code >= 400:
+            raise KeycloakAuthError(f"Failed to send execute-actions-email: {r.status_code} {r.text}")
+
+    def ensure_user_with_role_and_invite(
+        self,
+        *,
+        email: str,
+        role_name: str,
+        username: str | None = None,
+        client_id: str | None = None,
+        redirect_uri: str | None = None,
+        actions: list[str] | None = None,
+    ) -> str:
+        """Ensure user exists, has realm role, then send invite email (required actions)."""
+        u = self.find_user_by_email(email)
+        if u and isinstance(u, dict):
+            user_id = u.get("id")
+            if not user_id:
+                raise KeycloakUnexpectedResponse("Keycloak user payload missing id")
+        else:
+            user_id = self.create_user_without_password(
+                email=email,
+                username=username or email,
+                enabled=True,
+            )
+
+        # role assignment
+        self.assign_realm_role(user_id, role_name)
+
+        # invite email
+        self.execute_actions_email(
+            user_id,
+            actions=actions or ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+        )
+        return user_id
 
     # ---------------------------------------------------------------------
     # Additional helpers (used by account management endpoints)
@@ -295,11 +424,11 @@ class KeycloakAuth:
         try:
             with self._client() as client:
                 r = client.post(self._token_url, data=data)
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             raise KeycloakConnectionError(
                 f"Cannot connect to Keycloak token endpoint at {self._token_url}. Is Keycloak running and reachable?"
             )
-        except httpx.RequestError as e:
+        except httpx.RequestError:
             raise KeycloakConnectionError(
                 f"Request to Keycloak token endpoint failed ({self._token_url})."
             )
@@ -325,11 +454,11 @@ class KeycloakAuth:
         try:
             with self._client() as client:
                 r = client.post(self._token_url, data=data)
-        except httpx.ConnectError as e:
+        except httpx.ConnectError:
             raise KeycloakConnectionError(
                 f"Cannot connect to Keycloak token endpoint at {self._token_url}. Is Keycloak running and reachable?"
             )
-        except httpx.RequestError as e:
+        except httpx.RequestError:
             raise KeycloakConnectionError(
                 f"Request to Keycloak token endpoint failed ({self._token_url})."
             )

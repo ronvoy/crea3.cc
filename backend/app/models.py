@@ -51,17 +51,26 @@ class Dispute(SQLModel, table=True):
     goods: List["Good"] = Relationship(back_populates="dispute")
     proposals: List["AllocationProposal"] = Relationship(back_populates="dispute")
     audit_events: List["AuditEvent"] = Relationship(back_populates="dispute")
-
 class DisputeAgent(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("dispute_id", "email", name="uq_dispute_agent_email"),)
     id: Optional[int] = Field(default=None, primary_key=True)
+
     dispute_id: int = Field(foreign_key="dispute.id", index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+
     name: str
     email: str = Field(index=True)
+
     entitlement_share: float = Field(default=0.0)
     role_in_dispute: Optional[str] = None
-    invite_status: str = Field(default="invited", index=True)  # invited|joined
+
+    # Invitation lifecycle
+    invite_status: str = Field(default="invited", index=True)  # invited|joined|declined
+    invite_comment: Optional[str] = Field(default=None)
+    invited_by_user_id: Optional[int] = Field(default=None, index=True)
+    invited_at: datetime = Field(default_factory=utcnow)
+    responded_at: Optional[datetime] = Field(default=None)
+
     ready: bool = Field(default=False, index=True)
 
     dispute: Optional[Dispute] = Relationship(back_populates="agents")

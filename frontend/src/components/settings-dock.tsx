@@ -23,7 +23,7 @@ const LANG_OPTIONS: Array<{ code: Lang; label: string; srLang: string }> = [
 // Left "Settings" bar with quick accessibility actions + a full settings drawer.
 // Visible on public + authenticated areas.
 export default function SettingsDock() {
-  const { highContrast, reduceMotion, fontScale, setHighContrast, setReduceMotion, setFontScale, reset, announce } = useA11y()
+  const { highContrast, reduceMotion, fontScale, lightMode, setHighContrast, setReduceMotion, setFontScale, setLightMode, reset, announce } = useA11y()
   const { lang, setLang, t } = useI18n()
 
   const [open, setOpen] = useState(false)
@@ -91,6 +91,13 @@ export default function SettingsDock() {
         <div className="hidden sm:flex flex-col gap-2">
           <BarButton title={t('openSettings')} onClick={() => setOpen(true)}>
             ⚙️
+          </BarButton>
+          <BarButton
+            title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+            pressed={lightMode}
+            onClick={() => setLightMode(!lightMode)}
+          >
+            {lightMode ? '🌙' : '☀️'}
           </BarButton>
           <BarButton
             title={t('highContrast')}
@@ -167,6 +174,20 @@ export default function SettingsDock() {
             <section aria-label={t('accessibility')}>
               <div className="text-xs font-extrabold tracking-wider text-white/70 uppercase">{t('accessibility')}</div>
               <div className="mt-3 space-y-2">
+                <button
+                  type="button"
+                  className="w-full text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  onClick={() => setLightMode(!lightMode)}
+                  aria-pressed={lightMode}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold">Light mode</div>
+                      <div className="mt-1 text-xs text-white/60">White gradient background</div>
+                    </div>
+                    <Pill className="bg-white/10 text-white border-white/10">{lightMode ? 'ON' : 'OFF'}</Pill>
+                  </div>
+                </button>
                 <button
                   type="button"
                   className="w-full text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"

@@ -36,9 +36,8 @@ export default function Shell() {
       <SkipLink />
       <Background />
 
-      {/* Slightly narrower app container to avoid overly wide layouts on large screens */}
-      <div className="relative z-10 mx-auto max-w-5xl p-4 md:p-6">
-        <div className="grid gap-6 md:grid-cols-[300px_1fr]">
+      <div className="relative z-10 mx-auto w-[90vw] max-w-[90vw] p-4 md:p-6">
+        <div className="grid gap-6 md:grid-cols-[260px_1fr]">
           <Sidebar />
 
           <div className="flex min-h-[calc(100vh-3rem)] flex-col gap-6">

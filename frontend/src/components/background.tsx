@@ -4,7 +4,7 @@ import { useA11y } from './a11y-provider'
 type Point = { x: number; y: number; vx: number; vy: number }
 
 export default function NetworkBackground({ fixed = true }: { fixed?: boolean }) {
-  const { reduceMotion } = useA11y()
+  const { reduceMotion, lightMode } = useA11y()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const rafRef = useRef<number | null>(null)
   const ptsRef = useRef<Point[]>([])
@@ -27,8 +27,7 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
       canvas.style.height = h + 'px'
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-      // seed points based on area (enterprise-friendly, not too busy)
-      const target = Math.round((w * h) / 26000) // ~50 on 1366x768
+      const target = Math.round((w * h) / 26000)
       const pts: Point[] = []
       for (let i = 0; i < target; i++) {
         pts.push({
@@ -44,23 +43,39 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
     function draw(singleFrame: boolean = false) {
       const w = window.innerWidth
       const h = window.innerHeight
-      // background gradient
-      const g = ctx.createLinearGradient(0, 0, w, h)
-      g.addColorStop(0, '#07161c')
-      g.addColorStop(0.55, '#0a1f26')
-      g.addColorStop(1, '#08161b')
-      ctx.fillStyle = g
-      ctx.fillRect(0, 0, w, h)
 
-      // subtle overlay vignette
-      const vg = ctx.createRadialGradient(w * 0.55, h * 0.4, Math.min(w, h) * 0.1, w * 0.55, h * 0.4, Math.min(w, h) * 0.9)
-      vg.addColorStop(0, 'rgba(255,255,255,0.03)')
-      vg.addColorStop(1, 'rgba(0,0,0,0.35)')
-      ctx.fillStyle = vg
-      ctx.fillRect(0, 0, w, h)
+      if (lightMode) {
+        // Light gradient: soft white → light slate
+        const g = ctx.createLinearGradient(0, 0, w, h)
+        g.addColorStop(0, '#f0f4f8')
+        g.addColorStop(0.55, '#e8edf4')
+        g.addColorStop(1, '#f5f7fa')
+        ctx.fillStyle = g
+        ctx.fillRect(0, 0, w, h)
+
+        // subtle light vignette
+        const vg = ctx.createRadialGradient(w * 0.55, h * 0.4, Math.min(w, h) * 0.1, w * 0.55, h * 0.4, Math.min(w, h) * 0.9)
+        vg.addColorStop(0, 'rgba(255,255,255,0.6)')
+        vg.addColorStop(1, 'rgba(148,163,184,0.12)')
+        ctx.fillStyle = vg
+        ctx.fillRect(0, 0, w, h)
+      } else {
+        // Dark gradient (original)
+        const g = ctx.createLinearGradient(0, 0, w, h)
+        g.addColorStop(0, '#07161c')
+        g.addColorStop(0.55, '#0a1f26')
+        g.addColorStop(1, '#08161b')
+        ctx.fillStyle = g
+        ctx.fillRect(0, 0, w, h)
+
+        const vg = ctx.createRadialGradient(w * 0.55, h * 0.4, Math.min(w, h) * 0.1, w * 0.55, h * 0.4, Math.min(w, h) * 0.9)
+        vg.addColorStop(0, 'rgba(255,255,255,0.03)')
+        vg.addColorStop(1, 'rgba(0,0,0,0.35)')
+        ctx.fillStyle = vg
+        ctx.fillRect(0, 0, w, h)
+      }
 
       const pts = ptsRef.current
-      // animate points
       for (const p of pts) {
         p.x += p.vx
         p.y += p.vy
@@ -70,7 +85,6 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
         if (p.y > h + 20) p.y = -20
       }
 
-      // lines
       const maxDist = Math.min(160, Math.max(110, Math.sqrt(w * h) / 9))
       ctx.lineWidth = 1
       for (let i = 0; i < pts.length; i++) {
@@ -82,7 +96,9 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist < maxDist) {
             const t = 1 - dist / maxDist
-            ctx.strokeStyle = `rgba(32, 197, 219, ${0.08 + t * 0.18})`
+            ctx.strokeStyle = lightMode
+              ? `rgba(100, 116, 139, ${0.07 + t * 0.15})`
+              : `rgba(32, 197, 219, ${0.08 + t * 0.18})`
             ctx.beginPath()
             ctx.moveTo(a.x, a.y)
             ctx.lineTo(b.x, b.y)
@@ -91,9 +107,8 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
         }
       }
 
-      // nodes
       for (const p of pts) {
-        ctx.fillStyle = 'rgba(32, 197, 219, 0.55)'
+        ctx.fillStyle = lightMode ? 'rgba(100, 116, 139, 0.45)' : 'rgba(32, 197, 219, 0.55)'
         ctx.beginPath()
         ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2)
         ctx.fill()
@@ -104,7 +119,6 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
 
     resize()
     if (reduceMotion) {
-      // Draw a single frame and stop (WCAG: reduced motion)
       draw(true)
     } else {
       draw()
@@ -114,7 +128,7 @@ export default function NetworkBackground({ fixed = true }: { fixed?: boolean })
       window.removeEventListener('resize', resize)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [reduceMotion])
+  }, [reduceMotion, lightMode])
 
   return (
     <div className={`${fixed ? 'fixed' : 'absolute'} inset-0 -z-10`}>

@@ -76,3 +76,29 @@ html.hc ::placeholder {
 html.hc [class*="shadow"] {
   box-shadow: none !important;
 }
+
+/* ── Light mode ──────────────────────────────────────────────────────────── */
+/* Toggled by the ☀️ button; adds html.light class via a11y-provider */
+
+/* Text: white → slate-900 */
+html.light .text-white { color: #0f172a !important; }
+html.light [class*="text-white/"] { color: rgba(15, 23, 42, 0.75) !important; }
+
+/* Borders: white/opacity → slate/opacity */
+html.light [class*="border-white/"] { border-color: rgba(15, 23, 42, 0.12) !important; }
+
+/* Frosted panels: dark slate → white frosted glass */
+html.light [class*="bg-slate-950/"] { background-color: rgba(255, 255, 255, 0.82) !important; }
+
+/* Subtle tint areas: white/opacity → barely-there dark tint */
+html.light [class*="bg-white/"] { background-color: rgba(0, 0, 0, 0.04) !important; }
+
+/* Hover states restore a visible darker tint */
+html.light [class*="hover:bg-white/"]:hover { background-color: rgba(0, 0, 0, 0.09) !important; }
+html.light [class*="hover:bg-slate-950/"]:hover { background-color: rgba(255, 255, 255, 0.95) !important; }
+
+/* Links stay blue (already dark enough) */
+html.light a { color: #1d4ed8; }
+
+/* Keep overlay backdrop dark */
+html.light .bg-black\/40 { background-color: rgba(0, 0, 0, 0.4) !important; }

@@ -6,9 +6,11 @@ type A11yState = {
   highContrast: boolean
   reduceMotion: boolean
   fontScale: FontScale
+  lightMode: boolean
   setHighContrast: (v: boolean) => void
   setReduceMotion: (v: boolean) => void
   setFontScale: (v: FontScale) => void
+  setLightMode: (v: boolean) => void
   reset: () => void
   announce: (msg: string) => void
 }
@@ -18,6 +20,7 @@ const Ctx = createContext<A11yState | null>(null)
 const LS_HC = 'crea3_a11y_high_contrast'
 const LS_RM = 'crea3_a11y_reduce_motion'
 const LS_FS = 'crea3_a11y_font_scale'
+const LS_LM = 'crea3_a11y_light_mode'
 
 function parseBool(v: string | null) {
   if (v === null) return null
@@ -42,6 +45,7 @@ export function A11yProvider({ children }: { children: React.ReactNode }) {
 
   const [highContrast, setHighContrast] = useState<boolean>(() => parseBool(localStorage.getItem(LS_HC)) ?? false)
   const [reduceMotion, setReduceMotion] = useState<boolean>(() => parseBool(localStorage.getItem(LS_RM)) ?? prefersReduce)
+  const [lightMode, setLightMode] = useState<boolean>(() => parseBool(localStorage.getItem(LS_LM)) ?? false)
   const [fontScale, setFontScale] = useState<FontScale>(() => {
     const raw = localStorage.getItem(LS_FS)
     const n = raw ? Number(raw) : 100
@@ -66,6 +70,11 @@ export function A11yProvider({ children }: { children: React.ReactNode }) {
   }, [highContrast])
 
   useEffect(() => {
+    try { localStorage.setItem(LS_LM, lightMode ? '1' : '0') } catch {}
+    document.documentElement.classList.toggle('light', lightMode)
+  }, [lightMode])
+
+  useEffect(() => {
     try { localStorage.setItem(LS_RM, reduceMotion ? '1' : '0') } catch {}
     document.documentElement.classList.toggle('rm', reduceMotion)
   }, [reduceMotion])
@@ -78,6 +87,7 @@ export function A11yProvider({ children }: { children: React.ReactNode }) {
   const reset = () => {
     setHighContrast(false)
     setReduceMotion(prefersReduce)
+    setLightMode(false)
     setFontScale(100)
     announce('Accessibility settings reset')
   }
@@ -86,9 +96,11 @@ export function A11yProvider({ children }: { children: React.ReactNode }) {
     highContrast,
     reduceMotion,
     fontScale,
+    lightMode,
     setHighContrast: v => { setHighContrast(v); announce(v ? 'High contrast enabled' : 'High contrast disabled') },
     setReduceMotion: v => { setReduceMotion(v); announce(v ? 'Reduced motion enabled' : 'Reduced motion disabled') },
     setFontScale: v => { setFontScale(v); announce(`Font size set to ${v}%`) },
+    setLightMode: v => { setLightMode(v); announce(v ? 'Light mode enabled' : 'Dark mode enabled') },
     reset,
     announce,
   }

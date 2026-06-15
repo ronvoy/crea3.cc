@@ -77,28 +77,56 @@ html.hc [class*="shadow"] {
   box-shadow: none !important;
 }
 
+/* ── Mobile sidebar drawer panel ───────────────────────────────────────── */
+/* Defined as a plain CSS class so light-mode can override it without
+   fighting Tailwind's inline-style specificity. */
+.sidebar-mobile-panel { background: #07101a; }
+html.light .sidebar-mobile-panel { background: #f5f7fa; }
+
 /* ── Light mode ──────────────────────────────────────────────────────────── */
-/* Toggled by the ☀️ button; adds html.light class via a11y-provider */
+/* Toggled by the ☀️ button; adds html.light class via a11y-provider.        */
 
-/* Text: white → slate-900 */
-html.light .text-white { color: #0f172a !important; }
-html.light [class*="text-white/"] { color: rgba(15, 23, 42, 0.75) !important; }
+/* Base body text — ensures anything that inherits color is dark by default */
+html.light body { color: #1e293b; }
 
-/* Borders: white/opacity → slate/opacity */
-html.light [class*="border-white/"] { border-color: rgba(15, 23, 42, 0.12) !important; }
+/* ── Text ── */
+html.light .text-white                    { color: #0f172a !important; }
+html.light [class*="text-white/"]         { color: rgba(15, 23, 42, 0.75) !important; }
+/* hover:text-white on nav links would flash white on a light bg without this */
+html.light [class*="hover:text-white"]:hover { color: #0f172a !important; }
 
-/* Frosted panels: dark slate → white frosted glass */
-html.light [class*="bg-slate-950/"] { background-color: rgba(255, 255, 255, 0.82) !important; }
+/* ── Borders ── */
+html.light [class*="border-white/"]       { border-color: rgba(15, 23, 42, 0.12) !important; }
 
-/* Subtle tint areas: white/opacity → barely-there dark tint */
-html.light [class*="bg-white/"] { background-color: rgba(0, 0, 0, 0.04) !important; }
-
-/* Hover states restore a visible darker tint */
-html.light [class*="hover:bg-white/"]:hover { background-color: rgba(0, 0, 0, 0.09) !important; }
+/* ── Dark panel backgrounds → white frosted glass ── */
+html.light [class*="bg-slate-950/"]       { background-color: rgba(255, 255, 255, 0.82) !important; }
 html.light [class*="hover:bg-slate-950/"]:hover { background-color: rgba(255, 255, 255, 0.95) !important; }
 
-/* Links stay blue (already dark enough) */
+/* ── Low-opacity white tints → subtle dark tints ──
+   ONLY the very transparent ones used as subtle overlays in the sidebar/panels.
+   High-opacity whites (bg-white/70, /80, /90) on Cards are intentionally
+   white and must NOT be darkened — they are NOT listed here.               */
+html.light .bg-white\/3                   { background-color: rgba(0,0,0,0.02) !important; }
+html.light .bg-white\/5                   { background-color: rgba(0,0,0,0.03) !important; }
+html.light .bg-white\/8                   { background-color: rgba(0,0,0,0.05) !important; }
+html.light .bg-white\/10                  { background-color: rgba(0,0,0,0.06) !important; }
+html.light .bg-white\/15                  { background-color: rgba(0,0,0,0.08) !important; }
+html.light .bg-white\/25                  { background-color: rgba(0,0,0,0.10) !important; }
+/* Hover feedback for those same tints */
+html.light .hover\:bg-white\/5:hover      { background-color: rgba(0,0,0,0.06) !important; }
+html.light .hover\:bg-white\/8:hover      { background-color: rgba(0,0,0,0.08) !important; }
+html.light .hover\:bg-white\/10:hover     { background-color: rgba(0,0,0,0.09) !important; }
+
+/* ── Keep dark overlays dark (backdrop, modals) ── */
+html.light .bg-black\/40                  { background-color: rgba(0,0,0,0.40) !important; }
+html.light .bg-black\/60                  { background-color: rgba(0,0,0,0.60) !important; }
+
+/* ── Links ── */
 html.light a { color: #1d4ed8; }
 
-/* Keep overlay backdrop dark */
-html.light .bg-black\/40 { background-color: rgba(0, 0, 0, 0.4) !important; }
+/* ── Mobile hamburger stays readable in light mode ──
+   White button text + SVG stroke are already handled by .text-white override.
+   Make the button bg appear as light-panel frosted glass.                   */
+html.light .bg-slate-900\/90              { background-color: rgba(255,255,255,0.92) !important;
+                                            border-color: rgba(15,23,42,0.15) !important; }
+html.light .hover\:bg-slate-800:hover     { background-color: rgba(240,244,248,1)    !important; }

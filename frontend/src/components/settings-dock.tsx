@@ -86,8 +86,8 @@ export default function SettingsDock() {
 
   return (
     <>
-      {/* Left settings + accessibility bar */}
-      <nav aria-label={t('accessibilityBar')} className="fixed left-3 top-1/2 -translate-y-1/2 z-[60] flex flex-col gap-2">
+      {/* Left settings + accessibility bar — hidden on mobile (controls live in sidebar instead) */}
+      <nav aria-label={t('accessibilityBar')} className="fixed left-3 top-1/2 -translate-y-1/2 z-[60] hidden md:flex flex-col gap-2">
         <div className="hidden sm:flex flex-col gap-2">
           <BarButton title={t('openSettings')} onClick={() => setOpen(true)}>
             ⚙️

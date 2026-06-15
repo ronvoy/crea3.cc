@@ -1,6 +1,6 @@
 """
-/db  –  Adminer-style database browser with CRUD + pagination.
-Password-protected (password: 'unina'). Dev-only.
+/dbms  –  Adminer-style database browser with CRUD + pagination.
+Password is read from DBMS_PASS in .env. Dev-only.
 DO NOT expose this endpoint on a public network.
 """
 from __future__ import annotations
@@ -16,20 +16,22 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import inspect as sa_inspect, text
 
 from ..db import engine
+from ..core.config import settings
 
 router = APIRouter(tags=["db-browser"])
 
-_PASSWORD = "unina"
-_COOKIE   = "db_auth"
-_PAGE_SZ  = 50
+_COOKIE  = "dbms_auth"
+_PAGE_SZ = 50
 
-_TOKEN = hmac.new(b"db_browser_key", _PASSWORD.encode(), hashlib.sha256).hexdigest()
+
+def _token() -> str:
+    return hmac.new(b"dbms_browser_key", settings.dbms_pass.encode(), hashlib.sha256).hexdigest()
 
 
 # ── auth ──────────────────────────────────────────────────────────────────────
 
 def _auth_ok(token: str | None) -> bool:
-    return bool(token) and hmac.compare_digest(token, _TOKEN)
+    return bool(token) and hmac.compare_digest(token, _token())
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
@@ -162,7 +164,6 @@ def _esc(s: Any) -> str:
 
 
 def _u(s: Any) -> str:
-    """URL-encode a value for use in query-string values."""
     return quote(str(s), safe="")
 
 
@@ -261,8 +262,8 @@ hr.sep{border:0;border-top:1px solid #30363d;margin:16px 0}
 _LOGIN_BODY = """
 <div class="lw"><div class="lcard">
   <h1>&#x1F5C4; DB Browser</h1>
-  <p>Development only &mdash; enter the access password.</p>
-  <form method="post" action="/db">
+  <p>Enter the access password to continue.</p>
+  <form method="post" action="/dbms">
     <label>Password</label>
     <input type="password" name="password" autofocus placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" />
     <!--ERR-->
@@ -283,17 +284,17 @@ def _topbar(n_tables: int) -> str:
     return (
         '<div class="top"><h1>&#x1F5C4; DB Browser</h1>'
         f'<span class="badge">{n_tables} tables</span>'
-        '<form method="post" action="/db/logout" style="margin-left:auto">'
+        '<form method="post" action="/dbms/logout" style="margin-left:auto">'
         '<button class="logout-btn" type="submit">Logout</button></form></div>'
     )
 
 
 def _nav(all_tables: list[str], active: str | None = None) -> str:
     overview_cls = ' class="active"' if active is None else ""
-    items = f'<a href="/db"{overview_cls}>Overview</a><div class="sep"></div>'
+    items = f'<a href="/dbms"{overview_cls}>Overview</a><div class="sep"></div>'
     for t in all_tables:
         cls = ' class="active"' if t == active else ""
-        items += f'<a href="/db?table={_u(t)}"{cls}>{_esc(t)}</a>'
+        items += f'<a href="/dbms?table={_u(t)}"{cls}>{_esc(t)}</a>'
     return f'<div class="nav">{items}</div>'
 
 
@@ -318,24 +319,24 @@ def _redirect(url: str, msg: str | None = None, err: str | None = None) -> Redir
 
 # ── routes: login / logout ────────────────────────────────────────────────────
 
-@router.get("/db", response_class=HTMLResponse)
-def db_main(
-    table:   str | None = Query(default=None),
-    page:    int        = Query(default=1, ge=1),
-    action:  str | None = Query(default=None),
-    pk:      str | None = Query(default=None),
-    msg:     str | None = Query(default=None),
-    err:     str | None = Query(default=None),
-    db_auth: str | None = Cookie(default=None),
+@router.get("/dbms", response_class=HTMLResponse)
+def dbms_main(
+    table:    str | None = Query(default=None),
+    page:     int        = Query(default=1, ge=1),
+    action:   str | None = Query(default=None),
+    pk:       str | None = Query(default=None),
+    msg:      str | None = Query(default=None),
+    err:      str | None = Query(default=None),
+    dbms_auth: str | None = Cookie(default=None),
 ) -> HTMLResponse:
-    if not _auth_ok(db_auth):
+    if not _auth_ok(dbms_auth):
         return HTMLResponse(_shell(_LOGIN_BODY, "DB Login"))
 
     all_tables = _tables()
 
     if table and table not in all_tables:
         return HTMLResponse(_shell(
-            _flash(None, "Table not found") + f'<div style="padding:20px"><a href="/db">&#8592; Back</a></div>',
+            _flash(None, "Table not found") + f'<div style="padding:20px"><a href="/dbms">&#8592; Back</a></div>',
             "Error",
         ))
 
@@ -348,85 +349,85 @@ def db_main(
     return _page_overview(all_tables)
 
 
-@router.post("/db", response_class=HTMLResponse, response_model=None)
-def db_login(password: str = Form(...)) -> HTMLResponse | RedirectResponse:
-    if password != _PASSWORD:
+@router.post("/dbms", response_class=HTMLResponse, response_model=None)
+def dbms_login(password: str = Form(...)) -> HTMLResponse | RedirectResponse:
+    if password != settings.dbms_pass:
         body = _LOGIN_BODY.replace(
             "<!--ERR-->",
             '<p style="color:#f85149;font-size:13px;margin-top:8px">Incorrect password.</p>',
         )
         return HTMLResponse(_shell(body, "DB Login"), status_code=401)
-    resp = RedirectResponse(url="/db", status_code=303)
-    resp.set_cookie(_COOKIE, _TOKEN, httponly=True, samesite="lax")
+    resp = RedirectResponse(url="/dbms", status_code=303)
+    resp.set_cookie(_COOKIE, _token(), httponly=True, samesite="lax")
     return resp
 
 
-@router.post("/db/logout")
-def db_logout() -> RedirectResponse:
-    resp = RedirectResponse(url="/db", status_code=303)
+@router.post("/dbms/logout")
+def dbms_logout() -> RedirectResponse:
+    resp = RedirectResponse(url="/dbms", status_code=303)
     resp.delete_cookie(_COOKIE)
     return resp
 
 
 # ── routes: CRUD ──────────────────────────────────────────────────────────────
 
-@router.post("/db/create")
-async def db_create(
-    request: Request,
-    table:   str        = Query(...),
-    db_auth: str | None = Cookie(default=None),
+@router.post("/dbms/create")
+async def dbms_create(
+    request:   Request,
+    table:     str        = Query(...),
+    dbms_auth: str | None = Cookie(default=None),
 ) -> RedirectResponse:
-    if not _auth_ok(db_auth):
-        return RedirectResponse(url="/db", status_code=303)
+    if not _auth_ok(dbms_auth):
+        return RedirectResponse(url="/dbms", status_code=303)
     if table not in _tables():
-        return _redirect(f"/db?table={_u(table)}", err="Table not found")
+        return _redirect(f"/dbms?table={_u(table)}", err="Table not found")
     form = dict(await request.form())
     try:
         _do_create(table, form)
-        return _redirect(f"/db?table={_u(table)}", msg="Row created")
+        return _redirect(f"/dbms?table={_u(table)}", msg="Row created")
     except Exception as exc:
-        return _redirect(f"/db?table={_u(table)}&action=new", err=str(exc))
+        return _redirect(f"/dbms?table={_u(table)}&action=new", err=str(exc))
 
 
-@router.post("/db/update")
-async def db_update(
-    request: Request,
-    table:   str        = Query(...),
-    pk:      str        = Query(...),
-    db_auth: str | None = Cookie(default=None),
+@router.post("/dbms/update")
+async def dbms_update(
+    request:   Request,
+    table:     str        = Query(...),
+    pk:        str        = Query(...),
+    dbms_auth: str | None = Cookie(default=None),
 ) -> RedirectResponse:
-    if not _auth_ok(db_auth):
-        return RedirectResponse(url="/db", status_code=303)
+    if not _auth_ok(dbms_auth):
+        return RedirectResponse(url="/dbms", status_code=303)
     if table not in _tables():
-        return _redirect(f"/db?table={_u(table)}", err="Table not found")
+        return _redirect(f"/dbms?table={_u(table)}", err="Table not found")
     pk_names = _pk_names(table)
     pk_vals  = _decode_pk(pk, table, pk_names)
     form     = dict(await request.form())
     try:
         _do_update(table, form, pk_names, pk_vals)
-        return _redirect(f"/db?table={_u(table)}", msg="Row updated")
+        return _redirect(f"/dbms?table={_u(table)}", msg="Row updated")
     except Exception as exc:
-        return _redirect(f"/db?table={_u(table)}&action=edit&pk={_u(pk)}", err=str(exc))
+        return _redirect(f"/dbms?table={_u(table)}&action=edit&pk={_u(pk)}", err=str(exc))
 
 
-@router.post("/db/delete")
-async def db_delete(
-    request: Request,
-    table:   str        = Query(...),
-    pk:      str        = Query(...),
-    db_auth: str | None = Cookie(default=None),
+@router.post("/dbms/delete")
+async def dbms_delete(
+    request:   Request,
+    table:     str        = Query(...),
+    pk:        str        = Query(...),
+    dbms_auth: str | None = Cookie(default=None),
 ) -> RedirectResponse:
-    if not _auth_ok(db_auth):
-        return RedirectResponse(url="/db", status_code=303)
+    if not _auth_ok(dbms_auth):
+        return RedirectResponse(url="/dbms", status_code=303)
     if table not in _tables():
-        return _redirect(f"/db?table={_u(table)}", err="Table not found")
+        return _redirect(f"/dbms?table={_u(table)}", err="Table not found")
     pk_names = _pk_names(table)
     pk_vals  = _decode_pk(pk, table, pk_names)
     try:
         _do_delete(table, pk_names, pk_vals)
-        return _redirect(f"/db?table={_u(table)}", msg="Row deleted")
+        return _redirect(f"/dbms?table={_u(table)}", msg="Row deleted")
     except Exception as exc:
-        return _redirect(f"/db?table={_u(table)}", err=str(exc))
+        return _redirect(f"/dbms?table={_u(table)}", err=str(exc))
 
 
 # ── page renderers ────────────────────────────────────────────────────────────
@@ -440,7 +441,7 @@ def _page_overview(all_tables: list[str]) -> HTMLResponse:
             cnt = "?"
         cards += (
             f'<div class="card">'
-            f'<a href="/db?table={_u(t)}">{_esc(t)}</a>'
+            f'<a href="/dbms?table={_u(t)}">{_esc(t)}</a>'
             f'<div class="sub">{cnt} rows</div>'
             f'</div>'
         )
@@ -466,26 +467,24 @@ def _page_table(
 ) -> HTMLResponse:
     flash = _flash(msg, err)
     try:
-        total     = _count(table)
-        n_pages   = max(1, ceil(total / _PAGE_SZ))
-        page      = min(max(page, 1), n_pages)
+        total           = _count(table)
+        n_pages         = max(1, ceil(total / _PAGE_SZ))
+        page            = min(max(page, 1), n_pages)
         col_names, rows = _get_page(table, page)
-        pk_names  = _pk_names(table)
-        cols_meta = _columns(table)
+        pk_names        = _pk_names(table)
+        cols_meta       = _columns(table)
     except Exception as exc:
         flash += _flash(None, str(exc))
         col_names, rows, total, n_pages, pk_names, cols_meta = [], [], 0, 1, [], []
 
-    # toolbar
     toolbar = (
         f'<div class="toolbar">'
         f'<h2>{_esc(table)}</h2>'
-        f'<a href="/db?table={_u(table)}&action=new" class="btn btn-green">+ New row</a>'
+        f'<a href="/dbms?table={_u(table)}&action=new" class="btn btn-green">+ New row</a>'
         f'<span style="color:#8b949e;font-size:12px;margin-left:auto">{total} rows total</span>'
         f'</div>'
     )
 
-    # schema collapsible
     schema_rows = "".join(
         f'<tr><td>{_esc(c["name"])}</td><td>{_esc(str(c["type"]))}</td>'
         f'<td>{"PK &middot; " if c["name"] in pk_names else ""}'
@@ -501,7 +500,6 @@ def _page_table(
         f'{schema_rows}</table></details>'
     )
 
-    # data table
     if not rows:
         data = '<p style="color:#8b949e;margin-top:4px">No rows on this page.</p>'
     else:
@@ -512,8 +510,8 @@ def _page_table(
         body_rows = ""
         for row in rows:
             pk_str   = _encode_pk(row, pk_names, col_names)
-            edit_url = f"/db?table={_u(table)}&action=edit&pk={_u(pk_str)}"
-            del_url  = f"/db/delete?table={_u(table)}&pk={_u(pk_str)}"
+            edit_url = f"/dbms?table={_u(table)}&action=edit&pk={_u(pk_str)}"
+            del_url  = f"/dbms/delete?table={_u(table)}&pk={_u(pk_str)}"
             actions  = (
                 f'<td class="act-col">'
                 f'<a href="{_esc(edit_url)}" class="btn btn-blue btn-xs">Edit</a>&nbsp;'
@@ -546,7 +544,7 @@ def _build_pager(table: str, page: int, n_pages: int, total: int) -> str:
 
     def plink(p: int, label: str, extra: str = "") -> str:
         cls = f"pn {extra}".strip()
-        return f'<a href="/db?table={_u(table)}&page={p}" class="{cls}">{label}</a>'
+        return f'<a href="/dbms?table={_u(table)}&page={p}" class="{cls}">{label}</a>'
 
     prev_btn = plink(page - 1, "&#8249; Prev") if page > 1 else '<span class="pn dis">&#8249; Prev</span>'
     next_btn = plink(page + 1, "Next &#8250;") if page < n_pages else '<span class="pn dis">Next &#8250;</span>'
@@ -629,11 +627,11 @@ def _page_create_form(table: str, all_tables: list[str]) -> HTMLResponse:
         f'<h2>New row &mdash; <code style="font-size:14px">{_esc(table)}</code></h2>'
         f'<p style="color:#8b949e;font-size:12px;margin:4px 0 14px">'
         f'PK columns are auto-generated and hidden.</p>'
-        f'<form method="post" action="/db/create?table={_u(table)}">'
+        f'<form method="post" action="/dbms/create?table={_u(table)}">'
         f'{fields}'
         f'<div class="factions">'
         f'<button type="submit" class="btn btn-green">Insert row</button>'
-        f'<a href="/db?table={_u(table)}" class="btn">Cancel</a>'
+        f'<a href="/dbms?table={_u(table)}" class="btn">Cancel</a>'
         f'</div></form></div>'
     )
     body = (
@@ -642,7 +640,7 @@ def _page_create_form(table: str, all_tables: list[str]) -> HTMLResponse:
         f'{_nav(all_tables, table)}<div class="main">{form}</div>'
         f'</div></div>'
     )
-    return HTMLResponse(_shell(body, f"New row \u00b7 {table}"))
+    return HTMLResponse(_shell(body, f"New row · {table}"))
 
 
 def _page_edit_form(
@@ -657,14 +655,14 @@ def _page_edit_form(
         col_names, row = _get_row(table, pk_names, pk_vals)
     except Exception as exc:
         return HTMLResponse(_shell(
-            _flash(None, str(exc)) + f'<div style="padding:20px"><a href="/db?table={_u(table)}">&#8592; Back</a></div>',
+            _flash(None, str(exc)) + f'<div style="padding:20px"><a href="/dbms?table={_u(table)}">&#8592; Back</a></div>',
             "Error",
         ))
 
     if row is None:
         return HTMLResponse(_shell(
             f'<div style="padding:20px;color:#8b949e">Row not found. '
-            f'<a href="/db?table={_u(table)}">&#8592; Back</a></div>',
+            f'<a href="/dbms?table={_u(table)}">&#8592; Back</a></div>',
             "Not found",
         ))
 
@@ -685,17 +683,17 @@ def _page_edit_form(
         if c["name"] not in pk_names
     )
 
-    del_url = f"/db/delete?table={_u(table)}&pk={_u(pk_str)}"
+    del_url = f"/dbms/delete?table={_u(table)}&pk={_u(pk_str)}"
     form = (
         f'<div class="fwrap">'
         f'<h2>Edit row &mdash; <code style="font-size:14px">{_esc(table)}</code></h2>'
         f'{_flash(None, err)}'
         f'{pk_display}'
-        f'<form method="post" action="/db/update?table={_u(table)}&pk={_u(pk_str)}">'
+        f'<form method="post" action="/dbms/update?table={_u(table)}&pk={_u(pk_str)}">'
         f'{fields}'
         f'<div class="factions">'
         f'<button type="submit" class="btn btn-blue">Save changes</button>'
-        f'<a href="/db?table={_u(table)}" class="btn">Cancel</a>'
+        f'<a href="/dbms?table={_u(table)}" class="btn">Cancel</a>'
         f'</div></form>'
         f'<hr class="sep"/>'
         f'<form method="post" action="{_esc(del_url)}"'
@@ -709,4 +707,4 @@ def _page_edit_form(
         f'{_nav(all_tables, table)}<div class="main">{form}</div>'
         f'</div></div>'
     )
-    return HTMLResponse(_shell(body, f"Edit \u00b7 {table}"))
+    return HTMLResponse(_shell(body, f"Edit · {table}"))

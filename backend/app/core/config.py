@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     smtp_ssl: bool = Field(default=False, validation_alias=AliasChoices("SMTP_SSL", "smtp_ssl"))
 
     # ----------------------------
+    # DB browser password (endpoint /dbms)
+    # ----------------------------
+    dbms_pass: str = Field(default="CREA3", validation_alias=AliasChoices("DBMS_PASS", "dbms_pass"))
+
+    # ----------------------------
     # Public link for invitations (HARDCODED default, but overridable)
     # ----------------------------
     public_invite_link: str = Field(

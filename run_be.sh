@@ -9,10 +9,12 @@ if [ ! -f "$SCRIPT_DIR/backend/.env" ]; then
   echo "Created backend/.env from .env.example"
 fi
 
-# ── Ensure infra (Keycloak/db) is running and its network exists ──────────────
+# ── Ensure infra (Keycloak/db/mailpit) is running ─────────────────────────────
+# Check that the keycloak container is actually running — not just that the
+# compose network exists (the network can survive after the containers are gone).
 NETWORK="crea3_default"
-if ! docker network inspect "$NETWORK" >/dev/null 2>&1; then
-  echo "Compose network '$NETWORK' not found — starting infra..."
+if [ -z "$(docker compose -f "$SCRIPT_DIR/docker-compose.yml" ps -q --status running keycloak 2>/dev/null)" ]; then
+  echo "Infra not running — starting Keycloak/db/mailpit..."
   docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d
 fi
 

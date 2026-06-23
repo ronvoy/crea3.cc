@@ -90,7 +90,7 @@ services:
     volumes:
       - ./scripts/keycloak:/scripts:ro
     entrypoint: ["/bin/bash", "-lc"]
-    command: ["/scripts/apply-smtp.sh"]
+    command: ["bash /scripts/apply-smtp.sh"]
 
   mailpit:
     image: axllent/mailpit:latest

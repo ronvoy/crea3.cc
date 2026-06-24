@@ -1,7 +1,31 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Box,
+  Drawer,
+  IconButton,
+  Tooltip,
+  Typography,
+  Stack,
+  Switch,
+  Button,
+  Divider,
+  Chip,
+  Paper,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+} from '@mui/material'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import ContrastOutlinedIcon from '@mui/icons-material/ContrastOutlined'
+import MotionPhotosOffOutlinedIcon from '@mui/icons-material/MotionPhotosOffOutlined'
+import TextIncreaseOutlinedIcon from '@mui/icons-material/TextIncreaseOutlined'
+import TextDecreaseOutlinedIcon from '@mui/icons-material/TextDecreaseOutlined'
+import CloseIcon from '@mui/icons-material/Close'
 import { useA11y } from './a11y-provider'
 import { useI18n, Lang } from '../i18n'
-import { Pill, Select } from './ui'
 
 function nextUp(v: 100 | 112 | 125 | 150) {
   return v === 100 ? 112 : v === 112 ? 125 : v === 125 ? 150 : 150
@@ -10,46 +34,39 @@ function nextDown(v: 100 | 112 | 125 | 150) {
   return v === 150 ? 125 : v === 125 ? 112 : v === 112 ? 100 : 100
 }
 
-const LANG_OPTIONS: Array<{ code: Lang; label: string; srLang: string }> = [
-  { code: 'en', label: 'English', srLang: 'en-US' },
-  { code: 'it', label: 'Italiano', srLang: 'it-IT' },
-  { code: 'sl', label: 'Slovenščina', srLang: 'sl-SI' },
-  { code: 'et', label: 'Eesti', srLang: 'et-EE' },
-  { code: 'be', label: 'Français (Belgique)', srLang: 'fr-BE' },
-  { code: 'lt', label: 'Lietuvių', srLang: 'lt-LT' },
-  { code: 'hr', label: 'Hrvatski', srLang: 'hr-HR' },
+const LANG_OPTIONS: Array<{ code: Lang; label: string }> = [
+  { code: 'en', label: 'English' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'sl', label: 'Slovenščina' },
+  { code: 'et', label: 'Eesti' },
+  { code: 'be', label: 'Français (Belgique)' },
+  { code: 'lt', label: 'Lietuvių' },
+  { code: 'hr', label: 'Hrvatski' },
 ]
 
-// Left "Settings" bar with quick accessibility actions + a full settings drawer.
-// Visible on public + authenticated areas.
+// Floating "Settings" rail (right edge) with quick accessibility actions plus a
+// full settings drawer. Visible on public + authenticated areas. Anchored on the
+// right so it never collides with the left navigation drawer.
 export default function SettingsDock() {
-  const { highContrast, reduceMotion, fontScale, lightMode, setHighContrast, setReduceMotion, setFontScale, setLightMode, reset, announce } = useA11y()
+  const {
+    highContrast,
+    reduceMotion,
+    fontScale,
+    lightMode,
+    setHighContrast,
+    setReduceMotion,
+    setFontScale,
+    setLightMode,
+    reset,
+    announce,
+  } = useA11y()
   const { lang, setLang, t } = useI18n()
 
   const [open, setOpen] = useState(false)
-  const closeBtnRef = useRef<HTMLButtonElement | null>(null)
-  const lastFocusRef = useRef<HTMLElement | null>(null)
 
   const currentLabel = useMemo(() => {
-    return LANG_OPTIONS.find(o => o.code === lang)?.label || lang.toUpperCase()
+    return LANG_OPTIONS.find((o) => o.code === lang)?.label || lang.toUpperCase()
   }, [lang])
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  useEffect(() => {
-    if (open) {
-      lastFocusRef.current = document.activeElement as HTMLElement | null
-      window.setTimeout(() => closeBtnRef.current?.focus(), 0)
-    } else {
-      lastFocusRef.current?.focus?.()
-    }
-  }, [open])
 
   // Allow other UI (e.g., Sidebar) to open Settings via a custom event.
   useEffect(() => {
@@ -58,243 +75,224 @@ export default function SettingsDock() {
     return () => window.removeEventListener('crea3-open-settings', handler as any)
   }, [])
 
-  const BarButton = ({
-    title,
-    children,
-    onClick,
-    pressed,
-  }: {
-    title: string
-    children: React.ReactNode
-    onClick: () => void
-    pressed?: boolean
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={title}
-      aria-pressed={pressed}
-      title={title}
-      className={
-        'min-h-[44px] min-w-[44px] rounded-2xl border border-white/10 bg-slate-950/50 text-white shadow-lg shadow-black/20 backdrop-blur ' +
-        'hover:bg-slate-950/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400'
-      }
-    >
-      <span aria-hidden="true" className="text-lg">{children}</span>
-    </button>
-  )
-
   return (
     <>
-      {/* Left settings + accessibility bar — hidden on mobile (controls live in sidebar instead) */}
-      <nav aria-label={t('accessibilityBar')} className="fixed left-3 top-1/2 -translate-y-1/2 z-[60] hidden md:flex flex-col gap-2">
-        <div className="hidden sm:flex flex-col gap-2">
-          <BarButton title={t('openSettings')} onClick={() => setOpen(true)}>
-            ⚙️
-          </BarButton>
-          <BarButton
-            title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
-            pressed={lightMode}
-            onClick={() => setLightMode(!lightMode)}
-          >
-            {lightMode ? '🌙' : '☀️'}
-          </BarButton>
-          <BarButton
-            title={t('highContrast')}
-            pressed={highContrast}
-            onClick={() => setHighContrast(!highContrast)}
-          >
-            ◐
-          </BarButton>
-          <BarButton
-            title={t('reduceMotion')}
-            pressed={reduceMotion}
-            onClick={() => setReduceMotion(!reduceMotion)}
-          >
-            ≋
-          </BarButton>
-          <BarButton title={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>A+</BarButton>
-          <BarButton title={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>A−</BarButton>
-        </div>
-
-        {/* Mobile: single entry point */}
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={t('openSettings')}
-          className="sm:hidden min-h-[44px] min-w-[44px] rounded-2xl border border-white/10 bg-slate-950/60 text-white shadow-lg shadow-black/20 backdrop-blur hover:bg-slate-950/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-        >
-          ⚙️
-        </button>
-      </nav>
-
-      {/* Drawer */}
-      <div
-        className={
-          'fixed inset-0 z-[70] transition ' +
-          (open ? 'pointer-events-auto' : 'pointer-events-none')
-        }
-        aria-hidden={!open}
+      {/* Quick-access rail */}
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'fixed',
+          right: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: (th) => th.zIndex.drawer + 2,
+          p: 0.5,
+          borderRadius: 4,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5,
+        }}
       >
-        <div
-          onClick={() => setOpen(false)}
-          className={
-            'absolute inset-0 bg-black/40 transition-opacity ' +
-            (open ? 'opacity-100' : 'opacity-0')
-          }
-        />
-
-        <aside
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('settings')}
-          className={
-            'absolute left-0 top-0 h-full w-[360px] max-w-[92vw] border-r border-white/10 bg-slate-950/85 text-white shadow-2xl backdrop-blur ' +
-            'transition-transform ' +
-            (open ? 'translate-x-0' : '-translate-x-full')
-          }
-        >
-          <div className="h-16 px-4 border-b border-white/10 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-xs font-extrabold tracking-wider text-white/70 uppercase">{t('settings')}</div>
-              <div className="text-sm text-white/80">{currentLabel} • <Pill className="bg-white/10 text-white border-white/10">{fontScale}%</Pill></div>
-            </div>
-            <button
-              ref={closeBtnRef}
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label={t('close')}
-              className="min-h-[44px] min-w-[44px] rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+        <Tooltip title={t('openSettings')} placement="left">
+          <IconButton aria-label={t('openSettings')} onClick={() => setOpen(true)}>
+            <SettingsOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: 0.5 }}>
+          <Tooltip title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'} placement="left">
+            <IconButton
+              aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+              aria-pressed={lightMode}
+              onClick={() => setLightMode(!lightMode)}
             >
-              ×
-            </button>
-          </div>
+              {lightMode ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t('highContrast')} placement="left">
+            <IconButton
+              aria-label={t('highContrast')}
+              aria-pressed={highContrast}
+              color={highContrast ? 'primary' : 'default'}
+              onClick={() => setHighContrast(!highContrast)}
+            >
+              <ContrastOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t('reduceMotion')} placement="left">
+            <IconButton
+              aria-label={t('reduceMotion')}
+              aria-pressed={reduceMotion}
+              color={reduceMotion ? 'primary' : 'default'}
+              onClick={() => setReduceMotion(!reduceMotion)}
+            >
+              <MotionPhotosOffOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t('increaseFont')} placement="left">
+            <IconButton aria-label={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>
+              <TextIncreaseOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={t('decreaseFont')} placement="left">
+            <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>
+              <TextDecreaseOutlinedIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Paper>
 
-          <div className="p-4 space-y-6 overflow-auto h-[calc(100%-64px)]">
-            <section aria-label={t('accessibility')}>
-              <div className="text-xs font-extrabold tracking-wider text-white/70 uppercase">{t('accessibility')}</div>
-              <div className="mt-3 space-y-2">
-                <button
-                  type="button"
-                  className="w-full text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                  onClick={() => setLightMode(!lightMode)}
-                  aria-pressed={lightMode}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold">Light mode</div>
-                      <div className="mt-1 text-xs text-white/60">White gradient background</div>
-                    </div>
-                    <Pill className="bg-white/10 text-white border-white/10">{lightMode ? 'ON' : 'OFF'}</Pill>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="w-full text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                  onClick={() => setHighContrast(!highContrast)}
-                  aria-pressed={highContrast}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold">{t('highContrast')}</div>
-                      <div className="mt-1 text-xs text-white/60">Higher contrast for readability (WCAG)</div>
-                    </div>
-                    <Pill className="bg-white/10 text-white border-white/10">{highContrast ? 'ON' : 'OFF'}</Pill>
-                  </div>
-                </button>
+      {/* Full settings drawer */}
+      <Drawer anchor="right" open={open} onClose={() => setOpen(false)}>
+        <Box sx={{ width: { xs: '92vw', sm: 360 }, maxWidth: 420, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+                {t('settings')}
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="body2" color="text.secondary">
+                  {currentLabel}
+                </Typography>
+                <Chip label={`${fontScale}%`} size="small" variant="outlined" />
+              </Stack>
+            </Box>
+            <IconButton aria-label={t('close')} onClick={() => setOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
 
-                <button
-                  type="button"
-                  className="w-full text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                  onClick={() => setReduceMotion(!reduceMotion)}
-                  aria-pressed={reduceMotion}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-semibold">{t('reduceMotion')}</div>
-                      <div className="mt-1 text-xs text-white/60">Disables animated backgrounds</div>
-                    </div>
-                    <Pill className="bg-white/10 text-white border-white/10">{reduceMotion ? 'ON' : 'OFF'}</Pill>
-                  </div>
-                </button>
+          <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
+            {/* Accessibility */}
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+              {t('accessibility')}
+            </Typography>
+            <Stack spacing={1.5} sx={{ mt: 1 }}>
+              <ToggleRow
+                title="Light mode"
+                desc="White background"
+                checked={lightMode}
+                onChange={() => setLightMode(!lightMode)}
+              />
+              <ToggleRow
+                title={t('highContrast')}
+                desc="Higher contrast for readability (WCAG)"
+                checked={highContrast}
+                onChange={() => setHighContrast(!highContrast)}
+              />
+              <ToggleRow
+                title={t('reduceMotion')}
+                desc="Disables animated backgrounds"
+                checked={reduceMotion}
+                onChange={() => setReduceMotion(!reduceMotion)}
+              />
 
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">{t('fontSize')}</div>
-                      <div className="mt-1 text-xs text-white/60">Stored on this device</div>
-                    </div>
-                    <Pill className="bg-white/10 text-white border-white/10">{fontScale}%</Pill>
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <button
-                      className="min-h-[44px] min-w-[44px] rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                      aria-label={t('decreaseFont')}
-                      onClick={() => setFontScale(nextDown(fontScale))}
-                      type="button"
-                    >
-                      A−
-                    </button>
-                    <div className="flex-1 text-center text-sm text-white/80">{fontScale}%</div>
-                    <button
-                      className="min-h-[44px] min-w-[44px] rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                      aria-label={t('increaseFont')}
-                      onClick={() => setFontScale(nextUp(fontScale))}
-                      type="button"
-                    >
-                      A+
-                    </button>
-                  </div>
-                  <div className="mt-2 flex justify-end">
-                    <button
-                      onClick={() => { reset(); announce('Settings reset') }}
-                      className="text-xs underline underline-offset-4 text-white/70 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 rounded-lg px-2 py-2"
-                    >
-                      {t('reset')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section aria-label={t('language')}>
-              <div className="text-xs font-extrabold tracking-wider text-white/70 uppercase">{t('language')}</div>
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-                <label className="block text-sm font-semibold" htmlFor="langSelect">{t('language')}</label>
-                <div className="mt-2">
-                  <Select
-                    id="langSelect"
-                    value={lang}
-                    onChange={e => setLang(e.target.value as Lang)}
-                    className="bg-white/10 text-white border-white/10"
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography sx={{ fontWeight: 600 }}>{t('fontSize')}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Stored on this device
+                    </Typography>
+                  </Box>
+                  <Chip label={`${fontScale}%`} size="small" variant="outlined" />
+                </Stack>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
+                  <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>
+                    <TextDecreaseOutlinedIcon />
+                  </IconButton>
+                  <Typography sx={{ flex: 1, textAlign: 'center' }}>{fontScale}%</Typography>
+                  <IconButton aria-label={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>
+                    <TextIncreaseOutlinedIcon />
+                  </IconButton>
+                </Stack>
+                <Box sx={{ textAlign: 'right', mt: 1 }}>
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      reset()
+                      announce('Settings reset')
+                    }}
                   >
-                    {LANG_OPTIONS.map(o => (
-                      <option key={o.code} value={o.code} className="text-slate-900">
-                        {o.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="mt-2 text-xs text-white/60">
-                  Language can be changed without losing your session.
-                </div>
-              </div>
-            </section>
+                    {t('reset')}
+                  </Button>
+                </Box>
+              </Paper>
+            </Stack>
 
-            <section aria-label="Support">
-              <div className="text-xs font-extrabold tracking-wider text-white/70 uppercase">Support</div>
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-white/70 space-y-2">
-                <div>
-                  • Use the Help page for procedural guidance.
-                </div>
-                <div>
-                  • In a dispute, the assistant can answer questions and guide you through steps.
-                </div>
-              </div>
-            </section>
-          </div>
-        </aside>
-      </div>
+            <Divider sx={{ my: 2.5 }} />
+
+            {/* Language */}
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+              {t('language')}
+            </Typography>
+            <FormControl fullWidth size="small" sx={{ mt: 1.5 }}>
+              <InputLabel id="langSelectLabel">{t('language')}</InputLabel>
+              <Select
+                labelId="langSelectLabel"
+                id="langSelect"
+                label={t('language')}
+                value={lang}
+                onChange={(e) => setLang(e.target.value as Lang)}
+              >
+                {LANG_OPTIONS.map((o) => (
+                  <MenuItem key={o.code} value={o.code}>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+              Language can be changed without losing your session.
+            </Typography>
+
+            <Divider sx={{ my: 2.5 }} />
+
+            {/* Support */}
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+              Support
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mt: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                • Use the Help page for procedural guidance.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                • In a dispute, the assistant can answer questions and guide you through steps.
+              </Typography>
+            </Paper>
+          </Box>
+        </Box>
+      </Drawer>
     </>
+  )
+}
+
+function ToggleRow({
+  title,
+  desc,
+  checked,
+  onChange,
+}: {
+  title: string
+  desc: string
+  checked: boolean
+  onChange: () => void
+}) {
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+        <Box>
+          <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {desc}
+          </Typography>
+        </Box>
+        <Switch checked={checked} onChange={onChange} inputProps={{ 'aria-label': title }} />
+      </Stack>
+    </Paper>
   )
 }

@@ -1,167 +1,258 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Stack,
+  IconButton,
+  Divider,
+} from '@mui/material'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { useI18n, type I18nKey } from '../i18n'
-import { Button, Card, CardHeader, Pill } from '../components/ui'
-import NetworkBackground from '../components/background'
 import SiteFooter from '../components/site-footer'
 import { api } from '../api/client'
 import { useAuth } from '../store/auth'
+
+const ROBOT = "'Orbitron', ui-sans-serif, system-ui, sans-serif"
 
 function LogoMark() {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <div className="h-12 w-12 rounded-2xl bg-white/70 border border-white/40 flex items-center justify-center text-slate-900 font-bold">
+      <Box
+        sx={{
+          height: 48,
+          width: 48,
+          borderRadius: 2,
+          bgcolor: 'action.hover',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 700,
+          fontFamily: ROBOT,
+        }}
+      >
         C3
-      </div>
+      </Box>
     )
   }
   return (
-    <img
+    <Box
+      component="img"
       src="/crea3.logo.png"
       alt="CREA3 logo"
-      className="h-12 w-12 rounded-2xl bg-white/70 border border-white/40 object-contain"
       onError={() => setFailed(true)}
+      sx={{ height: 48, width: 48, borderRadius: 2, objectFit: 'contain' }}
     />
   )
 }
 
 export default function Landing() {
-  const [metrics, setMetrics] = useState<{visits:number; registered_users:number} | null>(null)
-
   const { user } = useAuth()
 
   useEffect(() => {
     api('/api/metrics/visit', { method: 'POST' }).catch(() => {})
-    api('/api/metrics/summary').then((d) => setMetrics(d)).catch(() => {})
+    api('/api/metrics/summary').catch(() => {})
   }, [])
 
   const primaryCta = useMemo(() => {
     return user ? { label: 'Go to Home', to: '/app' } : { label: 'Create an account', to: '/register' }
   }, [user])
 
+  const valueProps = [
+    {
+      title: 'For parties',
+      subtitle: 'Transparent, structured, and negotiable.',
+      points: [
+        'Review the goods list and submit what matters most.',
+        'Save strategy notes for mediator review.',
+        'Accept the proposal or proceed to mediation.',
+      ],
+    },
+    {
+      title: 'For mediators',
+      subtitle: 'Read-only visibility across stages.',
+      points: [
+        'View context, goods, strategies, and preferences.',
+        'Review proposal metrics and guide negotiations.',
+        'Coordinate conference planning without editing records.',
+      ],
+    },
+    {
+      title: 'Governance',
+      subtitle: 'Auditable steps for a clean record.',
+      points: [
+        'Access controlled by participation and role.',
+        'Generate a report once the outcome is accepted.',
+        'Swap in your game-theory engine when ready.',
+      ],
+    },
+  ]
+
   return (
-    <div className="grid min-h-screen gap-6 bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-10">
-      {/* HERO */}
-      <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/40 shadow-2xl backdrop-blur">
-        <NetworkBackground fixed={false} />
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 8 } }}>
+        {/* ── Brand row ───────────────────────────────────────────────────── */}
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: { xs: 5, md: 8 } }}>
+          <LogoMark />
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="body2" color="text.secondary">
+              Online dispute resolution platform
+            </Typography>
+            <Typography variant="h4" sx={{ fontFamily: ROBOT, fontWeight: 700, letterSpacing: '0.04em' }}>
+              CREA3
+            </Typography>
+          </Box>
+          <Stack
+            direction="row"
+            spacing={2.5}
+            sx={{ display: { xs: 'none', md: 'flex' } }}
+            aria-hidden
+          >
+            {['Bids', 'Rates', 'Mediation'].map((tag) => (
+              <Typography
+                key={tag}
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontFamily: ROBOT, letterSpacing: '0.08em', textTransform: 'uppercase' }}
+              >
+                {tag}
+              </Typography>
+            ))}
+          </Stack>
+        </Stack>
 
-        <div className="relative p-7 md:p-10 text-white">
-          <div className="flex items-center gap-3">
-            <LogoMark />
-            <div>
-              <div className="text-sm text-white/80">Online dispute resolution platform</div>
-              <div className="text-2xl md:text-3xl font-semibold leading-tight">CREA3</div>
-            </div>
-            <div className="ml-auto hidden md:flex gap-2">
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs border border-white/15">Bids</span>
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs border border-white/15">Rates</span>
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs border border-white/15">Mediation</span>
-            </div>
-          </div>
+        {/* ── Hero ────────────────────────────────────────────────────────── */}
+        <Box
+          sx={{
+            display: 'grid',
+            gap: { xs: 5, md: 6 },
+            gridTemplateColumns: { md: '1.1fr 0.9fr' },
+            alignItems: 'center',
+          }}
+        >
+          <Box>
+            <Typography
+              variant="h2"
+              sx={{
+                fontFamily: ROBOT,
+                fontWeight: 700,
+                letterSpacing: '0.01em',
+                lineHeight: 1.15,
+                fontSize: { xs: '2rem', md: '2.85rem' },
+              }}
+            >
+              Manage disputes through a structured and transparent negotiation workflow.
+            </Typography>
 
-          <div className="mt-6 grid md:grid-cols-2 gap-6 items-center">
-            <div>
-              <h1 className="text-3xl md:text-5xl font-semibold tracking-tight">
-                Manage disputes through a structured and transparent negotiation workflow.
-              </h1>
-              <p className="mt-4 text-white/80 text-base md:text-lg">
-                Invite participants by email, gather strategy notes and preferences, generate an evidence-based proposal,
-                and—when necessary—transition to structured mediation with conferencing support.
-              </p>
+            <Typography color="text.secondary" sx={{ mt: 3, fontSize: { xs: '1rem', md: '1.125rem' }, maxWidth: 620 }}>
+              Invite participants by email, gather strategy notes and preferences, generate an
+              evidence-based proposal, and—when necessary—transition to structured mediation with
+              conferencing support.
+            </Typography>
 
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Link to={primaryCta.to}><Button className="px-5 py-2.5">{primaryCta.label}</Button></Link>
-                {user ? null : (
-                  <Link to="/login"><Button variant="ghost" className="px-5 py-2.5 border border-white/20 bg-white/10 text-white hover:bg-white/15">Sign in</Button></Link>
-                )}
-                <Link to="/help"><Button variant="ghost" className="px-5 py-2.5 border border-white/20 bg-white/10 text-white hover:bg-white/15">How it works</Button></Link>
-              </div>
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mt: 4, gap: 1.5 }}>
+              <Button component={RouterLink} to={primaryCta.to} variant="contained" size="large">
+                {primaryCta.label}
+              </Button>
+              {user ? null : (
+                <Button component={RouterLink} to="/login" variant="outlined" color="inherit" size="large">
+                  Sign in
+                </Button>
+              )}
+              <Button component={RouterLink} to="/help" variant="text" color="inherit" size="large">
+                How it works
+              </Button>
+            </Stack>
 
-              <div className="mt-6 flex flex-wrap gap-2 text-xs text-white/80">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 border border-white/15">
-                  Email invitations and notifications
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 border border-white/15">
-                  Strategy notes and preference submission
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 border border-white/15">
-                  Conference support for mediation
-                </span>
-              </div>
-            </div>
+            <Stack sx={{ mt: 4 }} spacing={1}>
+              {[
+                'Email invitations and notifications',
+                'Strategy notes and preference submission',
+                'Conference support for mediation',
+              ].map((line) => (
+                <Typography key={line} variant="body2" color="text.secondary">
+                  — {line}
+                </Typography>
+              ))}
+            </Stack>
+          </Box>
 
-	            <div className="rounded-3xl bg-white/5 border border-white/15 p-5 md:p-6">
-	              <WorkflowCarousel />
-	            </div>
-          </div>
-        </div>
-      </div>
+          <WorkflowCarousel />
+        </Box>
 
-      {/* VALUE PROPS */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card className="bg-slate-50/95">
-          <CardHeader title="For parties" subtitle="Transparent, structured, and negotiable." />
-          <div className="p-4 text-sm text-slate-700 space-y-2">
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Review the goods list and submit what matters most.</span></div>
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Save strategy notes for mediator review.</span></div>
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Accept the proposal or proceed to mediation.</span></div>
-          </div>
-        </Card>
+        {/* ── Value props (open, no boxes) ────────────────────────────────── */}
+        <Divider sx={{ my: { xs: 6, md: 8 } }} />
+        <Box
+          sx={{
+            display: 'grid',
+            gap: { xs: 5, md: 6 },
+            gridTemplateColumns: { md: 'repeat(3, 1fr)' },
+          }}
+        >
+          {valueProps.map((vp) => (
+            <Box key={vp.title}>
+              <Typography variant="h6" sx={{ fontFamily: ROBOT, fontWeight: 600 }}>
+                {vp.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {vp.subtitle}
+              </Typography>
+              <Stack spacing={1} sx={{ mt: 2 }}>
+                {vp.points.map((p) => (
+                  <Typography key={p} variant="body2" color="text.secondary">
+                    — {p}
+                  </Typography>
+                ))}
+              </Stack>
+            </Box>
+          ))}
+        </Box>
 
-        <Card className="bg-slate-50/95">
-          <CardHeader title="For mediators" subtitle="Read-only visibility across stages." />
-          <div className="p-4 text-sm text-slate-700 space-y-2">
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>View context, goods, strategies, and preferences.</span></div>
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Review proposal metrics and guide negotiations.</span></div>
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Coordinate conference planning without editing records.</span></div>
-          </div>
-        </Card>
-
-        <Card className="bg-slate-50/95">
-          <CardHeader title="Governance" subtitle="Auditable steps for a clean record." />
-          <div className="p-4 text-sm text-slate-700 space-y-2">
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Access controlled by participation and role.</span></div>
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Generate a report once the outcome is accepted.</span></div>
-            <div className="flex items-start gap-2"><span className="text-slate-400">•</span><span>Swap in your game-theory engine when ready.</span></div>
-          </div>
-        </Card>
-      </div>
-
-      {/* CTA FOOTER */}
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div className="text-xl font-semibold">Ready to begin?</div>
-          <div className="text-sm text-slate-600 mt-1">Create an account, verify your email address, and sign in to access the platform.</div>
-          <div className="mt-3">
-            <div className="text-xs text-slate-500">Partners</div>
-            <img
+        {/* ── Closing CTA (open) ──────────────────────────────────────────── */}
+        <Divider sx={{ my: { xs: 6, md: 8 } }} />
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          alignItems={{ md: 'center' }}
+          justifyContent="space-between"
+          spacing={3}
+        >
+          <Box>
+            <Typography variant="h5" sx={{ fontFamily: ROBOT, fontWeight: 600 }}>
+              Ready to begin?
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 1 }}>
+              Create an account, verify your email address, and sign in to access the platform.
+            </Typography>
+            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 2 }}>
+              Partners
+            </Typography>
+            <Box
+              component="img"
               src="/partners.png"
               alt="Partners"
-              className="mt-2 h-8 w-auto max-w-full object-contain"
               loading="lazy"
+              sx={{ mt: 1, height: 32, width: 'auto', maxWidth: '100%', objectFit: 'contain' }}
             />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link to={primaryCta.to}><Button className="px-5 py-2.5">{primaryCta.label}</Button></Link>
-          {user ? null : <Link to="/login"><Button variant="ghost" className="px-5 py-2.5">Sign in</Button></Link>}
-        </div>
-      </div>
-      <SiteFooter />
-    </div>
-  )
-}
+          </Box>
+          <Stack direction="row" spacing={1.5}>
+            <Button component={RouterLink} to={primaryCta.to} variant="contained" size="large">
+              {primaryCta.label}
+            </Button>
+            {user ? null : (
+              <Button component={RouterLink} to="/login" variant="text" color="inherit" size="large">
+                Sign in
+              </Button>
+            )}
+          </Stack>
+        </Stack>
 
-function Step({ n, title, text }: { n: string; title: string; text: string }) {
-  return (
-    <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/15 text-xs border border-white/20">{n}</span>
-        <div className="font-semibold">{title}</div>
-      </div>
-      <div className="mt-1 text-sm text-white/80">{text}</div>
-    </div>
+        <SiteFooter />
+      </Container>
+    </Box>
   )
 }
 
@@ -187,28 +278,28 @@ const WORKFLOW_SLIDES: WorkflowSlideDef[] = [
     titleKey: 'landingWorkflowStep1Title',
     descriptionKey: 'landingWorkflowStep1Desc',
     imageSrc: '/workflow/dispute.png',
-    imageAltKey: 'landingWorkflowStep1Alt',
+    imageAltKey: 'landingWorkflowStep1Title',
   },
   {
     id: 2,
     titleKey: 'landingWorkflowStep2Title',
     descriptionKey: 'landingWorkflowStep2Desc',
     imageSrc: '/workflow/invite-party.webp',
-    imageAltKey: 'landingWorkflowStep2Alt',
+    imageAltKey: 'landingWorkflowStep2Title',
   },
   {
     id: 3,
     titleKey: 'landingWorkflowStep3Title',
     descriptionKey: 'landingWorkflowStep3Desc',
     imageSrc: '/workflow/mediation-strategy.webp',
-    imageAltKey: 'landingWorkflowStep3Alt',
+    imageAltKey: 'landingWorkflowStep3Title',
   },
   {
     id: 4,
     titleKey: 'landingWorkflowStep4Title',
     descriptionKey: 'landingWorkflowStep4Desc',
     imageSrc: '/workflow/proposal.webp',
-    imageAltKey: 'landingWorkflowStep4Alt',
+    imageAltKey: 'landingWorkflowStep4Title',
   },
 ]
 
@@ -249,7 +340,7 @@ function WorkflowCarousel() {
   const step = useCallback(
     (delta: number) => {
       setActive((i) => (i + delta + total) % total)
-      start() // reset autoplay after user interaction
+      start()
     },
     [start, total]
   )
@@ -257,7 +348,7 @@ function WorkflowCarousel() {
   const goTo = useCallback(
     (index: number) => {
       setActive(((index % total) + total) % total)
-      start() // reset autoplay after user interaction
+      start()
     },
     [start, total]
   )
@@ -268,11 +359,9 @@ function WorkflowCarousel() {
   }, [start, stop])
 
   const onWheel = (e: React.WheelEvent) => {
-    // Only treat horizontal scroll gestures (trackpads) or Shift+wheel as navigation.
     const delta = e.deltaX !== 0 ? e.deltaX : e.shiftKey ? e.deltaY : 0
     if (delta === 0) return
     if (Math.abs(delta) < 20) return
-
     const now = Date.now()
     if (now - wheelLockRef.current < 650) return
     wheelLockRef.current = now
@@ -287,24 +376,21 @@ function WorkflowCarousel() {
   const onPointerUp = (e: React.PointerEvent) => {
     const startX = pointerStartX.current
     pointerStartX.current = null
-
     if (startX === null) {
       start()
       return
     }
-
     const dx = e.clientX - startX
     if (Math.abs(dx) >= 70) {
       dx < 0 ? step(1) : step(-1)
       return
     }
-
     start()
   }
 
   return (
-    <div
-      className="select-none"
+    <Box
+      sx={{ userSelect: 'none' }}
       onWheel={onWheel}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
@@ -325,77 +411,86 @@ function WorkflowCarousel() {
       }}
       aria-label="Workflow carousel"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold">{t('landingWorkflowHeading')}</div>
-        <div className="text-xs text-white/60 hidden sm:block">{t('landingWorkflowHint')}</div>
-      </div>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontFamily: ROBOT, fontWeight: 600 }}>
+          {t('landingWorkflowHeading')}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          {t('landingWorkflowHint')}
+        </Typography>
+      </Stack>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/10">
-        <div
-          className="flex transition-transform duration-700 ease-out"
-          style={{ transform: `translateX(-${active * 100}%)` }}
+      <Box sx={{ overflow: 'hidden', borderRadius: 3 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            transition: 'transform 0.7s ease',
+            transform: `translateX(-${active * 100}%)`,
+          }}
         >
           {slides.map((s, i) => (
-            <div key={s.id} className="w-full shrink-0">
-              <div className="relative h-52 md:h-56">
-                <img
+            <Box key={s.id} sx={{ width: '100%', flexShrink: 0 }}>
+              <Box sx={{ position: 'relative', height: { xs: 200, md: 240 } }}>
+                <Box
+                  component="img"
                   src={s.imageSrc}
                   alt={s.imageAlt}
-                  className="h-full w-full object-cover"
                   loading="lazy"
+                  sx={{ height: '100%', width: '100%', objectFit: 'cover', display: 'block' }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-                  <div className="text-white">
-                    <div className="text-lg font-semibold leading-snug">{s.title}</div>
-                  </div>
-                  <Pill className="bg-white/10 border border-white/15 text-white/80">{i + 1} / {total}</Pill>
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-sm leading-relaxed text-white/80">{s.description}</p>
-              </div>
-            </div>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.1) 55%, transparent)',
+                  }}
+                />
+                <Box sx={{ position: 'absolute', left: 12, right: 12, bottom: 12 }}>
+                  <Typography sx={{ color: '#fff', fontWeight: 600 }}>
+                    {s.title} · {i + 1} / {total}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
           ))}
-        </div>
-      </div>
+        </Box>
+      </Box>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      {/* description for the active slide */}
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 2, minHeight: 40 }}>
+        {slides[active]?.description}
+      </Typography>
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
           {slides.map((_, i) => (
-            <button
+            <Box
               key={i}
-              type="button"
+              component="button"
               aria-label={`Go to step ${i + 1}`}
               onClick={() => goTo(i)}
-              className={
-                `h-2 w-2 rounded-full transition-all ${
-                  i === active ? 'bg-white/80 scale-110' : 'bg-white/25 hover:bg-white/40'
-                }`
-              }
+              sx={{
+                p: 0,
+                border: 'none',
+                cursor: 'pointer',
+                height: 8,
+                width: 8,
+                borderRadius: '50%',
+                transition: 'all 0.2s',
+                bgcolor: i === active ? 'primary.main' : 'action.disabled',
+              }}
             />
           ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            className="h-9 w-9 rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/15 p-0"
-            onClick={() => step(-1)}
-            aria-label="Previous step"
-          >
-            ‹
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-9 w-9 rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/15 p-0"
-            onClick={() => step(1)}
-            aria-label="Next step"
-          >
-            ›
-          </Button>
-        </div>
-      </div>
-    </div>
+        </Stack>
+        <Stack direction="row" spacing={0.5}>
+          <IconButton size="small" onClick={() => step(-1)} aria-label="Previous step">
+            <ChevronLeftIcon />
+          </IconButton>
+          <IconButton size="small" onClick={() => step(1)} aria-label="Next step">
+            <ChevronRightIcon />
+          </IconButton>
+        </Stack>
+      </Stack>
+    </Box>
   )
 }

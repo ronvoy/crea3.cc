@@ -1,4 +1,5 @@
 import React from 'react'
+import { Paper, Button as MuiButton, Chip, Alert, Box, Typography } from '@mui/material'
 
 type Classy = { className?: string }
 
@@ -6,16 +7,13 @@ function cx(...parts: Array<string | undefined | false | null>) {
   return parts.filter(Boolean).join(' ')
 }
 
+// ── Card ──────────────────────────────────────────────────────────────────────
+// Flat, outlined Material surface. Replaces the previous glassmorphism card.
 export function Card({ children, className }: { children: React.ReactNode } & Classy) {
   return (
-    <div
-      className={cx(
-        'rounded-3xl border border-white/10 bg-white/90 backdrop-blur shadow-xl shadow-black/10',
-        className
-      )}
-    >
+    <Paper variant="outlined" className={className} sx={{ borderRadius: 3, overflow: 'hidden' }}>
       {children}
-    </div>
+    </Paper>
   )
 }
 
@@ -26,16 +24,37 @@ export function CardHeader({
   className,
 }: { title: React.ReactNode; subtitle?: React.ReactNode; right?: React.ReactNode } & Classy) {
   return (
-    <div className={cx('p-5 border-b border-slate-200/60 flex items-start justify-between gap-4', className)}>
-      <div>
-        <div className="text-lg font-semibold text-slate-900">{title}</div>
-        {subtitle ? <div className="text-sm text-slate-600 mt-1">{subtitle}</div> : null}
-      </div>
+    <Box
+      className={className}
+      sx={{
+        p: 2.5,
+        borderBottom: 1,
+        borderColor: 'divider',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 2,
+      }}
+    >
+      <Box>
+        <Typography variant="h6" sx={{ fontSize: '1.125rem', fontWeight: 600 }}>
+          {title}
+        </Typography>
+        {subtitle ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {subtitle}
+          </Typography>
+        ) : null}
+      </Box>
       {right}
-    </div>
+    </Box>
   )
 }
 
+// ── Button ────────────────────────────────────────────────────────────────────
+// Same custom API as before (variant: primary | ghost | outline | danger),
+// now backed by MUI Button. className passthrough is preserved for layout
+// utilities (e.g. w-full, justify-start) used across pages.
 type ButtonVariant = 'primary' | 'ghost' | 'outline' | 'danger'
 
 export function Button({
@@ -44,75 +63,59 @@ export function Button({
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant } & Classy) {
-  const base =
-    'inline-flex items-center justify-center rounded-xl px-4 py-2 min-h-[44px] text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed'
-  const styles: Record<ButtonVariant, string> = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-400 focus-visible:ring-offset-white',
-    ghost: 'bg-transparent text-slate-900 hover:bg-slate-900/5 focus-visible:ring-slate-400 focus-visible:ring-offset-white',
-    outline:
-      'bg-white/80 text-slate-900 border border-slate-200 hover:bg-white focus-visible:ring-slate-400 focus-visible:ring-offset-white',
-    danger: 'bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-400 focus-visible:ring-offset-white',
+  const map: Record<
+    ButtonVariant,
+    { variant: 'contained' | 'outlined' | 'text'; color: 'primary' | 'error' | 'inherit' }
+  > = {
+    primary: { variant: 'contained', color: 'primary' },
+    outline: { variant: 'outlined', color: 'primary' },
+    ghost: { variant: 'text', color: 'inherit' },
+    danger: { variant: 'contained', color: 'error' },
   }
+  const m = map[variant]
   return (
-    <button {...props} className={cx(base, styles[variant], className)} type={props.type ?? 'button'}>
+    <MuiButton
+      {...props}
+      type={props.type ?? 'button'}
+      variant={m.variant}
+      color={m.color}
+      className={className}
+    >
       {children}
-    </button>
+    </MuiButton>
   )
 }
 
+// ── Form controls ─────────────────────────────────────────────────────────────
+// Kept as native elements (preserving value/onChange and <option> children used
+// throughout the pages) but restyled to match the minimal Material surfaces.
+const fieldBase =
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 ' +
+  'placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-400 transition'
+
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={cx(
-        'w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 shadow-sm',
-        'placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-300',
-        props.className
-      )}
-    />
-  )
+  return <input {...props} className={cx(fieldBase, props.className)} />
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={cx(
-        'w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 shadow-sm',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-300',
-        props.className
-      )}
-    />
-  )
+  return <select {...props} className={cx(fieldBase, props.className)} />
 }
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={cx(
-        'w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 shadow-sm',
-        'placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-300',
-        props.className
-      )}
-    />
-  )
+  return <textarea {...props} className={cx(fieldBase, props.className)} />
 }
 
+// ── Pill / Chip ───────────────────────────────────────────────────────────────
 export function Pill({ children, className }: { children: React.ReactNode } & Classy) {
-  return (
-    <span
-      className={cx(
-        'inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs text-slate-700 border border-white/20 backdrop-blur',
-        className
-      )}
-    >
-      {children}
-    </span>
-  )
+  return <Chip label={children} size="small" variant="outlined" className={className} />
 }
 
+// ── Error / Alert ─────────────────────────────────────────────────────────────
 export function ErrorBox({ message }: { message?: string | null }) {
   if (!message) return null
-  return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{message}</div>
+  return (
+    <Alert severity="error" sx={{ borderRadius: 2 }}>
+      {message}
+    </Alert>
+  )
 }

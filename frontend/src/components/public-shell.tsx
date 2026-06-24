@@ -1,66 +1,111 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import Background from "./background";
-import SkipLink from "./skip-link";
-import SiteFooter from "./site-footer";
-import { Button } from "./ui";
-import { useAuth } from "../store/auth";
-import { useI18n } from "../i18n";
+import React from 'react'
+import { Link as RouterLink, useLocation } from 'react-router-dom'
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  Container,
+  Button,
+  Stack,
+  Typography,
+  Link as MuiLink,
+} from '@mui/material'
+import SkipLink from './skip-link'
+import SiteFooter from './site-footer'
+import { useAuth } from '../store/auth'
+import { useI18n } from '../i18n'
 
 export default function PublicShell({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const loc = useLocation();
-  const { t } = useI18n();
+  const { user } = useAuth()
+  useLocation()
+  useI18n()
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <SkipLink />
-      <Background />
-      <div className="relative z-10 flex min-h-screen flex-col">
-        <header className="px-4 pt-6">
-          <div className="mx-auto max-w-6xl rounded-3xl border border-white/10 bg-slate-950/30 backdrop-blur px-5 py-4 text-white flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3">
-              <img
-                src="/crea3-logo.png"
-                alt="CREA3"
-                className="h-10 w-10 rounded-2xl bg-white/80 p-2 border border-white/20"
-              />
-              <div>
-                <div className="font-semibold leading-tight">CREA3 Platform</div>
-                <div className="text-xs text-white/60">Dispute resolution platform</div>
-              </div>
-            </Link>
 
-            <div className="flex items-center gap-2">
-              <Link to="/scope" className="hidden sm:block text-sm text-white/70 hover:text-white">Scope</Link>
-              <Link to="/partners" className="hidden sm:block text-sm text-white/70 hover:text-white">Partners</Link>
-              <Link to="/help" className="hidden sm:block text-sm text-white/70 hover:text-white">Help</Link>
-              {user ? (
-                <Link to="/app">
-                  <Button className="px-4 py-2">Open app</Button>
-                </Link>
-              ) : (
-                <>
-                  <Link to="/login">
-                    <Button variant="ghost" className="px-4 py-2">Sign in</Button>
-                  </Link>
-                  <Link to="/register">
-                    <Button className="px-4 py-2">Register</Button>
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </header>
+      <AppBar
+        position="sticky"
+        sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}
+      >
+        <Toolbar sx={{ gap: 2 }}>
+          <Stack
+            component={RouterLink}
+            to="/"
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            sx={{ textDecoration: 'none', color: 'text.primary' }}
+          >
+            <Box
+              component="img"
+              src="/crea3-logo.png"
+              alt="CREA3"
+              sx={{ height: 40, width: 40, borderRadius: 2, p: 0.5, bgcolor: 'action.hover' }}
+            />
+            <Box>
+              <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>CREA3 Platform</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Dispute resolution platform
+              </Typography>
+            </Box>
+          </Stack>
 
-        <main className="flex-1 px-4 py-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
-        </main>
+          <Box sx={{ flexGrow: 1 }} />
 
-        <div className="px-4 pb-8">
-          <SiteFooter />
-        </div>
-      </div>
-    </div>
-  );
+          <Stack direction="row" spacing={1} alignItems="center">
+            <MuiLink
+              component={RouterLink}
+              to="/scope"
+              color="text.secondary"
+              underline="hover"
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            >
+              Scope
+            </MuiLink>
+            <MuiLink
+              component={RouterLink}
+              to="/partners"
+              color="text.secondary"
+              underline="hover"
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            >
+              Partners
+            </MuiLink>
+            <MuiLink
+              component={RouterLink}
+              to="/help"
+              color="text.secondary"
+              underline="hover"
+              sx={{ display: { xs: 'none', sm: 'block' } }}
+            >
+              Help
+            </MuiLink>
+            {user ? (
+              <Button component={RouterLink} to="/app" variant="contained">
+                Open app
+              </Button>
+            ) : (
+              <>
+                <Button component={RouterLink} to="/login" variant="text" color="inherit">
+                  Sign in
+                </Button>
+                <Button component={RouterLink} to="/register" variant="contained">
+                  Register
+                </Button>
+              </>
+            )}
+          </Stack>
+        </Toolbar>
+      </AppBar>
+
+      <Container component="main" maxWidth="lg" sx={{ flex: 1, py: 4 }}>
+        {children}
+      </Container>
+
+      <Container maxWidth="lg" sx={{ pb: 4 }}>
+        <SiteFooter />
+      </Container>
+    </Box>
+  )
 }

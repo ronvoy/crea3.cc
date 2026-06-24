@@ -1,5 +1,5 @@
 import React from 'react'
-import NetworkBackground from './background'
+import { Box, Paper, Typography, Chip, Stack, Container } from '@mui/material'
 import SiteFooter from './site-footer'
 import SkipLink from './skip-link'
 
@@ -13,91 +13,128 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="grid min-h-screen gap-6 bg-slate-50 px-4 py-8 text-slate-900 sm:px-6 lg:px-10">
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: { xs: 3, md: 5 } }}>
       <SkipLink />
+      <Container maxWidth="lg">
+        {/* Header */}
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 4 }}>
+          <Box
+            component="img"
+            src="/crea3.logo.png"
+            alt="CREA3 logo"
+            loading="lazy"
+            sx={{ height: 48, width: 48, borderRadius: 2, objectFit: 'contain', bgcolor: 'action.hover' }}
+            onError={(e: any) => {
+              e.currentTarget.src = '/crea3-logo.png'
+            }}
+          />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary">
+              Online dispute resolution platform
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.1 }}>
+              CREA3
+            </Typography>
+          </Box>
+          <Box sx={{ flexGrow: 1 }} />
+          <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }} aria-hidden>
+            <Chip label="Bids" size="small" variant="outlined" />
+            <Chip label="Rates" size="small" variant="outlined" />
+            <Chip label="Mediation" size="small" variant="outlined" />
+          </Stack>
+        </Stack>
 
-      {/* “Hero” container matches Landing page background */}
-      <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/40 shadow-2xl backdrop-blur">
-        <NetworkBackground fixed={false} />
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 3,
+            gridTemplateColumns: { lg: '1fr 1fr' },
+            alignItems: 'stretch',
+          }}
+        >
+          {/* Guidance panel */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 4,
+              borderRadius: 3,
+              display: { xs: 'none', lg: 'flex' },
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box>
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ fontWeight: 700, letterSpacing: '0.08em' }}
+              >
+                Secure access
+              </Typography>
+              <Typography variant="h5" sx={{ mt: 1, fontWeight: 600 }}>
+                {title}
+              </Typography>
+              {subtitle ? (
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
+                  {subtitle}
+                </Typography>
+              ) : null}
 
-        <div className="relative p-7 md:p-10 text-white">
-          {/* Header matches Landing look & feel */}
-          <div className="flex items-center gap-3">
-            <img
-              src="/crea3.logo.png"
-              alt="CREA3 logo"
-              className="h-12 w-12 rounded-2xl bg-white/70 border border-white/40 object-contain"
-              loading="lazy"
-              onError={(e) => {
-                // Fallback for unusual asset paths
-                ;(e.currentTarget as HTMLImageElement).src = '/crea3-logo.png'
-              }}
-            />
-            <div className="min-w-0">
-              <div className="text-sm text-white/80">Online dispute resolution platform</div>
-              <div className="text-2xl md:text-3xl font-semibold leading-tight">CREA3</div>
-            </div>
+              <Stack spacing={2} sx={{ mt: 4 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Typography sx={{ fontWeight: 600 }}>Accessibility</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Use the Settings bar on the left to enable high-contrast mode, adjust font size,
+                    and reduce motion.
+                  </Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <Typography sx={{ fontWeight: 600 }}>Email verification</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    New accounts receive a verification email. Open Mailpit locally to review messages
+                    during development.
+                  </Typography>
+                </Paper>
+              </Stack>
+            </Box>
 
-            <div className="ml-auto hidden md:flex gap-2" aria-hidden="true">
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs border border-white/15">Bids</span>
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs border border-white/15">Rates</span>
-              <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs border border-white/15">Mediation</span>
-            </div>
-          </div>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 4 }}>
+              By continuing you agree to the platform terms &amp; privacy policy.
+            </Typography>
+          </Paper>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-2 lg:items-stretch">
-            {/* Brand / guidance panel */}
-            <div className="hidden lg:flex flex-col justify-between rounded-3xl border border-white/10 bg-black/20 p-8 shadow-2xl backdrop-blur">
-              <div>
-                <div className="text-xs font-extrabold tracking-wider text-white/70 uppercase">Secure access</div>
-                <div className="mt-2 text-2xl font-semibold">{title}</div>
-                {subtitle ? <div className="mt-2 text-white/70">{subtitle}</div> : null}
+          {/* Form panel */}
+          <Paper
+            component="main"
+            id="main-content"
+            tabIndex={-1}
+            variant="outlined"
+            sx={{ p: 4, borderRadius: 3 }}
+          >
+            <Box sx={{ display: { lg: 'none' }, mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                Secure access
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                {title}
+              </Typography>
+              {subtitle ? (
+                <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+                  {subtitle}
+                </Typography>
+              ) : null}
+            </Box>
 
-                <div className="mt-8 space-y-3 text-sm text-white/75">
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <div className="font-semibold text-white">Accessibility</div>
-                    <div className="mt-1 text-white/70">
-                      Use the Settings bar on the left to enable high-contrast mode, adjust font size, and reduce motion.
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                    <div className="font-semibold text-white">Email verification</div>
-                    <div className="mt-1 text-white/70">
-                      New accounts receive a verification email. Open Mailpit locally to review messages during development.
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <Box sx={{ mt: 2 }}>{children}</Box>
 
-              <div className="mt-8 text-xs text-white/50">
-                By continuing you agree to the platform terms & privacy policy.
-              </div>
-            </div>
+            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 4 }}>
+              Need help? Use the Help page or the dispute assistant once you enter a case.
+            </Typography>
+          </Paper>
+        </Box>
 
-            {/* Form / action panel */}
-            <main
-              id="main-content"
-              tabIndex={-1}
-              className="rounded-3xl border border-white/10 bg-white/90 p-8 shadow-2xl backdrop-blur text-slate-900"
-            >
-              <div className="lg:hidden">
-                <div className="text-sm text-slate-600">Secure access</div>
-                <div className="text-2xl font-semibold">{title}</div>
-                {subtitle ? <div className="mt-1 text-slate-600">{subtitle}</div> : null}
-              </div>
-
-              <div className="mt-6">{children}</div>
-
-              <div className="mt-8 text-xs text-slate-600">
-                Need help? Use the Help page or the dispute assistant once you enter a case.
-              </div>
-            </main>
-          </div>
-
-          {/* Always-on footer */}
-          <SiteFooter compact />
-        </div>
-      </div>
-    </div>
+        <SiteFooter compact />
+      </Container>
+    </Box>
   )
 }

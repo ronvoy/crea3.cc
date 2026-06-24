@@ -1,3 +1,6 @@
+/* "Classic robot" style display font for headings / branding (closest free match). */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -130,3 +133,30 @@ html.light a { color: #1d4ed8; }
 html.light .bg-slate-900\/90              { background-color: rgba(255,255,255,0.92) !important;
                                             border-color: rgba(15,23,42,0.15) !important; }
 html.light .hover\:bg-slate-800:hover     { background-color: rgba(240,244,248,1)    !important; }
+
+/* ── Dark mode ────────────────────────────────────────────────────────────────
+   Light mode is the default (html.light). When light mode is OFF we are in dark
+   mode: make the pages' hard-coded Tailwind colours follow the theme so text and
+   surfaces actually invert. Scoped to :not(.hc) so high-contrast keeps its own
+   stronger rules above. CssBaseline already drives <body> bg/text from the MUI
+   theme; these rules cover page-level utility classes. */
+html:not(.light):not(.hc) [class*="text-slate-9"],
+html:not(.light):not(.hc) [class*="text-slate-8"],
+html:not(.light):not(.hc) [class*="text-black"]   { color: #e6edf6 !important; }
+
+html:not(.light):not(.hc) [class*="text-slate-7"],
+html:not(.light):not(.hc) [class*="text-slate-6"],
+html:not(.light):not(.hc) [class*="text-slate-5"],
+html:not(.light):not(.hc) [class*="text-slate-4"] { color: #9fb0c3 !important; }
+
+html:not(.light):not(.hc) .bg-white,
+html:not(.light):not(.hc) [class*="bg-white/9"],
+html:not(.light):not(.hc) [class*="bg-white/8"]   { background-color: #131c2e !important; }
+
+html:not(.light):not(.hc) [class*="bg-slate-50"],
+html:not(.light):not(.hc) [class*="bg-slate-100"] { background-color: #0b1220 !important; }
+
+html:not(.light):not(.hc) [class*="border-slate-2"],
+html:not(.light):not(.hc) [class*="border-slate-3"] { border-color: rgba(255,255,255,0.12) !important; }
+
+html:not(.light):not(.hc) [class*="hover:bg-slate-50"]:hover { background-color: #1a2436 !important; }

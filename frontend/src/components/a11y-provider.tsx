@@ -45,7 +45,7 @@ export function A11yProvider({ children }: { children: React.ReactNode }) {
 
   const [highContrast, setHighContrast] = useState<boolean>(() => parseBool(localStorage.getItem(LS_HC)) ?? false)
   const [reduceMotion, setReduceMotion] = useState<boolean>(() => parseBool(localStorage.getItem(LS_RM)) ?? prefersReduce)
-  const [lightMode, setLightMode] = useState<boolean>(() => parseBool(localStorage.getItem(LS_LM)) ?? false)
+  const [lightMode, setLightMode] = useState<boolean>(() => parseBool(localStorage.getItem(LS_LM)) ?? true)
   const [fontScale, setFontScale] = useState<FontScale>(() => {
     const raw = localStorage.getItem(LS_FS)
     const n = raw ? Number(raw) : 100

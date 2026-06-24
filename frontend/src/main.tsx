@@ -6,6 +6,7 @@ import './index.css'
 
 import { A11yProvider } from './components/a11y-provider'
 import { I18nProvider } from './i18n'
+import { AppThemeProvider } from './theme'
 import SettingsDock from './components/settings-dock'
 
 import { keycloak } from './keycloak'
@@ -49,12 +50,14 @@ async function boot() {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <A11yProvider>
-        <I18nProvider>
-          <BrowserRouter>
-            <SettingsDock />
-            <App />
-          </BrowserRouter>
-        </I18nProvider>
+        <AppThemeProvider>
+          <I18nProvider>
+            <BrowserRouter>
+              <SettingsDock />
+              <App />
+            </BrowserRouter>
+          </I18nProvider>
+        </AppThemeProvider>
       </A11yProvider>
     </React.StrictMode>,
   )

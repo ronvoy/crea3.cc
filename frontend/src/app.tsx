@@ -15,6 +15,7 @@ import Others from './pages/others'
 import Scope from './pages/scope'
 import Partners from './pages/partners'
 import Help from './pages/help'
+import RagPage from './pages/rag'
 import PublicShell from './components/public-shell'
 
 // These pages are referenced by routes and the sidebar.
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="disputes/:id" element={<Dispute />} />
         <Route path="dispute" element={<Navigate to="/app" replace />} />
         <Route path="mediators" element={<Mediators />} />
+        <Route path="rag" element={<RagPage />} />
         <Route path="account" element={<Account />} />
         <Route path="settings" element={<Settings />} />
         <Route path="scope" element={<Scope />} />

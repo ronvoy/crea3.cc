@@ -54,6 +54,30 @@ class Settings(BaseSettings):
     dbms_pass: str = Field(default="CREA3", validation_alias=AliasChoices("DBMS_PASS", "dbms_pass"))
 
     # ----------------------------
+    # Deployment environment (dev|prod) + on-the-fly theme/font (read by frontend)
+    # ----------------------------
+    deployment_environment: str = Field(
+        default="dev",
+        validation_alias=AliasChoices("DEPLOYMENT_ENVIRONMENT", "DEPLOYMENT-ENVIRONMENT", "deployment_environment"),
+    )
+    font_type: str = Field(default="Orbitron", validation_alias=AliasChoices("FONT_TYPE", "FONT-TYPE", "font_type"))
+    theme_type: str = Field(default="light", validation_alias=AliasChoices("THEME_TYPE", "THEME-TYPE", "theme_type"))
+
+    # ----------------------------
+    # Legal RAG chatbot (OpenRouter generation; see rag-plan.md)
+    # ----------------------------
+    openrouter_api_key: str = Field(default="", validation_alias=AliasChoices("OPENROUTER_API_KEY", "openrouter_api_key"))
+    openrouter_model: str = Field(
+        default="meta-llama/llama-3.1-8b-instruct:free",
+        validation_alias=AliasChoices("OPENROUTER_MODEL", "openrouter_model"),
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        validation_alias=AliasChoices("OPENROUTER_BASE_URL", "openrouter_base_url"),
+    )
+    rag_storage_dir: str = Field(default="./rag_store", validation_alias=AliasChoices("RAG_STORAGE_DIR", "rag_storage_dir"))
+
+    # ----------------------------
     # Public link for invitations (HARDCODED default, but overridable)
     # ----------------------------
     public_invite_link: str = Field(

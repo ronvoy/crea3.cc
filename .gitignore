@@ -5,3 +5,5 @@ __pycache__
 node_modules
 package-lock.json
 crea3.db
+rag_store
+backend/rag_store

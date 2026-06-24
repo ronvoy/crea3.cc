@@ -183,3 +183,64 @@ class AppMetric(SQLModel, table=True):
 class VisitCounter(SQLModel, table=True):
     id: Optional[int] = Field(default=1, primary_key=True)
     total_visits: int = 0
+
+
+# ── Legal RAG (see rag-plan.md) ────────────────────────────────────────────────
+
+class RagDocument(SQLModel, table=True):
+    """A legal source document (statute, case file, or other) uploaded to /rag."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(index=True)
+    # User-defined tag identifying the document kind.
+    doc_type: str = Field(default="statute", index=True)  # statute|case|other
+    # Optional link to an ongoing dispute/case in the platform.
+    dispute_id: Optional[int] = Field(default=None, foreign_key="dispute.id", index=True)
+
+    filename: str = Field(default="")
+    content_type: str = Field(default="")
+    jurisdiction: str = Field(default="")
+    lang: str = Field(default="en")
+    notes: str = Field(default="")
+
+    raw_text: str = Field(default="")
+    char_count: int = Field(default=0)
+    n_chunks: int = Field(default=0)
+    status: str = Field(default="parsed", index=True)  # parsed|indexed|error
+
+    uploaded_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+    chunks: List["RagChunk"] = Relationship(back_populates="document")
+
+
+class RagChunk(SQLModel, table=True):
+    """A structure-preserving chunk of a document, with optional cached embeddings."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    document_id: int = Field(foreign_key="ragdocument.id", index=True)
+    ordinal: int = Field(default=0, index=True)
+    text: str = Field(default="")
+    # hierarchy_path / article_no / section etc. (citation backbone)
+    meta: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    # Cached embeddings keyed by model name: { "<model>": [floats] }
+    embeddings: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+    document: Optional[RagDocument] = Relationship(back_populates="chunks")
+
+
+class RagIndex(SQLModel, table=True):
+    """A built retrieval index (a pipeline configuration + its build stats)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    embedding_model: str = Field(default="hashing")
+    pipeline: str = Field(default="hybrid")     # bm25|dense|hybrid
+    index_type: str = Field(default="flat")     # flat|ivf|hnsw
+    params: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    dims: int = Field(default=0)
+    n_vectors: int = Field(default=0)
+    n_documents: int = Field(default=0)
+    status: str = Field(default="ready", index=True)  # building|ready|error
+    message: str = Field(default="")
+    created_at: datetime = Field(default_factory=utcnow)

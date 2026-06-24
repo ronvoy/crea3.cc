@@ -18,6 +18,7 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import Sidebar from './sidebar'
 import SkipLink from './skip-link'
 import SiteFooter from './site-footer'
+import RagChat from './rag-chat'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 
@@ -28,6 +29,7 @@ function titleFromPath(pathname: string, t: (k: any) => string) {
   if (pathname.startsWith('/app/disputes/')) return t('dispute')
   const map: Record<string, string> = {
     '/app/mediators': t('navMediators'),
+    '/app/rag': 'Legal knowledge base',
     '/app/account': t('navAccount'),
     '/app/faq': t('navFaqs'),
     '/app/scope': t('navScope'),
@@ -161,6 +163,9 @@ export default function Shell() {
           <SiteFooter />
         </Box>
       </Box>
+
+      {/* Legal RAG assistant (authenticated users) */}
+      {user ? <RagChat /> : null}
     </Box>
   )
 }

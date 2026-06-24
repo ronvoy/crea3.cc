@@ -19,7 +19,6 @@ import {
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
-import ContrastOutlinedIcon from '@mui/icons-material/ContrastOutlined'
 import MotionPhotosOffOutlinedIcon from '@mui/icons-material/MotionPhotosOffOutlined'
 import TextIncreaseOutlinedIcon from '@mui/icons-material/TextIncreaseOutlined'
 import TextDecreaseOutlinedIcon from '@mui/icons-material/TextDecreaseOutlined'
@@ -106,16 +105,6 @@ export default function SettingsDock() {
               onClick={() => setLightMode(!lightMode)}
             >
               {lightMode ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={t('highContrast')} placement="left">
-            <IconButton
-              aria-label={t('highContrast')}
-              aria-pressed={highContrast}
-              color={highContrast ? 'primary' : 'default'}
-              onClick={() => setHighContrast(!highContrast)}
-            >
-              <ContrastOutlinedIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title={t('reduceMotion')} placement="left">

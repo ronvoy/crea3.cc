@@ -42,6 +42,43 @@ def send_verification_email(to_email: str, token: str) -> None:
     _send_email(to_email=to_email, subject=subject, body_text=body)
 
 
+def _frontend_base() -> str:
+    """Best-effort browser base URL for building links inside emails."""
+    origins = settings.cors_list()
+    return origins[0] if origins else "http://localhost:5173"
+
+
+def send_verification_code_email(to_email: str, code: str) -> None:
+    """Send the 6-digit account verification code (and a convenience link)."""
+    link = f"{_frontend_base()}/verify-email?email={to_email}&code={code}"
+    subject = "Your CREA3 verification code"
+    body = (
+        f"Welcome to CREA3!\n\n"
+        f"Your verification code is: {code}\n\n"
+        f"Enter this code in the app to activate your account. "
+        f"The code expires shortly.\n\n"
+        f"Or click this link to verify directly:\n{link}\n\n"
+        f"If you did not create a CREA3 account, you can ignore this email.\n\n"
+        f"— CREA3"
+    )
+    _send_email(to_email=to_email, subject=subject, body_text=body)
+
+
+def send_password_reset_code_email(to_email: str, code: str) -> None:
+    """Send the 6-digit password-reset code."""
+    subject = "Your CREA3 password reset code"
+    body = (
+        f"We received a request to reset your CREA3 password.\n\n"
+        f"Your password reset code is: {code}\n\n"
+        f"Enter this code in the app, then choose a new password. "
+        f"The code expires shortly.\n\n"
+        f"If you did not request a password reset, you can ignore this email — "
+        f"your password will stay the same.\n\n"
+        f"— CREA3"
+    )
+    _send_email(to_email=to_email, subject=subject, body_text=body)
+
+
 # NEW: dispute invitation email (custom)
 def send_dispute_invitation_email(
     *,

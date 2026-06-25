@@ -4,6 +4,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './pages/landing'
 import Register from './pages/register'
 import VerifyEmail from './pages/verify-email'
+import ForgotPassword from './pages/forgot-password'
+import AuthCallback from './pages/auth-callback'
 import Login from './pages/login'
 import Dashboard from './pages/dashboard'
 import Dispute from './pages/dispute'
@@ -16,6 +18,7 @@ import Scope from './pages/scope'
 import Partners from './pages/partners'
 import Help from './pages/help'
 import RagPage from './pages/rag'
+import DbmsPage from './pages/dbms'
 import PublicShell from './components/public-shell'
 
 // These pages are referenced by routes and the sidebar.
@@ -44,10 +47,15 @@ export default function App() {
         element={<AdminProtected><AdminDashboardPage /></AdminProtected>}
       />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/login" element={<Login />} />
 
       {/* Legal knowledge base management — admin only (ADMIN/ADMIN, see .env) */}
       <Route path="/rag" element={<RagPage />} />
+
+      {/* Database browser — embeds backend /dbms (ADMIN/CREA3, see .env) */}
+      <Route path="/dbms" element={<DbmsPage />} />
 
       {/* Public informational pages */}
       <Route path="/scope" element={<PublicShell><Scope /></PublicShell>} />

@@ -29,6 +29,7 @@ class AppConfigOut(BaseModel):
     deployment_environment: str
     font_type: str
     theme_type: str
+    google_oauth_enabled: bool = False
 
 
 class AppConfigIn(BaseModel):
@@ -72,6 +73,7 @@ def get_app_config() -> AppConfigOut:
         deployment_environment=settings.deployment_environment,
         font_type=settings.font_type,
         theme_type=settings.theme_type,
+        google_oauth_enabled=bool(settings.google_oauth_client_id and settings.google_oauth_client_secret),
     )
 
 
@@ -98,4 +100,5 @@ def set_app_config(body: AppConfigIn) -> AppConfigOut:
         deployment_environment=settings.deployment_environment,
         font_type=settings.font_type,
         theme_type=settings.theme_type,
+        google_oauth_enabled=bool(settings.google_oauth_client_id and settings.google_oauth_client_secret),
     )

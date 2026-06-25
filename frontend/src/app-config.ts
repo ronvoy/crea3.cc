@@ -65,6 +65,7 @@ type AppConfigState = {
   fontType: string
   themeType: string
   isDev: boolean
+  googleEnabled: boolean
   setFontType: (id: string) => void
   setThemeType: (id: string) => void
   loadFromServer: () => Promise<void>
@@ -85,6 +86,7 @@ export const useAppConfig = create<AppConfigState>((set, get) => ({
   fontType: initialFont(),
   themeType: initialTheme(),
   isDev: true,
+  googleEnabled: false,
 
   setFontType(id) {
     ensureFontLoaded(id)
@@ -102,7 +104,7 @@ export const useAppConfig = create<AppConfigState>((set, get) => ({
       const env = String(cfg.deployment_environment || '').toLowerCase()
       const isDev = env === 'dev'
       // In prod, the .env values are authoritative. In dev, local overrides win.
-      const patch: Partial<AppConfigState> = { deploymentEnvironment: env, isDev }
+      const patch: Partial<AppConfigState> = { deploymentEnvironment: env, isDev, googleEnabled: !!cfg.google_oauth_enabled }
       if (!isDev) {
         if (cfg.font_type && FONT_OPTIONS.some((f) => f.id === cfg.font_type)) patch.fontType = cfg.font_type
         if (cfg.theme_type && THEME_PRESETS.some((t) => t.id === cfg.theme_type)) patch.themeType = cfg.theme_type

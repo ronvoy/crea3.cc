@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -8,6 +9,11 @@ from passlib.context import CryptContext
 
 # Use PBKDF2 for maximum compatibility on Windows (avoids bcrypt backend issues)
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+
+def generate_code(digits: int = 6) -> str:
+    """A numeric, zero-padded one-time code (email verification / password reset)."""
+    return str(secrets.randbelow(10 ** digits)).zfill(digits)
 
 JWT_ALG = "HS256"
 JWT_EXPIRE_MINUTES_DEFAULT = 60 * 24 * 7  # 7 days

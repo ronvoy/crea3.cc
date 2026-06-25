@@ -14,8 +14,18 @@ def init_db() -> None:
     if settings.database_url.startswith("sqlite"):
         with engine.begin() as conn:
             cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(user)").fetchall()}
-            if "keycloak_sub" not in cols:
-                conn.exec_driver_sql("ALTER TABLE user ADD COLUMN keycloak_sub TEXT")
+            user_columns = {
+                "keycloak_sub": "TEXT",
+                "hashed_password": "TEXT DEFAULT ''",
+                "email_verification_code": "TEXT",
+                "email_verification_sent_at": "TIMESTAMP",
+                "password_reset_code": "TEXT",
+                "password_reset_expires_at": "TIMESTAMP",
+                "password_reset_sent_at": "TIMESTAMP",
+            }
+            for name, ddl in user_columns.items():
+                if name not in cols:
+                    conn.exec_driver_sql(f"ALTER TABLE user ADD COLUMN {name} {ddl}")
 
 def get_session():
     with Session(engine) as session:

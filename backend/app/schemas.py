@@ -34,10 +34,40 @@ class RegisterOut(BaseModel):
     # When SMTP is enabled, we still return the token for manual copy/paste
     # (useful in local/dev environments).
     verification_token: str
+    email: str = ""
+    # True when the account must verify an email code before it can sign in.
+    verification_required: bool = False
+    # In dev (DEPLOYMENT_ENVIRONMENT=dev) the 6-digit code is echoed so the flow
+    # is testable without reading the inbox. Empty in production.
+    dev_code: str = ""
 
 
 class VerifyEmailIn(BaseModel):
-    token: str = Field(min_length=10)
+    # Either a long link token (legacy) or the 6-digit code with the email.
+    token: Optional[str] = Field(default=None)
+    email: Optional[str] = Field(default=None, max_length=254)
+    code: Optional[str] = Field(default=None, max_length=12)
+
+
+class ResendVerificationIn(BaseModel):
+    email: str = Field(min_length=1, max_length=254)
+
+
+class ForgotPasswordIn(BaseModel):
+    email: str = Field(min_length=1, max_length=254)
+
+
+class ResetPasswordIn(BaseModel):
+    email: str = Field(min_length=1, max_length=254)
+    code: str = Field(min_length=4, max_length=12)
+    new_password: str = Field(min_length=1, max_length=256)
+
+
+class SimpleMessageOut(BaseModel):
+    ok: bool = True
+    message: str = ""
+    # In dev, the code is echoed back so the flow is testable without the inbox.
+    dev_code: str = ""
 
 
 class LoginIn(BaseModel):

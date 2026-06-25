@@ -34,6 +34,13 @@ class User(SQLModel, table=True):
     # For local/dev flows we persist the verification token so users can copy/paste it
     email_verification_token: Optional[str] = Field(default=None, index=True)
     email_verification_expires_at: Optional[datetime] = Field(default=None)
+    # 6-digit email verification code + last-sent timestamp (resend throttle).
+    email_verification_code: Optional[str] = Field(default=None, index=True)
+    email_verification_sent_at: Optional[datetime] = Field(default=None)
+    # Password reset (forgot-password) one-time code lifecycle.
+    password_reset_code: Optional[str] = Field(default=None, index=True)
+    password_reset_expires_at: Optional[datetime] = Field(default=None)
+    password_reset_sent_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
 
     disputes_created: List["Dispute"] = Relationship(back_populates="created_by")

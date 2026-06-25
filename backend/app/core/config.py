@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # ----------------------------
     # DB browser password (endpoint /dbms)
     # ----------------------------
+    dbms_user: str = Field(default="ADMIN", validation_alias=AliasChoices("DBMS_USER", "dbms_user"))
     dbms_pass: str = Field(default="CREA3", validation_alias=AliasChoices("DBMS_PASS", "dbms_pass"))
 
     # ----------------------------
@@ -93,6 +94,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("OPENROUTER_BASE_URL", "openrouter_base_url"),
     )
     rag_storage_dir: str = Field(default="./rag_store", validation_alias=AliasChoices("RAG_STORAGE_DIR", "rag_storage_dir"))
+
+    # ----------------------------
+    # Google OAuth ("Sign in with Google") — next pipeline
+    # ----------------------------
+    google_oauth_client_id: str = Field(default="", validation_alias=AliasChoices("GOOGLE_OAUTH_CLIENT_ID", "google_oauth_client_id"))
+    google_oauth_client_secret: str = Field(default="", validation_alias=AliasChoices("GOOGLE_OAUTH_CLIENT_SECRET", "google_oauth_client_secret"))
+    google_oauth_redirect_uri: str = Field(
+        default="http://localhost:8000/api/auth/google/callback",
+        validation_alias=AliasChoices("GOOGLE_OAUTH_REDIRECT_URI", "google_oauth_redirect_uri"),
+    )
 
     # ----------------------------
     # Public link for invitations (HARDCODED default, but overridable)

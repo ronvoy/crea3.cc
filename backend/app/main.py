@@ -10,6 +10,7 @@ from .core.security import hash_password
 
 from .api import (
     auth,
+    google_oauth,
     users,
     disputes,
     agents,
@@ -57,6 +58,7 @@ def health():
 
 
 app.include_router(auth.router)
+app.include_router(google_oauth.router)
 app.include_router(users.router)
 app.include_router(disputes.router)
 app.include_router(agents.router)

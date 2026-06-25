@@ -262,10 +262,14 @@ hr.sep{border:0;border-top:1px solid #30363d;margin:16px 0}
 _LOGIN_BODY = """
 <div class="lw"><div class="lcard">
   <h1>&#x1F5C4; DB Browser</h1>
-  <p>Enter the access password to continue.</p>
+  <p>Sign in with the admin username and password to continue.</p>
   <form method="post" action="/dbms">
-    <label>Password</label>
-    <input type="password" name="password" autofocus placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" />
+    <label>Username</label>
+    <input type="text" name="username" autofocus autocapitalize="off" autocorrect="off"
+           placeholder="ADMIN" style="width:100%;padding:8px 11px;border-radius:7px;
+           border:1px solid #30363d;background:#0d1117;color:#c9d1d9;font-size:14px;outline:none" />
+    <label style="margin-top:10px">Password</label>
+    <input type="password" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" />
     <!--ERR-->
     <button class="submit" type="submit">Unlock</button>
   </form>
@@ -350,11 +354,14 @@ def dbms_main(
 
 
 @router.post("/dbms", response_class=HTMLResponse, response_model=None)
-def dbms_login(password: str = Form(...)) -> HTMLResponse | RedirectResponse:
-    if password != settings.dbms_pass:
+def dbms_login(
+    password: str = Form(...),
+    username: str = Form(default=""),
+) -> HTMLResponse | RedirectResponse:
+    if username.strip() != settings.dbms_user or password != settings.dbms_pass:
         body = _LOGIN_BODY.replace(
             "<!--ERR-->",
-            '<p style="color:#f85149;font-size:13px;margin-top:8px">Incorrect password.</p>',
+            '<p style="color:#f85149;font-size:13px;margin-top:8px">Incorrect username or password.</p>',
         )
         return HTMLResponse(_shell(body, "DB Login"), status_code=401)
     resp = RedirectResponse(url="/dbms", status_code=303)

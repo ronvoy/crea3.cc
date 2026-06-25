@@ -9,3 +9,4 @@ crea3.db
 rag_store
 backend/rag_store
 .env
+.DS_Store

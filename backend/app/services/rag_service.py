@@ -458,8 +458,8 @@ def generate_answer(query: str, contexts: List[Dict[str, Any]], *, mode: str = "
 
     if settings.openrouter_api_key:
         try:
-            answer = _openrouter_chat(query, context_block, mode)
-            return {"answer": answer, "citations": citations, "generator": "openrouter", "model": settings.openrouter_model}
+            result = _openrouter_chat(query, context_block, mode)
+            return {"answer": result["content"], "citations": citations, "generator": "openrouter", "model": result["model"]}
         except Exception as exc:  # noqa: BLE001
             # fall through to extractive answer, but surface the reason
             fallback = _extractive_answer(query, contexts)
@@ -488,21 +488,36 @@ def _extractive_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
     return "\n\n".join(lines)
 
 
-def _openrouter_chat(query: str, context_block: str, mode: str) -> str:
+# OpenRouter's free model line-up changes often and individual models get
+# rate-limited (HTTP 429) or retired (404). We try the configured model first,
+# then fall back through other currently-free models so the chatbot keeps working.
+_OPENROUTER_FALLBACK_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "openai/gpt-oss-20b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "openai/gpt-oss-120b:free",
+]
+
+
+def _openrouter_models_to_try() -> List[str]:
+    seq: List[str] = []
+    if settings.openrouter_model:
+        seq.append(settings.openrouter_model)
+    for m in _OPENROUTER_FALLBACK_MODELS:
+        if m not in seq:
+            seq.append(m)
+    return seq
+
+
+def _openrouter_complete(messages: List[Dict[str, str]], *, temperature: float = 0.2) -> Dict[str, str]:
+    """Call OpenRouter, falling back across free models on rate-limit/unavailable.
+
+    Returns {"content", "model"}. Raises RuntimeError only when every candidate
+    fails or the key itself is rejected.
+    """
     import httpx
 
-    user_content = (
-        f"Question ({mode}): {query}\n\n"
-        f"Context passages:\n{context_block if context_block else '(no passages retrieved)'}"
-    )
-    payload = {
-        "model": settings.openrouter_model,
-        "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-        "temperature": 0.2,
-    }
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
@@ -510,15 +525,47 @@ def _openrouter_chat(query: str, context_block: str, mode: str) -> str:
         "X-Title": "CREA3 Legal RAG",
     }
     url = settings.openrouter_base_url.rstrip("/") + "/chat/completions"
+    last_err = "no model attempted"
+
     with httpx.Client(timeout=60.0) as client:
-        res = client.post(url, json=payload, headers=headers)
-    if res.status_code >= 400:
-        raise RuntimeError(f"OpenRouter error {res.status_code}: {res.text[:200]}")
-    data = res.json()
-    choices = data.get("choices") or []
-    if not choices:
-        raise RuntimeError("OpenRouter returned no choices")
-    return (choices[0].get("message") or {}).get("content") or ""
+        for model in _openrouter_models_to_try():
+            payload = {"model": model, "messages": messages, "temperature": temperature}
+            try:
+                res = client.post(url, json=payload, headers=headers)
+            except Exception as exc:  # noqa: BLE001 — network error, try next model
+                last_err = f"network error: {exc}"
+                continue
+
+            if res.status_code == 200:
+                choices = res.json().get("choices") or []
+                if choices:
+                    msg = choices[0].get("message") or {}
+                    # Some models (e.g. gpt-oss) put the answer under "reasoning".
+                    content = (msg.get("content") or "").strip() or (msg.get("reasoning") or "").strip()
+                    if content:
+                        return {"content": content, "model": model}
+                last_err = f"empty response from {model}"
+                continue
+
+            last_err = f"OpenRouter error {res.status_code}: {res.text[:160]}"
+            # Auth / malformed-request errors won't be fixed by another model.
+            if res.status_code in (400, 401, 403):
+                raise RuntimeError(last_err)
+            # 402/404/408/429/5xx → model-specific; try the next candidate.
+
+    raise RuntimeError(last_err)
+
+
+def _openrouter_chat(query: str, context_block: str, mode: str) -> Dict[str, str]:
+    user_content = (
+        f"Question ({mode}): {query}\n\n"
+        f"Context passages:\n{context_block if context_block else '(no passages retrieved)'}"
+    )
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+    return _openrouter_complete(messages, temperature=0.2)
 
 
 def general_chat(query: str, *, history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
@@ -540,26 +587,12 @@ def general_chat(query: str, *, history: Optional[List[Dict[str, str]]] = None) 
             "generator": "fallback",
         }
     try:
-        import httpx
-
-        messages = [{"role": "system", "content": system}]
+        messages: List[Dict[str, str]] = [{"role": "system", "content": system}]
         for h in (history or [])[-6:]:
             role = h.get("role") if h.get("role") in ("user", "assistant") else "user"
             messages.append({"role": role, "content": str(h.get("content", ""))})
         messages.append({"role": "user", "content": query})
-        payload = {"model": settings.openrouter_model, "messages": messages, "temperature": 0.4}
-        headers = {
-            "Authorization": f"Bearer {settings.openrouter_api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://crea3.eu",
-            "X-Title": "CREA3 Legal RAG",
-        }
-        url = settings.openrouter_base_url.rstrip("/") + "/chat/completions"
-        with httpx.Client(timeout=60.0) as client:
-            res = client.post(url, json=payload, headers=headers)
-        if res.status_code >= 400:
-            raise RuntimeError(f"OpenRouter error {res.status_code}: {res.text[:200]}")
-        content = (res.json().get("choices") or [{}])[0].get("message", {}).get("content", "")
-        return {"answer": content or "(no response)", "generator": "openrouter", "model": settings.openrouter_model}
+        result = _openrouter_complete(messages, temperature=0.4)
+        return {"answer": result["content"] or "(no response)", "generator": "openrouter", "model": result["model"]}
     except Exception as exc:  # noqa: BLE001
         return {"answer": f"Sorry, I couldn't reach the model ({exc}).", "generator": "error"}

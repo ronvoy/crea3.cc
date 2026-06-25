@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     # ----------------------------
     openrouter_api_key: str = Field(default="", validation_alias=AliasChoices("OPENROUTER_API_KEY", "openrouter_api_key"))
     openrouter_model: str = Field(
-        default="meta-llama/llama-3.1-8b-instruct:free",
+        default="google/gemma-4-31b-it:free",
         validation_alias=AliasChoices("OPENROUTER_MODEL", "openrouter_model"),
     )
     openrouter_base_url: str = Field(

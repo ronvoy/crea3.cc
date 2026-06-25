@@ -112,6 +112,10 @@ def get_current_user(
 
     roles = _extract_roles(payload)
     local_role = _pick_local_role(roles)
+    # Keycloak tokens only carry CREA app roles (agent/mediator/admin) when they
+    # are mapped as realm roles. When they don't, `local_role` falls back to
+    # "user" — we must NOT use that to overwrite a role chosen at registration.
+    token_has_app_role = bool(roles & {"admin", "mediator", "agent"})
 
     # find by keycloak_sub first (if present), else by email
     user = None
@@ -142,8 +146,9 @@ def get_current_user(
             setattr(user, "keycloak_sub", sub)
             changed = True
 
-        # update role (from token)
-        if hasattr(user, "role") and getattr(user, "role", None) != local_role:
+        # update role (from token) — only when the token actually carries an app
+        # role, so we never downgrade an agent/mediator chosen at registration.
+        if token_has_app_role and hasattr(user, "role") and getattr(user, "role", None) != local_role:
             setattr(user, "role", local_role)
             changed = True
 

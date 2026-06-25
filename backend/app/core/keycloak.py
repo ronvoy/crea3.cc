@@ -61,7 +61,10 @@ def _select_jwk(token: str) -> Dict[str, Any]:
 
 def verify_access_token(token: str) -> Dict[str, Any]:
     """Verify a Keycloak access token and return its claims."""
-    issuer = settings.keycloak_issuer.rstrip("/")
+    # Tokens may be issued with either the internal Docker hostname or the
+    # public/browser URL. jose only validates a single issuer string, so we skip
+    # its issuer check and validate `iss` against the allowed set ourselves.
+    allowed_issuers = {i.rstrip("/") for i in settings.keycloak_allowed_issuers()}
 
     # Try with cached JWKS; if the kid is missing (rotation), refresh once.
     try:
@@ -76,11 +79,15 @@ def verify_access_token(token: str) -> Dict[str, Any]:
         token,
         key,
         algorithms=["RS256", "ES256"],
-        issuer=issuer,
         options={
             "verify_aud": False,
+            "verify_iss": False,
         },
     )
+
+    token_iss = str(claims.get("iss", "")).rstrip("/")
+    if allowed_issuers and token_iss not in allowed_issuers:
+        raise ValueError(f"Invalid issuer: {token_iss!r} not in {sorted(allowed_issuers)}")
 
     # Basic client check (Keycloak uses `azp` for the authorized party).
     client_id = settings.keycloak_client_id

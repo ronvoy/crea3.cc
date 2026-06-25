@@ -25,6 +25,9 @@ class RegisterIn(BaseModel):
     email: str = Field(min_length=1, max_length=254)
     username: str = Field(min_length=1, max_length=120)
     password: str = Field(min_length=1, max_length=256)
+    # Self-selected role at registration. Only agent/mediator are user-selectable;
+    # anything else falls back to 'agent'. (admin is provisioned separately.)
+    role: str = Field(default="agent", max_length=20)
 
 
 class RegisterOut(BaseModel):

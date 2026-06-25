@@ -1,17 +1,12 @@
 """Legal RAG API (see rag-plan.md).
 
-Endpoints
-    GET    /api/rag/config              capabilities + dropdown options
-    POST   /api/rag/documents           upload (pdf/json/txt) + tag -> parse + chunk
-    GET    /api/rag/documents           list (tabular)
-    GET    /api/rag/documents/{id}      detail (+ chunk preview)
-    PATCH  /api/rag/documents/{id}      update tag/metadata
-    DELETE /api/rag/documents/{id}      delete (+ chunks)
-    POST   /api/rag/indexes             build an index (embeddings) for a pipeline
-    GET    /api/rag/indexes             list built indexes + stats
-    DELETE /api/rag/indexes/{id}        delete an index record
-    POST   /api/rag/query               retrieve + (optionally) generate an answer
-    POST   /api/rag/general             general legal Q&A (no retrieval)
+Auth model
+    * Document/index *management* (/config, /documents*, /indexes*) is gated behind
+      a simple admin login (ADMIN/ADMIN by default — see ADMIN_USER/ADMIN_PASS in
+      .env) so only an admin curates the knowledge base at /rag.
+    * /query and /general require a normal authenticated app user (the logged-in
+      chat bubble — agents/mediators).
+    * /public-chat is open (the landing-page legal assistant).
 """
 from __future__ import annotations
 
@@ -21,22 +16,45 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from ..core.config import settings
 from ..db import get_session
 from ..models import RagChunk, RagDocument, RagIndex, User
 from ..services import rag_service as rag
+from .admin import require_admin, _create_admin_token
 from .deps import get_current_user
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
 
 
-# ── config ─────────────────────────────────────────────────────────────────────
+# ── admin auth ─────────────────────────────────────────────────────────────────
+
+class AdminLoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class AdminTokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in_seconds: int
+
+
+@router.post("/admin/login", response_model=AdminTokenOut)
+def admin_login(body: AdminLoginIn) -> AdminTokenOut:
+    if body.username != settings.admin_user or body.password != settings.admin_pass:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    token, expires_in = _create_admin_token(body.username)
+    return AdminTokenOut(access_token=token, expires_in_seconds=expires_in)
+
+
+# ── config (admin) ─────────────────────────────────────────────────────────────
 
 @router.get("/config")
-def get_config(user: User = Depends(get_current_user)) -> Dict[str, Any]:
+def get_config(_admin: dict = Depends(require_admin)) -> Dict[str, Any]:
     return rag.available_config()
 
 
-# ── documents ──────────────────────────────────────────────────────────────────
+# ── documents (admin) ──────────────────────────────────────────────────────────
 
 def _doc_row(d: RagDocument) -> Dict[str, Any]:
     return {
@@ -66,7 +84,7 @@ async def upload_document(
     dispute_id: Optional[int] = Form(None),
     chunk_size: int = Form(rag.DEFAULT_PARAMS["chunk_size"]),
     chunk_overlap: int = Form(rag.DEFAULT_PARAMS["chunk_overlap"]),
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     data = await file.read()
@@ -92,7 +110,7 @@ async def upload_document(
         notes=notes.strip(),
         raw_text=text,
         char_count=len(text),
-        uploaded_by_id=user.id,
+        uploaded_by_id=None,
         status="parsed",
     )
     session.add(doc)
@@ -113,7 +131,7 @@ async def upload_document(
 @router.get("/documents")
 def list_documents(
     doc_type: Optional[str] = None,
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     q = select(RagDocument).order_by(RagDocument.created_at.desc())
@@ -126,7 +144,7 @@ def list_documents(
 @router.get("/documents/{doc_id}")
 def get_document(
     doc_id: int,
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     doc = session.get(RagDocument, doc_id)
@@ -156,7 +174,7 @@ class DocumentUpdate(BaseModel):
 def update_document(
     doc_id: int,
     body: DocumentUpdate,
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     doc = session.get(RagDocument, doc_id)
@@ -173,7 +191,7 @@ def update_document(
 @router.delete("/documents/{doc_id}")
 def delete_document(
     doc_id: int,
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     doc = session.get(RagDocument, doc_id)
@@ -186,7 +204,7 @@ def delete_document(
     return {"ok": True}
 
 
-# ── indexes ────────────────────────────────────────────────────────────────────
+# ── indexes (admin) ────────────────────────────────────────────────────────────
 
 def _index_row(ix: RagIndex) -> Dict[str, Any]:
     return {
@@ -210,14 +228,14 @@ class BuildIndexIn(BaseModel):
     embedding_model: str = "hashing"
     pipeline: str = "hybrid"
     index_type: str = "flat"
-    doc_type: Optional[str] = None  # build over a subset (statute|case|other)
+    doc_type: Optional[str] = None
     params: Dict[str, Any] = {}
 
 
 @router.post("/indexes")
 def build_index(
     body: BuildIndexIn,
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     q = select(RagChunk)
@@ -234,7 +252,6 @@ def build_index(
 
     params = {**rag.DEFAULT_PARAMS, **(body.params or {})}
 
-    # Embed (and cache vectors on each chunk keyed by model id).
     texts = [c.text for c in chunks]
     try:
         vecs = rag.embed(body.embedding_model, texts)
@@ -247,7 +264,6 @@ def build_index(
         emb[body.embedding_model] = [round(float(x), 6) for x in v.tolist()]
         c.embeddings = emb
         session.add(c)
-    # mark documents as indexed
     if doc_ids:
         for d in session.exec(select(RagDocument).where(RagDocument.id.in_(doc_ids))).all():
             d.status = "indexed"
@@ -277,7 +293,7 @@ def build_index(
 
 @router.get("/indexes")
 def list_indexes(
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     rows = session.exec(select(RagIndex).order_by(RagIndex.created_at.desc())).all()
@@ -287,7 +303,7 @@ def list_indexes(
 @router.delete("/indexes/{index_id}")
 def delete_index(
     index_id: int,
-    user: User = Depends(get_current_user),
+    _admin: dict = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
     ix = session.get(RagIndex, index_id)
@@ -298,7 +314,7 @@ def delete_index(
     return {"ok": True}
 
 
-# ── query ──────────────────────────────────────────────────────────────────────
+# ── query (authenticated app users) ─────────────────────────────────────────────
 
 class QueryIn(BaseModel):
     query: str
@@ -306,19 +322,14 @@ class QueryIn(BaseModel):
     embedding_model: Optional[str] = None
     pipeline: Optional[str] = None
     index_type: Optional[str] = None
-    doc_type: Optional[str] = None      # filter scope: statute|case|other
+    doc_type: Optional[str] = None
     dispute_id: Optional[int] = None
-    mode: str = "auto"                  # statutes|cases|general|auto
+    mode: str = "auto"
     generate: bool = True
     params: Dict[str, Any] = {}
 
 
-@router.post("/query")
-def query(
-    body: QueryIn,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-) -> Dict[str, Any]:
+def _run_query(body: QueryIn, session: Session) -> Dict[str, Any]:
     q = (body.query or "").strip()
     if not q:
         raise HTTPException(status_code=400, detail="Empty query")
@@ -328,7 +339,6 @@ def query(
     index_type = body.index_type or "flat"
     params = {**rag.DEFAULT_PARAMS, **(body.params or {})}
 
-    # If an index was chosen, inherit its config.
     if body.index_id:
         ix = session.get(RagIndex, body.index_id)
         if ix:
@@ -337,7 +347,6 @@ def query(
             index_type = body.index_type or ix.index_type
             params = {**ix.params, **params}
 
-    # Scope filter (mode/doc_type/dispute).
     doc_type = body.doc_type
     if body.mode == "statutes":
         doc_type = "statute"
@@ -388,6 +397,15 @@ def query(
     return result
 
 
+@router.post("/query")
+def query(
+    body: QueryIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Dict[str, Any]:
+    return _run_query(body, session)
+
+
 class GeneralIn(BaseModel):
     query: str
     history: List[Dict[str, str]] = []
@@ -397,8 +415,17 @@ class GeneralIn(BaseModel):
 def general(
     body: GeneralIn,
     user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
 ) -> Dict[str, Any]:
+    q = (body.query or "").strip()
+    if not q:
+        raise HTTPException(status_code=400, detail="Empty query")
+    return rag.general_chat(q, history=body.history)
+
+
+# ── public landing chatbot (no auth) ───────────────────────────────────────────
+
+@router.post("/public-chat")
+def public_chat(body: GeneralIn) -> Dict[str, Any]:
     q = (body.query or "").strip()
     if not q:
         raise HTTPException(status_code=400, detail="Empty query")

@@ -8,44 +8,50 @@ import { A11yProvider } from './components/a11y-provider'
 import { I18nProvider } from './i18n'
 import { AppThemeProvider } from './theme'
 import SettingsDock from './components/settings-dock'
+import DevToolbar from './components/dev-toolbar'
+import DevConsole from './components/dev-console'
 
-import { keycloak } from './keycloak'
 import { useAuth } from './store/auth'
+import { useAppConfig } from './app-config'
+import { api, setAccessToken } from './api/client'
+import { installNetLogger } from './dev/net-log'
+
+// Refresh the Keycloak access token via the backend, using the stored
+// refresh token. Keeps the session alive without any browser redirect.
+async function refreshSession(): Promise<boolean> {
+  const refresh_token = localStorage.getItem('refresh_token')
+  if (!refresh_token) return false
+  try {
+    const tokens = await api('/api/auth/refresh', { method: 'POST', body: { refresh_token }, auth: false })
+    setAccessToken(tokens.access_token)
+    if (tokens.refresh_token) localStorage.setItem('refresh_token', tokens.refresh_token)
+    return true
+  } catch {
+    return false
+  }
+}
 
 async function boot() {
-  // Initialize Keycloak without forcing a redirect on initial load
-  // so public pages remain accessible.
-  let authenticated = false
-  try {
-    authenticated = await keycloak.init({
-    onLoad: 'check-sso',
-    pkceMethod: 'S256',
-    checkLoginIframe: false,
-    })
-  } catch {
-    // Keycloak unreachable: render UI anyway (public pages), but login will not work.
-    authenticated = false
-  }
+  // Capture network traffic for the dev console and load app config (env + theme/font).
+  installNetLogger()
+  await useAppConfig.getState().loadFromServer()
 
-  // If already logged in (SSO), persist token so our API client can use it.
-  if (authenticated && keycloak.token) {
-    localStorage.setItem('access_token', keycloak.token)
-    await useAuth.getState().loadMe()
-  }
-
-  // Refresh token periodically.
-  setInterval(async () => {
+  // Restore session from a stored token (set by the backend login flow).
+  if (localStorage.getItem('access_token')) {
     try {
-      const refreshed = await keycloak.updateToken(60)
-      if (refreshed && keycloak.token) {
-        localStorage.setItem('access_token', keycloak.token)
-      }
+      await useAuth.getState().loadMe()
     } catch {
-      // Token refresh failed; clear stored token and let ProtectedRoute redirect to /login.
-      localStorage.removeItem('access_token')
-      useAuth.getState().setUser(null)
+      // token may be expired — try a refresh, then reload the profile.
+      if (await refreshSession()) {
+        try { await useAuth.getState().loadMe() } catch { /* ignore */ }
+      }
     }
-  }, 30_000)
+  }
+
+  // Periodically refresh the access token (Keycloak access tokens are short-lived).
+  setInterval(() => {
+    if (localStorage.getItem('refresh_token')) refreshSession()
+  }, 4 * 60_000)
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
@@ -54,6 +60,8 @@ async function boot() {
           <I18nProvider>
             <BrowserRouter>
               <SettingsDock />
+              <DevToolbar />
+              <DevConsole />
               <App />
             </BrowserRouter>
           </I18nProvider>

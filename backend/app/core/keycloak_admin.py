@@ -103,10 +103,25 @@ class KeycloakAdmin:
     # Existing methods (kept for compatibility)
     # ---------------------------------------------------------------------
 
-    def create_user(self, *, email: str, username: str, password: str, enabled: bool = True) -> str:
+    def create_user(
+        self,
+        *,
+        email: str,
+        username: str,
+        password: str,
+        enabled: bool = True,
+        first_name: str | None = None,
+        last_name: str | None = None,
+    ) -> str:
+        # Keycloak 24's user-profile feature requires firstName/lastName; without
+        # them login fails with "Account is not fully set up". Derive sensible
+        # defaults from the email/username when the caller doesn't supply them.
+        local = (email.split("@", 1)[0] if email else username) or "user"
         payload = {
             "username": username,
             "email": email,
+            "firstName": first_name or local,
+            "lastName": last_name or "User",
             "enabled": enabled,
             "emailVerified": False,
             "credentials": [

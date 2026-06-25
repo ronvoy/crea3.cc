@@ -46,6 +46,9 @@ export default function App() {
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/login" element={<Login />} />
 
+      {/* Legal knowledge base management — admin only (ADMIN/ADMIN, see .env) */}
+      <Route path="/rag" element={<RagPage />} />
+
       {/* Public informational pages */}
       <Route path="/scope" element={<PublicShell><Scope /></PublicShell>} />
       <Route path="/partners" element={<PublicShell><Partners /></PublicShell>} />
@@ -64,7 +67,6 @@ export default function App() {
         <Route path="disputes/:id" element={<Dispute />} />
         <Route path="dispute" element={<Navigate to="/app" replace />} />
         <Route path="mediators" element={<Mediators />} />
-        <Route path="rag" element={<RagPage />} />
         <Route path="account" element={<Account />} />
         <Route path="settings" element={<Settings />} />
         <Route path="scope" element={<Scope />} />

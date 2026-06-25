@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import { useA11y } from './components/a11y-provider'
+import { useAppConfig, fontCss, presetPrimary, ensureFontLoaded } from './app-config'
 
 // ── Minimal Material UI theme ─────────────────────────────────────────────────
 // Clean, flat, lots of whitespace. Reads accessibility state (light/dark mode,
@@ -13,14 +14,20 @@ import { useA11y } from './components/a11y-provider'
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const { lightMode, highContrast } = useA11y()
+  const { fontType, themeType } = useAppConfig()
+
+  // Make sure the selected font's stylesheet is present.
+  useEffect(() => { ensureFontLoaded(fontType) }, [fontType])
 
   const theme = useMemo(() => {
     const mode: 'light' | 'dark' = lightMode ? 'light' : 'dark'
+    const primaryMain = presetPrimary(themeType)
+    const family = fontCss(fontType)
 
     return createTheme({
       palette: {
         mode,
-        primary: { main: '#2563eb' },
+        primary: { main: primaryMain },
         ...(mode === 'light'
           ? {
               background: {
@@ -46,22 +53,18 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
             }),
       },
       shape: { borderRadius: 12 },
-      typography: (() => {
-        // "Classic robot" display font for headings/branding; clean sans for body.
-        const robot = "'Orbitron', ui-sans-serif, system-ui, sans-serif"
-        return {
-          fontFamily:
-            'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-          h1: { fontFamily: robot, fontWeight: 700, letterSpacing: '0.01em' },
-          h2: { fontFamily: robot, fontWeight: 700, letterSpacing: '0.01em' },
-          h3: { fontFamily: robot, fontWeight: 600 },
-          h4: { fontFamily: robot, fontWeight: 600 },
-          h5: { fontFamily: robot, fontWeight: 600 },
-          h6: { fontFamily: robot, fontWeight: 600 },
-          overline: { fontFamily: robot },
-          button: { fontWeight: 600 },
-        }
-      })(),
+      typography: {
+        // Selected font drives both body and headings (changeable via dev toolbar).
+        fontFamily: family,
+        h1: { fontFamily: family, fontWeight: 700, letterSpacing: '0.01em' },
+        h2: { fontFamily: family, fontWeight: 700, letterSpacing: '0.01em' },
+        h3: { fontFamily: family, fontWeight: 600 },
+        h4: { fontFamily: family, fontWeight: 600 },
+        h5: { fontFamily: family, fontWeight: 600 },
+        h6: { fontFamily: family, fontWeight: 600 },
+        overline: { fontFamily: family },
+        button: { fontWeight: 600 },
+      },
       components: {
         MuiButton: {
           defaultProps: { disableElevation: true },
@@ -92,7 +95,7 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
         },
       },
     })
-  }, [lightMode, highContrast])
+  }, [lightMode, highContrast, themeType, fontType])
 
   return (
     <ThemeProvider theme={theme}>

@@ -20,7 +20,6 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined'
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
-import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
 import { useAuth } from '../store/auth'
@@ -74,7 +73,6 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
   const items: Array<{ to: string; label: string; icon: React.ReactNode; end?: boolean }> = [
     { to: '/app', label: t('navMyDisputes'), icon: <GavelOutlinedIcon fontSize="small" />, end: true },
     { to: '/app/mediators', label: t('navMediators'), icon: <PeopleOutlinedIcon fontSize="small" /> },
-    { to: '/app/rag', label: 'Legal knowledge base', icon: <MenuBookOutlinedIcon fontSize="small" /> },
     { to: '/app/faq', label: t('navFaqs'), icon: <HelpOutlineOutlinedIcon fontSize="small" /> },
     { to: '/app/scope', label: t('navScope'), icon: <DescriptionOutlinedIcon fontSize="small" /> },
     { to: '/app/partners', label: t('navPartners'), icon: <HandshakeOutlinedIcon fontSize="small" /> },

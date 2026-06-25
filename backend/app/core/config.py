@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     admin_token_ttl_minutes: int = 60
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
+    email_verification_ttl_minutes: int = 1440
 
     cors_origins: str = "http://localhost:5173"
 
@@ -26,8 +27,18 @@ class Settings(BaseSettings):
 
     # Keycloak (OpenID Connect) settings
     keycloak_url: str = "http://localhost:8080"
+    # Public/browser-facing Keycloak URL. Inside Docker the backend reaches
+    # Keycloak at the internal hostname (keycloak_url) but tokens are *issued*
+    # with the public URL, so both must be accepted as valid issuers.
+    keycloak_public_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("KEYCLOAK_PUBLIC_URL", "keycloak_public_url"),
+    )
     keycloak_realm: str = "crea"
     keycloak_client_id: str = "crea-frontend"
+    # crea-frontend is a public client, so this is normally empty. Declared so
+    # KeycloakAuth can read it without raising AttributeError.
+    keycloak_client_secret: str = ""
 
     keycloak_admin_client_id: str = "crea-backend"
     keycloak_admin_client_secret: str = "change-me"
@@ -54,6 +65,12 @@ class Settings(BaseSettings):
     dbms_pass: str = Field(default="CREA3", validation_alias=AliasChoices("DBMS_PASS", "dbms_pass"))
 
     # ----------------------------
+    # Admin access to /rag (Legal Knowledge Base management)
+    # ----------------------------
+    admin_user: str = Field(default="ADMIN", validation_alias=AliasChoices("ADMIN_USER", "admin_user"))
+    admin_pass: str = Field(default="ADMIN", validation_alias=AliasChoices("ADMIN_PASS", "admin_pass"))
+
+    # ----------------------------
     # Deployment environment (dev|prod) + on-the-fly theme/font (read by frontend)
     # ----------------------------
     deployment_environment: str = Field(
@@ -61,7 +78,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("DEPLOYMENT_ENVIRONMENT", "DEPLOYMENT-ENVIRONMENT", "deployment_environment"),
     )
     font_type: str = Field(default="Orbitron", validation_alias=AliasChoices("FONT_TYPE", "FONT-TYPE", "font_type"))
-    theme_type: str = Field(default="light", validation_alias=AliasChoices("THEME_TYPE", "THEME-TYPE", "theme_type"))
+    theme_type: str = Field(default="blue", validation_alias=AliasChoices("THEME_TYPE", "THEME-TYPE", "theme_type"))
 
     # ----------------------------
     # Legal RAG chatbot (OpenRouter generation; see rag-plan.md)
@@ -88,6 +105,14 @@ class Settings(BaseSettings):
     @property
     def keycloak_issuer(self) -> str:
         return f"{self.keycloak_url.rstrip('/')}/realms/{self.keycloak_realm}"
+
+    def keycloak_allowed_issuers(self) -> List[str]:
+        """All issuer strings a valid token may carry (internal + public URL)."""
+        urls = [self.keycloak_url]
+        if self.keycloak_public_url:
+            urls.append(self.keycloak_public_url)
+        issuers = {f"{u.rstrip('/')}/realms/{self.keycloak_realm}" for u in urls if u}
+        return sorted(issuers)
 
     @property
     def keycloak_jwks_url(self) -> str:

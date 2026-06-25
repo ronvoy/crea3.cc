@@ -22,7 +22,7 @@
       "protocol": "openid-connect",
       "publicClient": true,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "redirectUris": ["http://localhost:5173/*"],
       "webOrigins": ["http://localhost:5173"],

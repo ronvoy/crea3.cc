@@ -29,7 +29,6 @@ function titleFromPath(pathname: string, t: (k: any) => string) {
   if (pathname.startsWith('/app/disputes/')) return t('dispute')
   const map: Record<string, string> = {
     '/app/mediators': t('navMediators'),
-    '/app/rag': 'Legal knowledge base',
     '/app/account': t('navAccount'),
     '/app/faq': t('navFaqs'),
     '/app/scope': t('navScope'),

@@ -13,6 +13,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { useI18n, type I18nKey } from '../i18n'
 import SiteFooter from '../components/site-footer'
+import PublicChat from '../components/public-chat'
 import { api } from '../api/client'
 import { useAuth } from '../store/auth'
 
@@ -252,6 +253,9 @@ export default function Landing() {
 
         <SiteFooter />
       </Container>
+
+      {/* Public legal assistant */}
+      <PublicChat />
     </Box>
   )
 }

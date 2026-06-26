@@ -7,35 +7,10 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.config import settings
 from ..db import get_session
-from ..core.keycloak import verify_access_token
+from ..core.auth_tokens import decode_token
 from ..models import User, Dispute, DisputeAgent
 
 bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def _extract_roles(payload: dict) -> set[str]:
-    roles: set[str] = set()
-    ra = payload.get("realm_access") or {}
-    for r in (ra.get("roles") or []):
-        roles.add(str(r))
-
-    # sometimes roles also come from resource_access[client].roles
-    resource_access = payload.get("resource_access") or {}
-    for _client, data in resource_access.items():
-        for r in (data.get("roles") or []):
-            roles.add(str(r))
-    return roles
-
-
-def _pick_local_role(roles: set[str]) -> str:
-    # priority
-    if "admin" in roles:
-        return "admin"
-    if "mediator" in roles:
-        return "mediator"
-    if "agent" in roles:
-        return "agent"
-    return "user"
 
 
 def _unique_username(session: Session, base: str, *, exclude_user_id: int | None = None) -> str:
@@ -65,22 +40,6 @@ def _unique_username(session: Session, base: str, *, exclude_user_id: int | None
     return f"{candidate}-x"
 
 
-def _provision_user(session: Session, *, email: str, username: str, email_verified: bool, sub: str | None, role: str) -> User:
-    uname = _unique_username(session, username)
-    user = User(email=email, username=uname, hashed_password="")
-    if hasattr(user, "email_verified"):
-        setattr(user, "email_verified", bool(email_verified))
-    if hasattr(user, "keycloak_sub"):
-        setattr(user, "keycloak_sub", sub)
-    if hasattr(user, "role"):
-        setattr(user, "role", role)
-
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    return user
-
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     session: Session = Depends(get_session),
@@ -91,83 +50,36 @@ def get_current_user(
             detail="Authentication credentials were not provided.",
         )
 
-    payload = verify_access_token(credentials.credentials)
-
-    if settings.keycloak_require_verified_email and payload.get("email_verified") is False:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email address is not verified. Please verify your email in Keycloak.",
-        )
-
-    email = payload.get("email")
-    if not email:
+    try:
+        payload = decode_token(credentials.credentials)
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token does not include an email claim.",
+            detail="Invalid or expired token.",
         )
 
+    # Our access tokens carry the local user id in `sub`.
+    user: User | None = None
     sub = payload.get("sub")
-    preferred = payload.get("preferred_username") or email.split("@", 1)[0]
-    email_verified = bool(payload.get("email_verified", False))
-
-    roles = _extract_roles(payload)
-    local_role = _pick_local_role(roles)
-    # Keycloak tokens only carry CREA app roles (agent/mediator/admin) when they
-    # are mapped as realm roles. When they don't, `local_role` falls back to
-    # "user" — we must NOT use that to overwrite a role chosen at registration.
-    token_has_app_role = bool(roles & {"admin", "mediator", "agent"})
-
-    # find by keycloak_sub first (if present), else by email
-    user = None
-    if sub:
-        user = session.exec(select(User).where(User.keycloak_sub == sub)).first()
-    if not user:
-        user = session.exec(select(User).where(User.email == email)).first()
+    if sub is not None:
+        try:
+            user = session.get(User, int(sub))
+        except (TypeError, ValueError):
+            user = None
+    if not user and payload.get("email"):
+        user = session.exec(select(User).where(User.email == payload["email"])).first()
 
     if not user:
-        user = _provision_user(
-            session,
-            email=email,
-            username=preferred,
-            email_verified=email_verified,
-            sub=sub,
-            role=local_role,
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found.",
         )
-    else:
-        changed = False
 
-        # update email_verified
-        if hasattr(user, "email_verified") and getattr(user, "email_verified", None) != email_verified:
-            setattr(user, "email_verified", email_verified)
-            changed = True
-
-        # update sub
-        if sub and hasattr(user, "keycloak_sub") and getattr(user, "keycloak_sub", None) != sub:
-            setattr(user, "keycloak_sub", sub)
-            changed = True
-
-        # update role (from token) — only when the token actually carries an app
-        # role, so we never downgrade an agent/mediator chosen at registration.
-        if token_has_app_role and hasattr(user, "role") and getattr(user, "role", None) != local_role:
-            setattr(user, "role", local_role)
-            changed = True
-
-        # update username ONLY if it won't conflict
-        desired = preferred
-        if desired and hasattr(user, "username"):
-            safe = _unique_username(session, desired, exclude_user_id=user.id)
-            if safe != user.username:
-                user.username = safe
-                changed = True
-
-        if changed:
-            try:
-                session.add(user)
-                session.commit()
-                session.refresh(user)
-            except IntegrityError:
-                session.rollback()
-                # don't block login if username collision still happens for old DB state
+    if settings.keycloak_require_verified_email and not getattr(user, "email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address is not verified.",
+        )
 
     # AUTO-LINK invitations: attach DisputeAgent rows by email
     # so invited user can see/respond properly

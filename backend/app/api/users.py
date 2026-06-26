@@ -5,7 +5,7 @@ from sqlalchemy import delete
 from ..db import get_session
 from .deps import get_current_user
 from ..schemas import UserOut
-from ..core.keycloak_admin import KeycloakAdmin, KeycloakAuthError
+from ..core.security import hash_password, verify_password
 from ..models import User, Dispute, DisputeAgent, Good, Preference, AllocationProposal, Notification, AuditEvent, Strategy, MediationSlot
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -56,12 +56,6 @@ def update_me(payload: EmailChangeIn, user: User = Depends(get_current_user), se
     existing = session.exec(select(User).where(User.email == payload.email)).first()
     if existing and existing.id != user.id:
         raise HTTPException(status_code=400, detail="Email already in use")
-    # Update in Keycloak as source of truth
-    if user.keycloak_sub:
-        try:
-            KeycloakAdmin().update_user_email(user.keycloak_sub, str(payload.email))
-        except KeycloakAuthError:
-            raise HTTPException(status_code=502, detail="Keycloak is unreachable")
     user.email = str(payload.email)
     session.add(user)
     session.commit()
@@ -76,27 +70,20 @@ def delete_my_data(user: User = Depends(get_current_user), session: Session = De
 @router.delete("/me")
 def delete_my_account(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     _delete_user_data(session, user)
-    # Best-effort delete in Keycloak
-    if user.keycloak_sub:
-        try:
-            KeycloakAdmin().delete_user(user.keycloak_sub)
-        except KeycloakAuthError:
-            # Do not block local cleanup
-            pass
     session.delete(user)
     session.commit()
     return {"ok": True}
 
 
 @router.post("/me/password")
-def change_password(payload: PasswordChangeIn, user: User = Depends(get_current_user)):
-    if not user.keycloak_sub:
-        raise HTTPException(status_code=400, detail="Keycloak identity not linked")
-    try:
-        kc = KeycloakAdmin()
-        # Validate current password by trying to obtain a token
-        kc.password_grant(user.email, payload.current_password)
-        kc.set_user_password(user.keycloak_sub, payload.new_password)
-        return {"ok": True}
-    except KeycloakAuthError:
+def change_password(
+    payload: PasswordChangeIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.hashed_password or not verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status_code=403, detail="Invalid current password")
+    user.hashed_password = hash_password(payload.new_password)
+    session.add(user)
+    session.commit()
+    return {"ok": True}

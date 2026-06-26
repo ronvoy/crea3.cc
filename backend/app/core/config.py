@@ -72,6 +72,18 @@ class Settings(BaseSettings):
     admin_pass: str = Field(default="ADMIN", validation_alias=AliasChoices("ADMIN_PASS", "admin_pass"))
 
     # ----------------------------
+    # Admin panel (/administrator) master credentials
+    # ----------------------------
+    admin_panel_user: str = Field(
+        default="ADMIN",
+        validation_alias=AliasChoices("ADMIN_PANEL_USER", "ADMIN-PANEL-USER", "admin_panel_user"),
+    )
+    admin_panel_pass: str = Field(
+        default="ADMIN",
+        validation_alias=AliasChoices("ADMIN_PANEL_PASS", "ADMIN-PANEL-PASS", "admin_panel_pass"),
+    )
+
+    # ----------------------------
     # Deployment environment (dev|prod) + on-the-fly theme/font (read by frontend)
     # ----------------------------
     deployment_environment: str = Field(

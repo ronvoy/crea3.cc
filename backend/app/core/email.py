@@ -7,32 +7,61 @@ from email.utils import formataddr
 from .config import settings
 
 
-def _send_email(*, to_email: str, subject: str, body_text: str) -> None:
+def _log_email(*, to_email: str, subject: str, body_text: str, kind: str, ok: bool, error: str = "") -> None:
+    """Persist a record of the email (Mailpit replacement). Best-effort."""
+    try:
+        from sqlmodel import Session
+        from ..db import engine
+        from ..models import EmailLog
+
+        with Session(engine) as session:
+            session.add(
+                EmailLog(
+                    to_email=to_email,
+                    subject=subject,
+                    body=body_text,
+                    kind=kind,
+                    ok=ok,
+                    error=error[:500],
+                )
+            )
+            session.commit()
+    except Exception:
+        # Never let logging break (or mask) the actual send path.
+        pass
+
+
+def _send_email(*, to_email: str, subject: str, body_text: str, kind: str = "generic") -> None:
     msg = MIMEText(body_text, "plain", "utf-8")
     msg["Subject"] = subject
     msg["From"] = formataddr((settings.smtp_from_name, settings.smtp_from))
     msg["To"] = to_email
 
-    if settings.smtp_ssl:
-        server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20)
-    else:
-        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
-
     try:
-        server.ehlo()
-        if settings.smtp_tls and not settings.smtp_ssl:
-            server.starttls()
-            server.ehlo()
-
-        if settings.smtp_user and settings.smtp_pass:
-            server.login(settings.smtp_user, settings.smtp_pass)
-
-        server.send_message(msg)
-    finally:
+        if settings.smtp_ssl:
+            server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20)
+        else:
+            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
         try:
-            server.quit()
-        except Exception:
-            pass
+            server.ehlo()
+            if settings.smtp_tls and not settings.smtp_ssl:
+                server.starttls()
+                server.ehlo()
+
+            if settings.smtp_user and settings.smtp_pass:
+                server.login(settings.smtp_user, settings.smtp_pass)
+
+            server.send_message(msg)
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                pass
+    except Exception as exc:
+        _log_email(to_email=to_email, subject=subject, body_text=body_text, kind=kind, ok=False, error=str(exc))
+        raise
+    else:
+        _log_email(to_email=to_email, subject=subject, body_text=body_text, kind=kind, ok=True)
 
 
 # Existing function (kept)
@@ -61,7 +90,7 @@ def send_verification_code_email(to_email: str, code: str) -> None:
         f"If you did not create a CREA3 account, you can ignore this email.\n\n"
         f"— CREA3"
     )
-    _send_email(to_email=to_email, subject=subject, body_text=body)
+    _send_email(to_email=to_email, subject=subject, body_text=body, kind="verification")
 
 
 def send_password_reset_code_email(to_email: str, code: str) -> None:
@@ -76,7 +105,7 @@ def send_password_reset_code_email(to_email: str, code: str) -> None:
         f"your password will stay the same.\n\n"
         f"— CREA3"
     )
-    _send_email(to_email=to_email, subject=subject, body_text=body)
+    _send_email(to_email=to_email, subject=subject, body_text=body, kind="password_reset")
 
 
 # NEW: dispute invitation email (custom)
@@ -125,4 +154,4 @@ COME PROCEDERE
 Grazie,
 CREA3
 """
-    _send_email(to_email=to_email, subject=subject, body_text=body)
+    _send_email(to_email=to_email, subject=subject, body_text=body, kind="invitation")

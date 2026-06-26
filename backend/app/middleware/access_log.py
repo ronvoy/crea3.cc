@@ -8,7 +8,7 @@ from sqlmodel import Session
 
 from ..db import engine
 from ..models import AccessLog
-from ..core.keycloak import verify_access_token
+from ..core.auth_tokens import decode_token
 
 
 class AccessLogMiddleware(BaseHTTPMiddleware):
@@ -50,10 +50,10 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
             if auth and auth.lower().startswith("bearer "):
                 token = auth.split(" ", 1)[1].strip()
                 try:
-                    claims = verify_access_token(token)
+                    claims = decode_token(token)
                     user_email = claims.get("email") or claims.get("preferred_username")
                 except Exception:
-                    # Not a Keycloak token (or invalid) -> ignore
+                    # Not one of our tokens (or invalid/expired) -> ignore
                     user_email = None
 
             with Session(engine) as session:

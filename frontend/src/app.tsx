@@ -19,6 +19,7 @@ import Partners from './pages/partners'
 import Help from './pages/help'
 import RagPage from './pages/rag'
 import DbmsPage from './pages/dbms'
+import AdministratorPage from './pages/administrator'
 import PublicShell from './components/public-shell'
 
 // These pages are referenced by routes and the sidebar.
@@ -56,6 +57,9 @@ export default function App() {
 
       {/* Database browser — embeds backend /dbms (ADMIN/CREA3, see .env) */}
       <Route path="/dbms" element={<DbmsPage />} />
+
+      {/* Admin panel — users + mail outbox + dbms + rag (ADMIN_PANEL_USER/PASS) */}
+      <Route path="/administrator" element={<AdministratorPage />} />
 
       {/* Public informational pages */}
       <Route path="/scope" element={<PublicShell><Scope /></PublicShell>} />

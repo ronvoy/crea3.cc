@@ -192,6 +192,23 @@ class VisitCounter(SQLModel, table=True):
     total_visits: int = 0
 
 
+class EmailLog(SQLModel, table=True):
+    """Record of every email the app attempts to send (Mailpit replacement).
+
+    Viewable in the admin panel Outbox so verification/reset codes can be read
+    without a real inbox or a mail catcher.
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    to_email: str = Field(index=True)
+    subject: str = Field(default="")
+    body: str = Field(default="")
+    kind: str = Field(default="generic", index=True)  # verification|password_reset|invitation|generic
+    ok: bool = Field(default=True, index=True)
+    error: str = Field(default="")
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 # ── Legal RAG (see rag-plan.md) ────────────────────────────────────────────────
 
 class RagDocument(SQLModel, table=True):

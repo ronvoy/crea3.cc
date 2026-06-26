@@ -31,6 +31,7 @@ from .api import (
     db_browser,
     rag,
     app_config,
+    admin_panel,
 )
 
 app = FastAPI(title="CREA3 Recreated API", version="0.1.0")
@@ -80,6 +81,7 @@ app.include_router(invitations.router)
 app.include_router(db_browser.router)
 app.include_router(rag.router)
 app.include_router(app_config.router)
+app.include_router(admin_panel.router)
 
 
 def seed_mock_mediators():
@@ -103,6 +105,7 @@ def seed_mock_mediators():
                 username=m["username"],
                 hashed_password=hash_password(m["password"]),
                 role="mediator",
+                email_verified=True,
             )
             session.add(u)
         session.commit()

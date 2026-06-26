@@ -7,18 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from ..core.config import settings
+from ..core.auth_tokens import create_access_token, create_refresh_token, decode_token
 from ..core.email import (
     send_password_reset_code_email,
     send_verification_code_email,
 )
-from ..core.keycloak_admin import (
-    KeycloakAdmin,
-    KeycloakAuth,
-    KeycloakAuthError,
-    KeycloakConnectionError,
-    KeycloakError,
-)
-from ..core.security import generate_code, hash_password
+from ..core.security import generate_code, hash_password, verify_password
 from ..models import User
 from ..schemas import (
     ForgotPasswordIn,
@@ -96,32 +90,10 @@ def _cooldown_remaining(sent_at: datetime | None) -> int:
     return max(0, int(RESEND_COOLDOWN_SECONDS - elapsed))
 
 
-def _resolve_kc_user_id(kc_admin: KeycloakAdmin, user: User, session: Session) -> str | None:
-    """Return a valid Keycloak user id for this local user.
-
-    The stored `keycloak_sub` can be stale or missing for older accounts (a
-    Keycloak reset/re-import, or a user that predates the integration). In that
-    case Keycloak returns 404 "User not found". We fall back to looking the user
-    up by email and repair the stored sub so future calls are fast.
-    """
-    if user.keycloak_sub:
-        try:
-            kc_admin.is_user_enabled(user.keycloak_sub)  # 404s if the id is stale
-            return user.keycloak_sub
-        except KeycloakConnectionError:
-            raise
-        except KeycloakError:
-            pass  # stale/missing — fall through to email lookup
-
-    kc_user = kc_admin.find_user_by_email(user.email)
-    if kc_user and kc_user.get("id"):
-        new_id = kc_user["id"]
-        if new_id != user.keycloak_sub:
-            user.keycloak_sub = new_id
-            session.add(user)
-            session.commit()
-        return new_id
-    return None
+def _issue_tokens(user: User) -> TokenOut:
+    access, expires_in = create_access_token(user)
+    refresh = create_refresh_token(user)
+    return TokenOut(access_token=access, refresh_token=refresh, token_type="bearer", expires_in=expires_in)
 
 
 @router.post("/register", response_model=RegisterOut)
@@ -139,35 +111,14 @@ def register(payload: RegisterIn, session: Session = Depends(get_session)):
     if selected_role not in ("agent", "mediator"):
         selected_role = "agent"
 
-    # Reject local duplicates early for a clearer message.
     if session.exec(select(User).where(User.email == email)).first():
         raise HTTPException(status_code=400, detail="An account with this email already exists")
-
-    # Create the Keycloak identity (enabled; app-level access is controlled by
-    # our own email_verified flag).
-    kc_admin = KeycloakAdmin.from_settings(settings)
-    try:
-        kc_user_id = kc_admin.create_user(email=email, username=email, password=payload.password, enabled=True)
-    except KeycloakConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except KeycloakAuthError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # Best-effort: mirror the role into Keycloak as a realm role. The realm may
-    # not define these roles — that's fine, the local DB role is the source of
-    # truth for app authorization.
-    try:
-        kc_admin.assign_realm_role(kc_user_id, selected_role)
-    except KeycloakError:
-        pass
 
     # Always require email verification before the account can sign in.
     code = generate_code()
     now = _now_utc()
-    expires_at = now + timedelta(minutes=CODE_TTL_MINUTES)
 
     user = User(
-        keycloak_sub=kc_user_id,
         email=email,
         username=display_username,
         role=selected_role,
@@ -175,15 +126,13 @@ def register(payload: RegisterIn, session: Session = Depends(get_session)):
         email_verified=False,
         email_verification_code=code,
         email_verification_token=secrets.token_urlsafe(16),
-        email_verification_expires_at=expires_at,
+        email_verification_expires_at=now + timedelta(minutes=CODE_TTL_MINUTES),
         email_verification_sent_at=now,
     )
     session.add(user)
     session.commit()
     session.refresh(user)
 
-    # Send the verification code email (best-effort: failures don't block signup;
-    # the dev_code lets local/dev flows proceed without the inbox).
     try:
         send_verification_code_email(to_email=email, code=code)
     except Exception:
@@ -201,14 +150,12 @@ def register(payload: RegisterIn, session: Session = Depends(get_session)):
 def verify_email(body: VerifyEmailIn, session: Session = Depends(get_session)) -> SimpleMessageOut:
     user: User | None = None
 
-    # Preferred path: email + 6-digit code.
     if body.email and body.code:
         user = _find_user(session, body.email)
         if not user:
             raise HTTPException(status_code=400, detail="Invalid email or code")
         if not user.email_verification_code or body.code.strip() != user.email_verification_code:
             raise HTTPException(status_code=400, detail="Invalid verification code")
-    # Legacy path: long link token.
     elif body.token:
         user = session.exec(
             select(User).where(User.email_verification_token == body.token)
@@ -225,17 +172,6 @@ def verify_email(body: VerifyEmailIn, session: Session = Depends(get_session)) -
     if expires and expires < _now_utc():
         raise HTTPException(status_code=400, detail="Verification code expired — request a new one")
 
-    kc_admin = KeycloakAdmin.from_settings(settings)
-    try:
-        kc_user_id = _resolve_kc_user_id(kc_admin, user, session)
-        if not kc_user_id:
-            raise HTTPException(status_code=400, detail="No matching identity-provider account for this email")
-        kc_admin.enable_and_verify_email(kc_user_id)
-    except KeycloakConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except KeycloakError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
     user.email_verified = True
     user.email_verification_code = None
     user.email_verification_token = None
@@ -249,7 +185,6 @@ def verify_email(body: VerifyEmailIn, session: Session = Depends(get_session)) -
 @router.post("/resend-verification", response_model=SimpleMessageOut)
 def resend_verification(body: ResendVerificationIn, session: Session = Depends(get_session)) -> SimpleMessageOut:
     user = _find_user(session, body.email)
-    # Don't reveal whether the account exists.
     if not user:
         return SimpleMessageOut(ok=True, message="If the account exists, a new code was sent.")
     if user.email_verified:
@@ -272,17 +207,12 @@ def resend_verification(body: ResendVerificationIn, session: Session = Depends(g
     except Exception:
         pass
 
-    return SimpleMessageOut(
-        ok=True,
-        message="Verification code sent.",
-        dev_code=code if _is_dev() else "",
-    )
+    return SimpleMessageOut(ok=True, message="Verification code sent.", dev_code=code if _is_dev() else "")
 
 
 @router.post("/forgot-password", response_model=SimpleMessageOut)
 def forgot_password(body: ForgotPasswordIn, session: Session = Depends(get_session)) -> SimpleMessageOut:
     user = _find_user(session, body.email)
-    # Always respond the same way to avoid leaking which emails are registered.
     generic = SimpleMessageOut(ok=True, message="If the account exists, a reset code was sent.")
     if not user:
         return generic
@@ -321,20 +251,8 @@ def reset_password(body: ResetPasswordIn, session: Session = Depends(get_session
     if expires and expires < _now_utc():
         raise HTTPException(status_code=400, detail="Reset code expired — request a new one")
 
-    kc_admin = KeycloakAdmin.from_settings(settings)
-    try:
-        kc_user_id = _resolve_kc_user_id(kc_admin, user, session)
-        if not kc_user_id:
-            raise HTTPException(status_code=400, detail="No matching identity-provider account for this email")
-        kc_admin.update_password(kc_user_id, body.new_password)
-        # Resetting via an emailed code proves ownership — mark verified too.
-        kc_admin.enable_and_verify_email(kc_user_id)
-    except KeycloakConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except KeycloakError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
     user.hashed_password = hash_password(body.new_password)
+    # Resetting via an emailed code proves ownership — mark verified too.
     user.email_verified = True
     user.password_reset_code = None
     user.password_reset_expires_at = None
@@ -346,42 +264,32 @@ def reset_password(body: ResetPasswordIn, session: Session = Depends(get_session
 
 @router.post("/login", response_model=TokenOut)
 def login(payload: LoginIn, session: Session = Depends(get_session)) -> TokenOut:
-    """Authenticate against Keycloak using username/password (Direct Access Grant)."""
+    """Authenticate against the local user store and issue app JWTs."""
     user = _find_user(session, payload.email)
-    if not user:
+    if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.email_verified:
         raise HTTPException(status_code=403, detail="Email address is not verified")
-
-    kc_auth = KeycloakAuth.from_settings(settings)
-    try:
-        tokens = kc_auth.password_grant(username=user.email, password=payload.password)
-    except KeycloakConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except KeycloakError as e:
-        raise HTTPException(status_code=401, detail="Invalid credentials") from e
-
-    return TokenOut(
-        access_token=tokens.access_token or "",
-        refresh_token=tokens.refresh_token or "",
-        token_type="bearer",
-        expires_in=int(tokens.expires_in or 0),
-    )
+    return _issue_tokens(user)
 
 
 @router.post("/refresh", response_model=TokenOut)
-def refresh(body: RefreshIn) -> TokenOut:
-    kc_auth = KeycloakAuth.from_settings(settings)
+def refresh(body: RefreshIn, session: Session = Depends(get_session)) -> TokenOut:
     try:
-        tokens = kc_auth.refresh(refresh_token=body.refresh_token)
-    except KeycloakConnectionError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except KeycloakError as e:
-        raise HTTPException(status_code=401, detail="Invalid refresh token") from e
+        claims = decode_token(body.refresh_token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    if claims.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    return TokenOut(
-        access_token=tokens.access_token or "",
-        refresh_token=tokens.refresh_token or "",
-        token_type="bearer",
-        expires_in=int(tokens.expires_in or 0),
-    )
+    user: User | None = None
+    sub = claims.get("sub")
+    if sub is not None:
+        try:
+            user = session.get(User, int(sub))
+        except (TypeError, ValueError):
+            user = None
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    return _issue_tokens(user)

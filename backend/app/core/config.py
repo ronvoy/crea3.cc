@@ -108,6 +108,13 @@ class Settings(BaseSettings):
         default="google/gemma-4-31b-it:free",
         validation_alias=AliasChoices("OPENROUTER_MODEL", "openrouter_model"),
     )
+    # Optional cheap PAID model used only as a last resort when every free model
+    # is rate-limited (e.g. "meta-llama/llama-3.1-8b-instruct"). Needs a little
+    # OpenRouter credit; makes the chatbot effectively always answer.
+    openrouter_fallback_model: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENROUTER_FALLBACK_MODEL", "openrouter_fallback_model"),
+    )
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1",
         validation_alias=AliasChoices("OPENROUTER_BASE_URL", "openrouter_base_url"),

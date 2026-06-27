@@ -10,9 +10,12 @@ Auth model
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+import asyncio
+import json
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -24,6 +27,32 @@ from .admin import require_admin, _create_admin_token
 from .deps import get_current_user
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
+
+
+def _keepalive_json(fn: Callable[[], Dict[str, Any]]) -> StreamingResponse:
+    """Run a slow (blocking) function while streaming whitespace keepalives, then
+    emit its JSON result as the final chunk.
+
+    LLM calls can take several seconds — long enough that a reverse proxy / tunnel
+    (e.g. serveo) in front of the backend times the request out and returns 502 to
+    the browser, even though the backend would answer. Streaming a byte immediately
+    (and every second) keeps that connection alive. Leading whitespace is ignored
+    by JSON parsers, so the client still uses `res.json()` unchanged.
+    """
+
+    async def gen():
+        loop = asyncio.get_event_loop()
+        fut = loop.run_in_executor(None, fn)
+        while not fut.done():
+            yield b" "  # keepalive; flushes headers + bytes so the proxy won't time out
+            await asyncio.sleep(1)
+        try:
+            result = await fut
+        except Exception as exc:  # noqa: BLE001
+            result = {"answer": f"Sorry, something went wrong: {exc}", "generator": "error"}
+        yield json.dumps(result).encode("utf-8")
+
+    return StreamingResponse(gen(), media_type="application/json")
 
 
 # ── admin auth ─────────────────────────────────────────────────────────────────
@@ -398,12 +427,12 @@ def _run_query(body: QueryIn, session: Session) -> Dict[str, Any]:
 
 
 @router.post("/query")
-def query(
+async def query(
     body: QueryIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> Dict[str, Any]:
-    return _run_query(body, session)
+) -> StreamingResponse:
+    return _keepalive_json(lambda: _run_query(body, session))
 
 
 class GeneralIn(BaseModel):
@@ -412,21 +441,21 @@ class GeneralIn(BaseModel):
 
 
 @router.post("/general")
-def general(
+async def general(
     body: GeneralIn,
     user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> StreamingResponse:
     q = (body.query or "").strip()
     if not q:
         raise HTTPException(status_code=400, detail="Empty query")
-    return rag.general_chat(q, history=body.history)
+    return _keepalive_json(lambda: rag.general_chat(q, history=body.history))
 
 
 # ── public landing chatbot (no auth) ───────────────────────────────────────────
 
 @router.post("/public-chat")
-def public_chat(body: GeneralIn) -> Dict[str, Any]:
+async def public_chat(body: GeneralIn) -> StreamingResponse:
     q = (body.query or "").strip()
     if not q:
         raise HTTPException(status_code=400, detail="Empty query")
-    return rag.general_chat(q, history=body.history)
+    return _keepalive_json(lambda: rag.general_chat(q, history=body.history))

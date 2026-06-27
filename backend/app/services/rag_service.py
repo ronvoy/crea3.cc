@@ -488,15 +488,19 @@ def _extractive_answer(query: str, contexts: List[Dict[str, Any]]) -> str:
     return "\n\n".join(lines)
 
 
-# OpenRouter's free model line-up changes often and individual models get
-# rate-limited (HTTP 429) or retired (404). We try the configured model first,
-# then fall back through other currently-free models so the chatbot keeps working.
+# OpenRouter's free model line-up changes; individual free models get
+# rate-limited (429 "temporarily — retry shortly") or retired (404). We try the
+# configured model first, then a diverse pool of free models (different upstream
+# providers fail independently). IMPORTANT: free models share a low account rate
+# limit (~20 req/min), so we make ONE pass — retrying aggressively burns the quota
+# and makes 429s *more* likely. For real reliability set OPENROUTER_FALLBACK_MODEL
+# to a cheap paid model (tried last; only billed when all free models are down).
 _OPENROUTER_FALLBACK_MODELS = [
     "google/gemma-4-31b-it:free",
     "openai/gpt-oss-20b:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen3-next-80b-a3b-instruct:free",
-    "openai/gpt-oss-120b:free",
+    "nvidia/nemotron-nano-9b-v2:free",
 ]
 
 
@@ -507,15 +511,27 @@ def _openrouter_models_to_try() -> List[str]:
     for m in _OPENROUTER_FALLBACK_MODELS:
         if m not in seq:
             seq.append(m)
+    # Cheap paid last resort (only reached when every free model failed).
+    paid = (settings.openrouter_fallback_model or "").strip()
+    if paid and paid not in seq:
+        seq.append(paid)
     return seq
 
 
-def _openrouter_complete(messages: List[Dict[str, str]], *, temperature: float = 0.2) -> Dict[str, str]:
-    """Call OpenRouter, falling back across free models on rate-limit/unavailable.
+# Streaming keepalives (see rag.py) protect the proxy/tunnel, so this bound just
+# avoids an unbounded wait. A single pass keeps free-tier quota usage low.
+_OPENROUTER_CALL_TIMEOUT = 15.0   # seconds per model attempt
+_OPENROUTER_TOTAL_BUDGET = 25.0   # seconds across the single pass
 
-    Returns {"content", "model"}. Raises RuntimeError only when every candidate
-    fails or the key itself is rejected.
+
+def _openrouter_complete(messages: List[Dict[str, str]], *, temperature: float = 0.2) -> Dict[str, str]:
+    """Try the configured model, then fall back across the pool ONCE.
+
+    Returns {"content", "model"}. Raises RuntimeError when every candidate fails
+    or the key is rejected.
     """
+    import time
+
     import httpx
 
     headers = {
@@ -526,13 +542,17 @@ def _openrouter_complete(messages: List[Dict[str, str]], *, temperature: float =
     }
     url = settings.openrouter_base_url.rstrip("/") + "/chat/completions"
     last_err = "no model attempted"
+    started = time.monotonic()
+    timeout = httpx.Timeout(_OPENROUTER_CALL_TIMEOUT, connect=8.0)
 
-    with httpx.Client(timeout=60.0) as client:
+    with httpx.Client(timeout=timeout) as client:
         for model in _openrouter_models_to_try():
+            if time.monotonic() - started > _OPENROUTER_TOTAL_BUDGET - 2.0:
+                break
             payload = {"model": model, "messages": messages, "temperature": temperature}
             try:
                 res = client.post(url, json=payload, headers=headers)
-            except Exception as exc:  # noqa: BLE001 — network error, try next model
+            except Exception as exc:  # noqa: BLE001 — network/timeout, try next
                 last_err = f"network error: {exc}"
                 continue
 
@@ -548,10 +568,9 @@ def _openrouter_complete(messages: List[Dict[str, str]], *, temperature: float =
                 continue
 
             last_err = f"OpenRouter error {res.status_code}: {res.text[:160]}"
-            # Auth / malformed-request errors won't be fixed by another model.
             if res.status_code in (400, 401, 403):
                 raise RuntimeError(last_err)
-            # 402/404/408/429/5xx → model-specific; try the next candidate.
+            # 402/404/408/429/5xx → try the next candidate.
 
     raise RuntimeError(last_err)
 
@@ -595,4 +614,16 @@ def general_chat(query: str, *, history: Optional[List[Dict[str, str]]] = None) 
         result = _openrouter_complete(messages, temperature=0.4)
         return {"answer": result["content"] or "(no response)", "generator": "openrouter", "model": result["model"]}
     except Exception as exc:  # noqa: BLE001
-        return {"answer": f"Sorry, I couldn't reach the model ({exc}).", "generator": "error"}
+        return {"answer": _friendly_chat_error(exc), "generator": "error"}
+
+
+def _friendly_chat_error(exc: Exception) -> str:
+    """Turn a raw OpenRouter failure into a calm, user-facing message."""
+    text = str(exc).lower()
+    if "429" in text or "rate-limit" in text or "rate limit" in text:
+        return (
+            "The assistant is busy right now — the free AI model is rate-limited. "
+            "Please wait a few seconds and ask again. (For consistent answers, an "
+            "administrator can set a paid fallback model.)"
+        )
+    return "Sorry, the assistant is temporarily unavailable. Please try again in a moment."

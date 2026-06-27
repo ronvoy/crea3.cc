@@ -152,7 +152,7 @@ Configured in `frontend/src/app.tsx`. Environment variables live in `frontend/.e
 | `VITE_KEYCLOAK_CLIENT_ID` | OIDC client ID | `crea-frontend` |
 | `VITE_KEYCLOAK_ACCOUNT_URL` | Link to Keycloak self-service account page | `http://localhost:8080/realms/crea/account` |
 | `VITE_PROJECT_CONTACT_NAME` | Footer contact name | `CREA3 Team` |
-| `VITE_PROJECT_CONTACT_EMAIL` | Footer contact email | `crea3@crea.com` |
+| `VITE_PROJECT_CONTACT_EMAIL` | Footer contact email | `info@crea3.cc` |
 | `VITE_PROJECT_CONTACT_ORG` | Footer organisation name | `CREA3 Consortium` |
 | `VITE_PROJECT_WEBSITE` | Footer website link | _(empty)_ |
 

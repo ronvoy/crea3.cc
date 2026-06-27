@@ -16,7 +16,7 @@ const strings = {
   en: {
     // Landing page – workflow carousel
     landingWorkflowHeading: "Negotiation workflow — overview",
-    landingWorkflowHint: "This carousel advances every 3 seconds. Use the navigation controls (arrows, swipe, or scroll) to review each phase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Initiate the dispute dossier",
     landingWorkflowStep1Desc: "Establish a dispute dossier by selecting the procedure (Bids or Rates), defining the items in scope, and recording baseline valuations to frame the negotiation.",
     landingWorkflowStep2Title: "Invite and authorize stakeholders",
@@ -242,7 +242,7 @@ const strings = {
   sl: {
     // Landing page – workflow carousel
     landingWorkflowHeading: "Negotiation workflow — overview",
-    landingWorkflowHint: "This carousel advances every 3 seconds. Use the navigation controls (arrows, swipe, or scroll) to review each phase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Initiate the dispute dossier",
     landingWorkflowStep1Desc: "Establish a dispute dossier by selecting the procedure (Bids or Rates), defining the items in scope, and recording baseline valuations to frame the negotiation.",
     landingWorkflowStep2Title: "Invite and authorize stakeholders",
@@ -355,7 +355,7 @@ const strings = {
   et: {
     // Landing page – workflow carousel
     landingWorkflowHeading: "Negotiation workflow — overview",
-    landingWorkflowHint: "This carousel advances every 3 seconds. Use the navigation controls (arrows, swipe, or scroll) to review each phase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Initiate the dispute dossier",
     landingWorkflowStep1Desc: "Establish a dispute dossier by selecting the procedure (Bids or Rates), defining the items in scope, and recording baseline valuations to frame the negotiation.",
     landingWorkflowStep2Title: "Invite and authorize stakeholders",
@@ -468,7 +468,7 @@ const strings = {
   be: {
     // Landing page – workflow carousel
     landingWorkflowHeading: "Negotiation workflow — overview",
-    landingWorkflowHint: "This carousel advances every 3 seconds. Use the navigation controls (arrows, swipe, or scroll) to review each phase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Initiate the dispute dossier",
     landingWorkflowStep1Desc: "Establish a dispute dossier by selecting the procedure (Bids or Rates), defining the items in scope, and recording baseline valuations to frame the negotiation.",
     landingWorkflowStep2Title: "Invite and authorize stakeholders",
@@ -581,7 +581,7 @@ const strings = {
   lt: {
     // Landing page – workflow carousel
     landingWorkflowHeading: "Negotiation workflow — overview",
-    landingWorkflowHint: "This carousel advances every 3 seconds. Use the navigation controls (arrows, swipe, or scroll) to review each phase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Initiate the dispute dossier",
     landingWorkflowStep1Desc: "Establish a dispute dossier by selecting the procedure (Bids or Rates), defining the items in scope, and recording baseline valuations to frame the negotiation.",
     landingWorkflowStep2Title: "Invite and authorize stakeholders",
@@ -694,7 +694,7 @@ const strings = {
   hr: {
     // Landing page – workflow carousel
     landingWorkflowHeading: "Negotiation workflow — overview",
-    landingWorkflowHint: "This carousel advances every 3 seconds. Use the navigation controls (arrows, swipe, or scroll) to review each phase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Initiate the dispute dossier",
     landingWorkflowStep1Desc: "Establish a dispute dossier by selecting the procedure (Bids or Rates), defining the items in scope, and recording baseline valuations to frame the negotiation.",
     landingWorkflowStep2Title: "Invite and authorize stakeholders",

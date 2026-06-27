@@ -85,7 +85,9 @@ export const useAppConfig = create<AppConfigState>((set, get) => ({
   deploymentEnvironment: '',
   fontType: initialFont(),
   themeType: initialTheme(),
-  isDev: true,
+  // Default OFF so dev tools never flash/leak before (or without) server config.
+  // Only the server saying deployment_environment === 'dev' turns them on.
+  isDev: false,
   googleEnabled: false,
 
   setFontType(id) {
@@ -116,8 +118,9 @@ export const useAppConfig = create<AppConfigState>((set, get) => ({
       set(patch)
       ensureFontLoaded(get().fontType)
     } catch {
-      // Backend unreachable: keep local defaults, assume dev so tools are visible.
-      set({ deploymentEnvironment: '', isDev: true })
+      // Backend unreachable: never assume dev — keep dev tools hidden so they
+      // can't leak on a public/prod deployment where config failed to load.
+      set({ deploymentEnvironment: '', isDev: false })
     }
   },
 

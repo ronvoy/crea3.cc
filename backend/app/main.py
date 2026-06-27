@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+import os
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 
 from .middleware.access_log import AccessLogMiddleware
@@ -82,6 +86,33 @@ app.include_router(db_browser.router)
 app.include_router(rag.router)
 app.include_router(app_config.router)
 app.include_router(admin_panel.router)
+
+
+# ── Serve the built frontend (single-origin: app + API on the same host) ──────────
+# Enabled when FRONTEND_DIST_DIR points at a Vite `dist` build. This lets the whole
+# app be reached through ONE URL/port (ideal for Cloudflare/serveo tunnels and
+# simple prod), so the browser calls the API at a relative path with no CORS or
+# mixed-content problems.
+_DIST = os.path.abspath(settings.frontend_dist_dir) if settings.frontend_dist_dir else ""
+if _DIST and os.path.isdir(_DIST):
+    _assets = os.path.join(_DIST, "assets")
+    if os.path.isdir(_assets):
+        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+
+    _index = os.path.join(_DIST, "index.html")
+    # Paths owned by the backend — never overridden by the SPA fallback.
+    _RESERVED = ("api/", "api", "dbms", "docs", "redoc", "openapi.json", "health")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        if full_path.startswith(_RESERVED):
+            raise HTTPException(status_code=404)
+        # Serve a real static file when it exists (e.g. favicon), else index.html
+        # so client-side routes (/login, /administrator, …) load the SPA.
+        candidate = os.path.normpath(os.path.join(_DIST, full_path))
+        if candidate.startswith(_DIST) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(_index)
 
 
 def seed_mock_mediators():

@@ -25,6 +25,13 @@ class Settings(BaseSettings):
 
     chat_upstream_url: str = ""
 
+    # When set to a built frontend `dist` directory, the backend also serves the
+    # SPA so the app + API share one origin (ideal for tunnels / single-port prod).
+    frontend_dist_dir: str = Field(
+        default="",
+        validation_alias=AliasChoices("FRONTEND_DIST_DIR", "frontend_dist_dir"),
+    )
+
     # Keycloak (OpenID Connect) settings
     keycloak_url: str = "http://localhost:8080"
     # Public/browser-facing Keycloak URL. Inside Docker the backend reaches

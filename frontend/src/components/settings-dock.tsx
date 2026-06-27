@@ -19,7 +19,6 @@ import {
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
-import MotionPhotosOffOutlinedIcon from '@mui/icons-material/MotionPhotosOffOutlined'
 import TextIncreaseOutlinedIcon from '@mui/icons-material/TextIncreaseOutlined'
 import TextDecreaseOutlinedIcon from '@mui/icons-material/TextDecreaseOutlined'
 import CloseIcon from '@mui/icons-material/Close'
@@ -43,9 +42,9 @@ const LANG_OPTIONS: Array<{ code: Lang; label: string }> = [
   { code: 'hr', label: 'Hrvatski' },
 ]
 
-// Floating "Settings" rail (right edge) with quick accessibility actions plus a
-// full settings drawer. Visible on public + authenticated areas. Anchored on the
-// right so it never collides with the left navigation drawer.
+// Floating "Settings" rail (right edge). The OUTSIDE rail keeps only the settings
+// gear + light/dark toggle; all the finer controls (high contrast, reduce motion,
+// font size) live INSIDE the settings drawer.
 export default function SettingsDock() {
   const {
     highContrast,
@@ -76,7 +75,7 @@ export default function SettingsDock() {
 
   return (
     <>
-      {/* Quick-access rail */}
+      {/* Quick-access rail: settings + light/dark only */}
       <Paper
         elevation={3}
         sx={{
@@ -97,41 +96,25 @@ export default function SettingsDock() {
             <SettingsOutlinedIcon />
           </IconButton>
         </Tooltip>
-        <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: 0.5 }}>
-          <Tooltip title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'} placement="left">
-            <IconButton
-              aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
-              aria-pressed={lightMode}
-              onClick={() => setLightMode(!lightMode)}
-            >
-              {lightMode ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={t('reduceMotion')} placement="left">
-            <IconButton
-              aria-label={t('reduceMotion')}
-              aria-pressed={reduceMotion}
-              color={reduceMotion ? 'primary' : 'default'}
-              onClick={() => setReduceMotion(!reduceMotion)}
-            >
-              <MotionPhotosOffOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={t('increaseFont')} placement="left">
-            <IconButton aria-label={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>
-              <TextIncreaseOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={t('decreaseFont')} placement="left">
-            <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>
-              <TextDecreaseOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        <Tooltip title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'} placement="left">
+          <IconButton
+            aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
+            aria-pressed={lightMode}
+            onClick={() => setLightMode(!lightMode)}
+          >
+            {lightMode ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
+          </IconButton>
+        </Tooltip>
       </Paper>
 
-      {/* Full settings drawer */}
-      <Drawer anchor="right" open={open} onClose={() => setOpen(false)}>
+      {/* Full settings drawer — above the top app bar, but below MUI menus/popovers
+          (Select dropdowns) so those still open on top of the panel. */}
+      <Drawer
+        anchor="right"
+        open={open}
+        onClose={() => setOpen(false)}
+        sx={{ zIndex: (th) => th.zIndex.drawer + 5 }}
+      >
         <Box sx={{ width: { xs: '92vw', sm: 360 }, maxWidth: 420, height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Stack
             direction="row"

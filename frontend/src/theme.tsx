@@ -27,7 +27,9 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
     return createTheme({
       palette: {
         mode,
-        primary: { main: primaryMain },
+        // Force white text on primary so contained buttons are never low-contrast
+        // (e.g. blue-on-blue in light mode).
+        primary: { main: primaryMain, contrastText: '#ffffff' },
         ...(mode === 'light'
           ? {
               background: {
@@ -70,6 +72,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
           defaultProps: { disableElevation: true },
           styleOverrides: {
             root: { textTransform: 'none', minHeight: 44, borderRadius: 12 },
+            // Always-white text on filled primary buttons (any theme/mode).
+            containedPrimary: { color: '#ffffff' },
           },
         },
         MuiPaper: {

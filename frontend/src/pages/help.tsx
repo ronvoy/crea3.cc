@@ -1,4 +1,5 @@
 import React from 'react'
+import { Box, Paper } from '@mui/material'
 import { Card, CardHeader } from '../components/ui'
 
 type FAQ = { q: string; a: React.ReactNode }
@@ -88,11 +89,18 @@ const faqs: FAQ[] = [
 ]
 
 function FAQItem({ item }: { item: FAQ }) {
+  // MUI Paper + theme colors so the card follows light/dark mode (the old
+  // Tailwind bg-white/70 stayed light-grey in dark mode).
   return (
-    <details className="rounded-2xl border border-slate-200 bg-white/70 p-4">
-      <summary className="cursor-pointer font-semibold text-slate-900">{item.q}</summary>
-      <div className="mt-3 text-slate-700 text-sm leading-relaxed">{item.a}</div>
-    </details>
+    <Paper variant="outlined" component="details" sx={{ borderRadius: 3, p: 2 }}>
+      <Box
+        component="summary"
+        sx={{ cursor: 'pointer', fontWeight: 700, color: 'text.primary', listStyle: 'none' }}
+      >
+        {item.q}
+      </Box>
+      <Box sx={{ mt: 1.5, color: 'text.secondary', fontSize: 14, lineHeight: 1.7 }}>{item.a}</Box>
+    </Paper>
   )
 }
 

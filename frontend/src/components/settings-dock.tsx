@@ -9,7 +9,6 @@ import {
   Switch,
   Button,
   Divider,
-  Chip,
   Paper,
   Select,
   MenuItem,
@@ -47,11 +46,9 @@ const LANG_OPTIONS: Array<{ code: Lang; label: string }> = [
 // font size) live INSIDE the settings drawer.
 export default function SettingsDock() {
   const {
-    highContrast,
     reduceMotion,
     fontScale,
     lightMode,
-    setHighContrast,
     setReduceMotion,
     setFontScale,
     setLightMode,
@@ -126,12 +123,9 @@ export default function SettingsDock() {
               <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
                 {t('settings')}
               </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" color="text.secondary">
-                  {currentLabel}
-                </Typography>
-                <Chip label={`${fontScale}%`} size="small" variant="outlined" />
-              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                {currentLabel}
+              </Typography>
             </Box>
             <IconButton aria-label={t('close')} onClick={() => setOpen(false)}>
               <CloseIcon />
@@ -151,12 +145,6 @@ export default function SettingsDock() {
                 onChange={() => setLightMode(!lightMode)}
               />
               <ToggleRow
-                title={t('highContrast')}
-                desc="Higher contrast for readability (WCAG)"
-                checked={highContrast}
-                onChange={() => setHighContrast(!highContrast)}
-              />
-              <ToggleRow
                 title={t('reduceMotion')}
                 desc="Disables animated backgrounds"
                 checked={reduceMotion}
@@ -171,7 +159,6 @@ export default function SettingsDock() {
                       Stored on this device
                     </Typography>
                   </Box>
-                  <Chip label={`${fontScale}%`} size="small" variant="outlined" />
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
                   <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>

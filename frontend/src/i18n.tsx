@@ -129,7 +129,7 @@ const strings = {
   it: {
     // Landing page – carosello del flusso
     landingWorkflowHeading: "Panoramica del flusso negoziale",
-    landingWorkflowHint: "Questo carosello avanza ogni 3 secondi. Usa i controlli di navigazione (frecce, swipe o scroll) per esaminare ciascuna fase.",
+    landingWorkflowHint: "",
     landingWorkflowStep1Title: "Costituzione del fascicolo di controversia",
     landingWorkflowStep1Desc: "Costituisci il fascicolo selezionando la procedura (Offerte o Tariffe), definendo i beni in ambito e registrando le valutazioni iniziali che inquadrano la negoziazione.",
     landingWorkflowStep2Title: "Invito di parti e mediatori",

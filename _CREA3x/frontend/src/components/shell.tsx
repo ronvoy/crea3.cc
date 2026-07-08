@@ -55,7 +55,7 @@ export default function Shell() {
   const title = useMemo(() => titleFromPath(loc.pathname, t), [loc.pathname, t])
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'transparent' }}>
       <CountryOnboarding />
       <SkipLink />
 

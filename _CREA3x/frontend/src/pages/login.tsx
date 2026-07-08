@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Stack, TextField, Button, Alert, Typography, Link as MuiLink, Box } from '@mui/material'
 import AuthLayout from '../components/auth-layout'
-import { Button, Input, ErrorBox } from '../components/ui'
 import { useI18n } from '../i18n'
 import { useAuth } from '../store/auth'
 import { keycloak } from '../keycloak'
@@ -54,70 +54,72 @@ export default function LoginPage() {
 
   return (
     <AuthLayout title={t('loginTitle')} subtitle={t('loginSubtitle')}>
-      <form className="space-y-4" onSubmit={onSubmit}>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">{t('loginEmail')}</label>
-          <Input
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@example.org"
-            autoFocus
-          />
-        </div>
+      <Stack component="form" spacing={2.5} onSubmit={onSubmit}>
+        {error ? <Alert severity="error">{error}</Alert> : null}
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">{t('loginPassword')}</label>
-          <Input
+        <TextField
+          label={t('loginEmail')}
+          type="email"
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="name@example.org"
+          autoFocus
+          fullWidth
+        />
+
+        <Box>
+          <TextField
+            label={t('loginPassword')}
             type="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
+            fullWidth
           />
-          <div className="mt-1.5 text-right">
-            <Link to="/forgot-password" className="text-sm text-slate-500 underline underline-offset-4 hover:text-slate-700">
+          <Box sx={{ textAlign: 'right', mt: 0.75 }}>
+            <MuiLink component={RouterLink} to="/forgot-password" variant="body2" underline="hover" color="text.secondary">
               {t('loginForgot')}
-            </Link>
-          </div>
-        </div>
+            </MuiLink>
+          </Box>
+        </Box>
 
-        <ErrorBox message={error} />
-
-        {/* Not verified yet — resend now lives on the registration page */}
         {unverified ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            <div>{t('loginVerifyResendHint')}</div>
-            <Link
+          <Alert severity="warning" action={
+            <Button
+              component={RouterLink}
+              color="inherit"
+              size="small"
               to={`/register?verify=1${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ''}`}
-              className="mt-2 inline-flex items-center rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100"
             >
               {t('loginResend')}
-            </Link>
-          </div>
+            </Button>
+          }>
+            {t('loginVerifyResendHint')}
+          </Alert>
         ) : null}
 
-        <Button type="submit" className="w-full justify-center" disabled={busy}>
+        <Button type="submit" variant="contained" size="large" disabled={busy}>
           {busy ? t('loginSigningIn') : t('loginSubmit')}
         </Button>
 
-        <div className="text-sm text-slate-600">
+        <Typography variant="body2" color="text.secondary">
           {t('loginNoAccount')}{' '}
-          <Link className="underline underline-offset-4" to="/register">
+          <MuiLink component={RouterLink} to="/register" underline="hover">
             {t('loginRegister')}
-          </Link>
-        </div>
+          </MuiLink>
+        </Typography>
 
         {showFallback ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <Alert severity="info">
             {t('loginFallbackHint')}{' '}
-            <button type="button" onClick={hostedLogin} className="underline underline-offset-4">
+            <MuiLink component="button" type="button" onClick={hostedLogin} underline="hover">
               {t('loginFallbackLink')}
-            </button>
-          </div>
+            </MuiLink>
+          </Alert>
         ) : null}
-      </form>
+      </Stack>
     </AuthLayout>
   )
 }

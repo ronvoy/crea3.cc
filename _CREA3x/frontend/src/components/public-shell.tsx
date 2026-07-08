@@ -21,7 +21,7 @@ export default function PublicShell({ children }: { children: React.ReactNode })
   useI18n()
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'transparent' }}>
       <SkipLink />
 
       <AppBar

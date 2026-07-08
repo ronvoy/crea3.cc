@@ -38,7 +38,8 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
         ...(mode === 'light'
           ? {
               background: {
-                default: highContrast ? '#ffffff' : '#f5f7fa',
+                // Minimal plain white in light mode.
+                default: '#ffffff',
                 paper: '#ffffff',
               },
               text: {
@@ -72,6 +73,20 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
         button: { fontWeight: 600 },
       },
       components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: {
+              minHeight: '100vh',
+              // Minimal: plain white in light, a subtle fixed gradient in dark.
+              background: highContrast
+                ? (mode === 'light' ? '#ffffff' : '#000000')
+                : mode === 'light'
+                  ? '#ffffff'
+                  : 'linear-gradient(160deg, #0b1220 0%, #0f172a 55%, #131f36 100%)',
+              backgroundAttachment: 'fixed',
+            },
+          },
+        },
         MuiButton: {
           defaultProps: { disableElevation: true },
           styleOverrides: {

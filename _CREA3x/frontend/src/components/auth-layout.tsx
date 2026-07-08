@@ -14,7 +14,7 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: { xs: 3, md: 5 } }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'transparent', py: { xs: 3, md: 5 } }}>
       <SkipLink />
       <Container maxWidth="lg">
         {/* Header */}

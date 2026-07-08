@@ -1,76 +1,162 @@
-import React, { useMemo } from "react";
-import { Outlet, useLocation } from "react-router-dom";
-import Sidebar from "./sidebar";
-import Background from "./background";
-import SkipLink from "./skip-link";
-import SiteFooter from "./site-footer";
-import { useAuth } from "../store/auth";
-import { useI18n } from "../i18n";
-import { Button, Pill } from "./ui";
-import NotificationsBell from "./notifications";
-import ArchiveButton from "./archive";
-import { CountryOnboarding } from "./country";
+import React, { useMemo, useState, useEffect } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Drawer,
+  Chip,
+  Button,
+  Stack,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material'
+import MenuIcon from '@mui/icons-material/Menu'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import Sidebar from './sidebar'
+import SkipLink from './skip-link'
+import SiteFooter from './site-footer'
+import NotificationsBell from './notifications'
+import ArchiveButton from './archive'
+import { CountryOnboarding } from './country'
+import { useAuth } from '../store/auth'
+import { useI18n } from '../i18n'
+
+const DRAWER_WIDTH = 300
 
 function titleFromPath(pathname: string, t: (k: any) => string) {
-  if (pathname === "/app") return t('navMyDisputes');
-  if (pathname.startsWith("/app/disputes/")) return t('dispute');
+  if (pathname === '/app') return t('navMyDisputes')
+  if (pathname.startsWith('/app/disputes/')) return t('dispute')
   const map: Record<string, string> = {
-    "/app/mediators": t('navMediators'),
-    "/app/account": t('navAccount'),
-    "/app/faq": t('navFaqs'),
-    "/app/scope": t('navScope'),
-    "/app/partners": t('navPartners'),
-    "/app/others": t('navOtherResources'),
-  };
-  return map[pathname] || t('dispute');
+    '/app/mediators': t('navMediators'),
+    '/app/account': t('navAccount'),
+    '/app/faq': t('navFaqs'),
+    '/app/scope': t('navScope'),
+    '/app/partners': t('navPartners'),
+    '/app/others': t('navOtherResources'),
+  }
+  return map[pathname] || t('dispute')
 }
 
-
 export default function Shell() {
-  const loc = useLocation();
-  const { user } = useAuth();
-  const { t } = useI18n();
+  const loc = useLocation()
+  const { user } = useAuth()
+  const { t } = useI18n()
+  const theme = useTheme()
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
+  const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Include `t` so the title updates when language changes.
-  const title = useMemo(() => titleFromPath(loc.pathname, t), [loc.pathname, t]);
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [loc.pathname])
+
+  const title = useMemo(() => titleFromPath(loc.pathname, t), [loc.pathname, t])
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <CountryOnboarding />
       <SkipLink />
-      <Background />
 
-      <div className="relative z-10 mx-auto w-full max-w-screen-2xl p-4 md:p-6">
-        <div className="grid gap-6 md:grid-cols-[300px_1fr]">
-          <Sidebar />
+      {/* ── Top app bar ─────────────────────────────────────────────────────── */}
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: (th) => th.zIndex.drawer + 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Toolbar sx={{ gap: 2 }}>
+          {!isDesktop && (
+            <IconButton
+              edge="start"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+              aria-expanded={mobileOpen}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
 
-          <div className="flex min-h-[calc(100vh-3rem)] flex-col gap-6">
-            <header className="relative z-30 rounded-3xl border border-white/10 bg-slate-950/30 backdrop-blur px-5 py-4 text-white flex items-center justify-between">
-              <div>
-                <div className="text-sm text-white/60">{t('appSubtitle')}</div>
-                <div className="text-xl font-semibold tracking-tight">{title}</div>
-              </div>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" noWrap component="div">
+              {t('appSubtitle')}
+            </Typography>
+            <Typography variant="h6" noWrap sx={{ fontWeight: 600, lineHeight: 1.1 }}>
+              {title}
+            </Typography>
+          </Box>
 
-              <div className="flex items-center gap-3">
-                {user ? (
-                  <div className="hidden sm:flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
-                    <div className="text-sm font-medium">{user.username}</div>
-                    <Pill>{user.role ?? "user"}</Pill>
-                  </div>
-                ) : null}
-                {user ? <NotificationsBell /> : null}
-                {user ? <ArchiveButton /> : null}
-              </div>
-            </header>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            {user ? (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {user.username}
+                </Typography>
+                <Chip label={user.role ?? 'user'} size="small" variant="outlined" />
+              </Stack>
+            ) : null}
+            {user ? <NotificationsBell /> : null}
+            {user ? <ArchiveButton /> : null}
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="small"
+              startIcon={<RefreshIcon />}
+              onClick={() => window.location.reload()}
+              aria-label={t('refresh')}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              {t('refresh')}
+            </Button>
+          </Stack>
+        </Toolbar>
+      </AppBar>
 
-            <main id="main-content" tabIndex={-1} className="flex-1 rounded-3xl border border-white/10 bg-white/5 backdrop-blur p-4 md:p-6">
-              <Outlet />
-            </main>
+      {/* ── Navigation drawer (permanent on desktop, temporary on mobile) ────── */}
+      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }} aria-label="Navigation">
+        <Drawer
+          variant={isDesktop ? 'permanent' : 'temporary'}
+          open={isDesktop ? true : mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: DRAWER_WIDTH,
+              boxSizing: 'border-box',
+              borderRight: 1,
+              borderColor: 'divider',
+            },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ overflow: 'auto', height: '100%' }}>
+            <Sidebar onNavClick={() => setMobileOpen(false)} />
+          </Box>
+        </Drawer>
+      </Box>
 
-            <SiteFooter />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+      {/* ── Main content ────────────────────────────────────────────────────── */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+        }}
+      >
+        <Toolbar />
+        <Box component="main" id="main-content" tabIndex={-1} sx={{ flex: 1, p: { xs: 2, md: 4 } }}>
+          <Outlet />
+        </Box>
+        <Box sx={{ px: { xs: 2, md: 4 }, pb: 3 }}>
+          <SiteFooter />
+        </Box>
+      </Box>
+    </Box>
+  )
 }

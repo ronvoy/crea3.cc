@@ -1,21 +1,28 @@
 import React from 'react'
+import {
+  Paper,
+  Box,
+  Typography,
+  Button as MuiButton,
+  Chip,
+  Alert,
+  Tooltip,
+  IconButton,
+} from '@mui/material'
+import { styled } from '@mui/material/styles'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+
+// Shared UI primitives — reimplemented on Material UI so the whole app (28 files
+// import from here) picks up the CREA3 theme, dark-mode support and polish while
+// keeping the exact same API the pages already use.
 
 type Classy = { className?: string }
 
-function cx(...parts: Array<string | undefined | false | null>) {
-  return parts.filter(Boolean).join(' ')
-}
-
 export function Card({ children, className }: { children: React.ReactNode } & Classy) {
   return (
-    <div
-      className={cx(
-        'rounded-3xl border border-white/10 bg-slate-50/95 backdrop-blur shadow-xl shadow-black/10',
-        className
-      )}
-    >
+    <Paper variant="outlined" className={className} sx={{ borderRadius: 3, overflow: 'hidden' }}>
       {children}
-    </div>
+    </Paper>
   )
 }
 
@@ -26,124 +33,109 @@ export function CardHeader({
   className,
 }: { title: React.ReactNode; subtitle?: React.ReactNode; right?: React.ReactNode } & Classy) {
   return (
-    <div className={cx('p-5 border-b border-slate-200/60 flex items-start justify-between gap-4', className)}>
-      <div>
-        <div className="text-lg font-semibold text-slate-900">{title}</div>
-        {subtitle ? <div className="text-sm text-slate-600 mt-1">{subtitle}</div> : null}
-      </div>
+    <Box
+      className={className}
+      sx={{
+        p: 2.5,
+        borderBottom: 1,
+        borderColor: 'divider',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 2,
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>{title}</Typography>
+        {subtitle ? (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{subtitle}</Typography>
+        ) : null}
+      </Box>
       {right}
-    </div>
+    </Box>
   )
 }
 
 type ButtonVariant = 'primary' | 'ghost' | 'outline' | 'danger'
 
+const BTN_MAP: Record<ButtonVariant, { variant: 'contained' | 'text' | 'outlined'; color: 'primary' | 'inherit' | 'error' }> = {
+  primary: { variant: 'contained', color: 'primary' },
+  ghost: { variant: 'text', color: 'inherit' },
+  outline: { variant: 'outlined', color: 'inherit' },
+  danger: { variant: 'contained', color: 'error' },
+}
+
 export function Button({
   children,
   variant = 'primary',
   className,
+  type,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant } & Classy) {
-  const base =
-    'inline-flex items-center justify-center rounded-xl px-4 py-2 min-h-[44px] text-sm font-medium transition-all duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.97] active:brightness-90 active:shadow-inner select-none'
-  const styles: Record<ButtonVariant, string> = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-400 focus-visible:ring-offset-white',
-    ghost: 'bg-transparent text-slate-900 hover:bg-slate-900/5 focus-visible:ring-slate-400 focus-visible:ring-offset-white',
-    outline:
-      'bg-white/80 text-slate-900 border border-slate-200 hover:bg-slate-50 focus-visible:ring-slate-400 focus-visible:ring-offset-white',
-    danger: 'bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-400 focus-visible:ring-offset-white',
-  }
+  const m = BTN_MAP[variant]
   return (
-    <button {...props} className={cx(base, styles[variant], className)} type={props.type ?? 'button'}>
+    <MuiButton className={className} variant={m.variant} color={m.color} type={type ?? 'button'} {...(props as any)}>
       {children}
-    </button>
+    </MuiButton>
   )
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={cx(
-        'w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 shadow-sm',
-        'placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-300',
-        props.className
-      )}
-    />
-  )
+// ── Theme-aware native form controls ──────────────────────────────────────────
+// Kept native (via styled elements) so all input types, <option> children,
+// file/checkbox inputs etc. behave exactly as before — just themed + polished.
+const StyledInput = styled('input')(({ theme }) => ({
+  width: '100%',
+  minHeight: 44,
+  borderRadius: 12,
+  border: `1px solid ${theme.palette.divider}`,
+  background: theme.palette.background.paper,
+  color: theme.palette.text.primary,
+  padding: '10px 12px',
+  fontSize: 14.5,
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxSizing: 'border-box',
+  '&::placeholder': { color: theme.palette.text.secondary, opacity: 1 },
+  '&:focus': {
+    borderColor: theme.palette.primary.main,
+    boxShadow: `0 0 0 3px ${theme.palette.primary.main}22`,
+  },
+}))
+const StyledSelect = StyledInput.withComponent('select')
+const StyledTextarea = StyledInput.withComponent('textarea')
+
+export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  // Checkbox / radio / file keep their native rendering.
+  if (props.type === 'checkbox' || props.type === 'radio' || props.type === 'file') {
+    return <input className={className} {...props} />
+  }
+  return <StyledInput className={className} {...props} />
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={cx(
-        'w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 shadow-sm',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-300',
-        props.className
-      )}
-    />
-  )
+  return <StyledSelect {...props} />
 }
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      className={cx(
-        'w-full rounded-xl border border-slate-200 bg-white/95 px-3 py-2 min-h-[44px] text-[14.5px] text-slate-900 shadow-sm',
-        'placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus:border-blue-300',
-        props.className
-      )}
-    />
-  )
+  return <StyledTextarea {...(props as any)} />
 }
 
 export function Pill({ children, className }: { children: React.ReactNode } & Classy) {
-  return (
-    <span
-      className={cx(
-        'inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-xs text-slate-700 border border-white/20 backdrop-blur',
-        className
-      )}
-    >
-      {children}
-    </span>
-  )
+  return <Chip label={children} className={className} size="small" variant="outlined" />
 }
 
 export function ErrorBox({ message }: { message?: string | null }) {
   if (!message) return null
-  return <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{message}</div>
+  return <Alert severity="error" sx={{ borderRadius: 2 }}>{message}</Alert>
 }
 
-// A small "?" affordance that reveals a short explanation of a nearby action on
-// hover (desktop) or tap (touch). Purely informational; never submits anything.
+// A small "?" affordance revealing a short explanation on hover/focus.
 export function HelpTip({ text, className = '' }: { text: string; className?: string }) {
-  const [open, setOpen] = React.useState(false)
   return (
-    <span className={`relative inline-flex align-middle ${className}`}>
-      <button
-        type="button"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v) }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        aria-label={text}
-        title={text}
-        className="grid place-items-center w-4 h-4 rounded-full border border-slate-300 text-slate-500 text-[10px] font-bold leading-none hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-      >
-        ?
-      </button>
-      {open ? (
-        <span
-          role="tooltip"
-          className="absolute z-[80] left-1/2 -translate-x-1/2 top-6 w-56 max-w-[70vw] rounded-lg bg-slate-900 text-white text-xs leading-snug px-3 py-2 shadow-xl pointer-events-none"
-        >
-          {text}
-        </span>
-      ) : null}
-    </span>
+    <Tooltip title={text} arrow>
+      <IconButton size="small" aria-label={text} className={className} sx={{ p: 0.25 }}>
+        <HelpOutlineIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
   )
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { Box, Paper, Typography, Link as MuiLink, Stack, Divider, Container } from '@mui/material'
 import { useI18n } from '../i18n'
 
 const website = import.meta.env.VITE_PROJECT_WEBSITE || ''
@@ -15,57 +16,61 @@ const contact2 = {
 
 function Contact({ name, email, role }: { name: string; email: string; role: string }) {
   return (
-    <div className="mt-3 first:mt-0">
-      <div className="text-[11px] uppercase tracking-wide text-slate-500">{role}</div>
-      <div className="text-sm font-medium text-slate-900">{name}</div>
-      <a href={`mailto:${email}`} className="text-sm text-blue-700 underline underline-offset-4 hover:text-blue-800">
+    <Box sx={{ mt: 1.5, '&:first-of-type': { mt: 0 } }}>
+      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.06em' }}>
+        {role}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 500 }}>{name}</Typography>
+      <MuiLink href={`mailto:${email}`} underline="hover" variant="body2">
         {email}
-      </a>
-    </div>
+      </MuiLink>
+    </Box>
   )
 }
 
 export default function SiteFooter({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n()
   return (
-    <footer className={compact ? 'mt-6' : 'mt-10'}>
-      <div className="mx-auto w-full max-w-screen-2xl px-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-100 p-5 shadow-sm">
-          <div className="grid gap-6 md:grid-cols-2 md:items-start">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">{t('footerProjectContact')}</div>
+    <Box component="footer" sx={{ mt: compact ? 3 : 5 }}>
+      <Container maxWidth="xl" disableGutters>
+        <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+          <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { md: '1fr 1fr' }, alignItems: 'flex-start' }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('footerProjectContact')}</Typography>
               <Contact name={contact1.name} email={contact1.email} role={t('footerCoordinatorRole')} />
               <Contact name={contact2.name} email={contact2.email} role={t('footerTechRole')} />
               {website ? (
-                <div className="mt-3">
-                  <a href={website} target="_blank" rel="noreferrer" className="text-sm text-slate-600 underline underline-offset-4 hover:text-slate-900">
+                <Typography variant="body2" sx={{ mt: 1.5 }}>
+                  <MuiLink href={website} target="_blank" rel="noreferrer" underline="hover" color="text.secondary">
                     {website}
-                  </a>
-                </div>
+                  </MuiLink>
+                </Typography>
               ) : null}
-            </div>
+            </Box>
 
-            <div>
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="text-sm font-semibold text-slate-900">{t('footerPartners')}</div>
-                <div className="text-[11px] text-slate-500">{t('footerPartnersNote')}</div>
-              </div>
-              <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-                <img
+            <Box>
+              <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={1}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('footerPartners')}</Typography>
+                <Typography variant="caption" color="text.secondary">{t('footerPartnersNote')}</Typography>
+              </Stack>
+              <Paper variant="outlined" sx={{ mt: 1.5, p: 2, borderRadius: 2 }}>
+                <Box
+                  component="img"
                   src="/partners.png"
                   alt="Partner institutions: Federico II, VUB, University of Zagreb, Vilnius University, Suor Orsola Benincasa, TalTech, Adiconsum, FBE, University of Ljubljana"
-                  className="mx-auto h-auto w-full max-w-xl object-contain"
                   loading="lazy"
+                  sx={{ mx: 'auto', width: '100%', maxWidth: 560, height: 'auto', objectFit: 'contain', display: 'block' }}
                 />
-              </div>
-            </div>
-          </div>
+              </Paper>
+            </Box>
+          </Box>
 
-          <div className="mt-5 border-t border-slate-200 pt-3 text-xs text-slate-500">
-            <div>© {new Date().getFullYear()} {t('footerRights')}</div>
-          </div>
-        </div>
-      </div>
-    </footer>
+          <Divider sx={{ my: 2.5 }} />
+          <Typography variant="caption" color="text.secondary">
+            © {new Date().getFullYear()} {t('footerRights')}
+          </Typography>
+        </Paper>
+      </Container>
+    </Box>
   )
 }

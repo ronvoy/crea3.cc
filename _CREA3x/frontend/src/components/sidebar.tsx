@@ -1,38 +1,61 @@
 import React from 'react'
-import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import {
+  Box,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Button,
+  Chip,
+  Divider,
+  Stack,
+  IconButton,
+  Tooltip,
+} from '@mui/material'
+import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined'
+import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined'
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined'
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined'
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
-import { Button, Pill } from './ui'
 import { getRecentDisputes, removeRecentDispute, clearRecentDisputes } from '../utils/recent'
 import DisputeStatusBadge from './dispute-status-badge'
 
-
 function Logo() {
   return (
-    <Link to="/app" aria-label="CREA3 — home" className="flex items-center gap-2 rounded-xl transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
-      <img
+    <Stack direction="row" spacing={1.5} alignItems="center">
+      <Box
+        component="img"
         src="/crea3-logo.png"
         alt="CREA3"
-        className="h-9 w-9 rounded-xl bg-white/70 border border-white/20 object-contain"
-        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none" }}
+        sx={{ height: 36, width: 36, borderRadius: 2, objectFit: 'contain', bgcolor: 'action.hover' }}
+        onError={(e: any) => { e.currentTarget.style.display = 'none' }}
       />
-      <div>
-        <div className="text-white font-semibold leading-tight">CREA3</div>
-        <div className="text-white/60 text-xs">Dispute resolution platform</div>
-      </div>
-    </Link>
+      <Box>
+        <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>CREA3</Typography>
+        <Typography variant="caption" color="text.secondary">Dispute resolution platform</Typography>
+      </Box>
+    </Stack>
   )
 }
 
-const itemBase = "flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition"
-const item = ({ isActive }: { isActive: boolean }) =>
-  `${itemBase} ${isActive ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'}`
-
-export default function Sidebar() {
+export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
   const { t } = useI18n()
   const { user, logout } = useAuth()
   const nav = useNavigate()
   const loc = useLocation()
+
   const [recents, setRecents] = React.useState(() => {
     try { return getRecentDisputes() } catch { return [] }
   })
@@ -46,159 +69,150 @@ export default function Sidebar() {
     return m ? Number(m[1]) : null
   })()
 
+  const go = (path: string) => { onNavClick?.(); nav(path) }
+
+  const items: Array<{ to: string; label: string; icon: React.ReactNode; end?: boolean }> = [
+    { to: '/app', label: t('navMyDisputes'), icon: <GavelOutlinedIcon fontSize="small" />, end: true },
+    { to: '/app/legal-ai', label: t('navLegalAi'), icon: <SmartToyOutlinedIcon fontSize="small" /> },
+    { to: '/app/mediators', label: t('navMediators'), icon: <PeopleOutlinedIcon fontSize="small" /> },
+    { to: '/app/faq', label: t('navFaqs'), icon: <HelpOutlineOutlinedIcon fontSize="small" /> },
+    { to: '/app/scope', label: t('navScope'), icon: <DescriptionOutlinedIcon fontSize="small" /> },
+    { to: '/app/partners', label: t('navPartners'), icon: <HandshakeOutlinedIcon fontSize="small" /> },
+    { to: '/app/account', label: t('navAccount'), icon: <PersonOutlineOutlinedIcon fontSize="small" /> },
+    { to: '/app/others', label: t('navOtherResources'), icon: <FolderOutlinedIcon fontSize="small" /> },
+  ]
+
   return (
-    <aside className="hidden md:flex md:flex-col md:w-[300px] md:shrink-0">
-      <div className="h-full rounded-3xl border border-white/10 bg-slate-950/30 backdrop-blur p-4 shadow-sm">
-        <Logo />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
+      <Box sx={{ px: 1, py: 1 }}><Logo /></Box>
 
-        <div className="mt-5 space-y-1">
-          <NavLink to="/app" className={item}>{t('navMyDisputes')}</NavLink>
-          <NavLink to="/app/legal-ai" className={item}>{t('navLegalAi')}</NavLink>
-          <NavLink to="/app/mediators" className={item}>{t('navMediators')}</NavLink>
-          <NavLink to="/app/faq" className={item}>{t('navFaqs')}</NavLink>
-          <NavLink to="/app/scope" className={item}>{t('navScope')}</NavLink>
-          <NavLink to="/app/partners" className={item}>{t('navPartners')}</NavLink>
-          <NavLink to="/app/account" className={item}>{t('navAccount')}</NavLink>
-          <NavLink to="/app/others" className={item}>{t('navOtherResources')}</NavLink>
-        </div>
-
-
-        <div className="mt-5 grid gap-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-white">Quick actions</div>
-              <button
-                type="button"
-                className="text-xs text-white/70 hover:text-white underline underline-offset-2"
-                onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}
-              >
-                Open settings
-              </button>
-            </div>
-            <div className="mt-3 grid gap-2">
-              <Button
-                variant="ghost"
-                className="w-full justify-start bg-white/5 border border-white/10 text-white hover:bg-white/10"
-                onClick={() => nav('/app')}
-              >
-                + Create / open a dispute
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start bg-white/5 border border-white/10 text-white hover:bg-white/10"
-                onClick={() => nav('/app/faq')}
-              >
-                Help & procedural guidance
-              </Button>
-            </div>
-            <div className="mt-3 text-xs text-white/60">
-              Tip: use <span className="font-semibold text-white/80">Tab</span> to navigate and <span className="font-semibold text-white/80">Enter</span> to activate.
-            </div>
-          </div>
-
-          {recents.length > 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-white">{t('recentDisputesTitle')}</div>
-                <button
-                  type="button"
-                  onClick={clearRecents}
-                  className="text-[11px] text-white/60 underline underline-offset-2 hover:text-white/90"
-                >
-                  {t('recentClearAll')}
-                </button>
-              </div>
-              <div className="mt-2 space-y-1">
-                {recents.slice(0, 3).map((d) => {
-                  const active = activeId === d.id
-                  return (
-                  <div
-                    key={d.id}
-                    className={`group flex items-center gap-1 rounded-xl border pr-1 transition ${active ? 'border-white/20 bg-white/10' : 'border-white/0 bg-white/0 hover:border-white/10 hover:bg-white/10'}`}
-                  >
-                    <NavLink
-                      to={`/app/disputes/${d.id}`}
-                      className="min-w-0 flex-1 rounded-xl px-3 py-2 text-sm text-white/85 hover:text-white"
-                      title={d.title || `Dispute #${d.id}`}
-                    >
-                      <div className="truncate">{d.title || `Dispute #${d.id}`}</div>
-                      <div className="mt-1">
-                        <DisputeStatusBadge status={d.status} theme="dark" />
-                      </div>
-                    </NavLink>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        removeRecent(d.id)
-                      }}
-                      title={t('recentRemove')}
-                      aria-label={t('recentRemove')}
-                      className="shrink-0 rounded-lg p-2 text-white/40 transition hover:bg-rose-500/20 hover:text-rose-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2M6 7l1 13a1 1 0 001 1h8a1 1 0 001-1l1-13M10 11v6M14 11v6" />
-                      </svg>
-                    </button>
-                  </div>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-            <div className="text-sm font-semibold text-white">{t('sidebarSupportTitle')}</div>
-            <div className="mt-1 text-xs text-white/65">{t('sidebarSupportBody')}</div>
-            <Button
-              className="mt-3 w-full justify-center bg-white/10 border border-white/15 text-white hover:bg-white/15"
-              onClick={() => nav('/app/support')}
-            >
-              {t('sidebarContactSupport')}
-            </Button>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <NavLink
-                to="/app/faq"
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/80 transition hover:bg-white/15 hover:text-white"
-              >
-                {t('navFaqs')}
-              </NavLink>
-              <NavLink
-                to="/app/legal-ai"
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/80 transition hover:bg-white/15 hover:text-white"
-              >
-                {t('navLegalAi')}
-              </NavLink>
-              <NavLink
-                to="/app/mediators"
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium text-white/80 transition hover:bg-white/15 hover:text-white"
-              >
-                {t('navMediators')}
-              </NavLink>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-3">
-          <div className="text-xs text-white/60">Signed in as</div>
-          <div className="mt-1 text-white font-medium">{user?.username}</div>
-          <div className="text-white/60 text-xs">{user?.email}</div>
-          <div className="mt-2 flex items-center gap-2">
-            <Pill>{user?.role ?? 'user'}</Pill>
-          </div>
-        </div>
-
-        <div className="mt-auto pt-4">
-          <Button
-            variant="ghost"
-            className="w-full bg-white/5 border border-white/10 text-white hover:bg-white/10"
-            onClick={() => { logout(); nav('/'); }}
+      <List sx={{ mt: 1 }}>
+        {items.map((it) => (
+          <ListItemButton
+            key={it.to}
+            component={NavLink}
+            to={it.to}
+            end={it.end as any}
+            onClick={onNavClick}
+            sx={{ mb: 0.25, '&.active': { bgcolor: 'action.selected', fontWeight: 600 } }}
           >
-            Logout
+            <ListItemIcon sx={{ minWidth: 36 }}>{it.icon}</ListItemIcon>
+            <ListItemText primary={it.label} primaryTypographyProps={{ fontSize: '0.9rem' }} />
+          </ListItemButton>
+        ))}
+      </List>
+
+      <Divider sx={{ my: 1.5 }} />
+
+      {/* Quick actions */}
+      <Box sx={{ px: 1 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Quick actions</Typography>
+          <Button size="small" startIcon={<SettingsOutlinedIcon />} onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}>
+            Settings
           </Button>
-        </div>
-      </div>
-    </aside>
+        </Stack>
+        <Stack spacing={1}>
+          <Button variant="outlined" color="inherit" size="small" startIcon={<AddOutlinedIcon />} sx={{ justifyContent: 'flex-start' }} onClick={() => go('/app')}>
+            Create / open a dispute
+          </Button>
+          <Button variant="outlined" color="inherit" size="small" startIcon={<HelpOutlineOutlinedIcon />} sx={{ justifyContent: 'flex-start' }} onClick={() => go('/app/faq')}>
+            Help &amp; procedural guidance
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* Recent disputes */}
+      {recents.length > 0 && (
+        <Box sx={{ px: 1, mt: 2 }}>
+          <Stack direction="row" alignItems="baseline" justifyContent="space-between">
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('recentDisputesTitle')}</Typography>
+            <Button size="small" onClick={clearRecents} sx={{ minWidth: 0, fontSize: 11 }}>{t('recentClearAll')}</Button>
+          </Stack>
+          <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+            {recents.slice(0, 4).map((d) => (
+              <Stack
+                key={d.id}
+                direction="row"
+                alignItems="center"
+                sx={{
+                  borderRadius: 2, border: 1,
+                  borderColor: activeId === d.id ? 'primary.main' : 'transparent',
+                  bgcolor: activeId === d.id ? 'action.selected' : 'transparent',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <ListItemButton
+                  component={NavLink}
+                  to={`/app/disputes/${d.id}`}
+                  onClick={onNavClick}
+                  sx={{ borderRadius: 2, py: 0.75 }}
+                  title={d.title || `Dispute #${d.id}`}
+                >
+                  <ListItemText
+                    primary={d.title || `Dispute #${d.id}`}
+                    primaryTypographyProps={{ noWrap: true, fontSize: '0.85rem' }}
+                    secondary={<DisputeStatusBadge status={d.status} />}
+                    secondaryTypographyProps={{ component: 'div' }}
+                  />
+                </ListItemButton>
+                <Tooltip title={t('recentRemove')}>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeRecent(d.id) }}
+                    aria-label={t('recentRemove')}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {/* Support */}
+      <Box sx={{ px: 1, mt: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('sidebarSupportTitle')}</Typography>
+        <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>{t('sidebarSupportBody')}</Typography>
+        <Button
+          fullWidth
+          variant="outlined"
+          color="inherit"
+          size="small"
+          startIcon={<SupportAgentOutlinedIcon />}
+          sx={{ mt: 1.5, justifyContent: 'flex-start' }}
+          onClick={() => go('/app/support')}
+        >
+          {t('sidebarContactSupport')}
+        </Button>
+        <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', gap: 1 }}>
+          <Chip label={t('navFaqs')} size="small" variant="outlined" onClick={() => go('/app/faq')} />
+          <Chip label={t('navLegalAi')} size="small" variant="outlined" onClick={() => go('/app/legal-ai')} />
+          <Chip label={t('navMediators')} size="small" variant="outlined" onClick={() => go('/app/mediators')} />
+        </Stack>
+      </Box>
+
+      {/* Signed in / logout */}
+      <Box sx={{ flexGrow: 1 }} />
+      <Divider sx={{ my: 1.5 }} />
+      <Box sx={{ px: 1 }}>
+        <Typography variant="caption" color="text.secondary">Signed in as</Typography>
+        <Typography sx={{ fontWeight: 600 }}>{user?.username}</Typography>
+        <Typography variant="caption" color="text.secondary" component="div">{user?.email}</Typography>
+        <Chip label={user?.role ?? 'user'} size="small" variant="outlined" sx={{ mt: 1 }} />
+        <Button
+          fullWidth
+          variant="outlined"
+          color="inherit"
+          startIcon={<LogoutOutlinedIcon />}
+          sx={{ mt: 2, justifyContent: 'flex-start' }}
+          onClick={() => { logout(); nav('/') }}
+        >
+          Logout
+        </Button>
+      </Box>
+    </Box>
   )
 }

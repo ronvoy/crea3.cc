@@ -1,0 +1,3 @@
+Place crea-logo.jpeg here: frontend/public/crea-logo.jpeg
+Raw URL:
+https://raw.githubusercontent.com/ronvoy/CREA3/crea3.cc/_crea2-archive/crea-logo.jpeg

@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Links */
+a { @apply text-blue-700 hover:text-blue-800; }
+
+/* WCAG-friendly focus ring for all keyboard users */
+:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.95);
+  outline-offset: 3px;
+}
+
+/* Respect reduced motion */
+html.rm *, html.rm *::before, html.rm *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High-contrast mode (dark) — ensure text stays readable and borders stay visible */
+html.hc body {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+html.hc a {
+  color: #7dd3fc !important;
+}
+
+html.hc [class*="bg-white"],
+html.hc [class*="bg-slate-50"],
+html.hc [class*="bg-slate-100"],
+html.hc [class*="bg-slate-200"],
+html.hc [class*="bg-slate-900"],
+html.hc [class*="bg-slate-950"],
+html.hc [class*="bg-black"] {
+  background-color: #000 !important;
+}
+
+html.hc [class*="text-slate-"],
+html.hc [class*="text-gray-"],
+html.hc [class*="text-black"],
+html.hc [class*="text-white/"] {
+  color: #fff !important;
+}
+
+html.hc [class*="border-"] {
+  border-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html.hc input,
+html.hc textarea,
+html.hc select {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html.hc ::placeholder {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+html.hc [class*="shadow"] {
+  box-shadow: none !important;
+}

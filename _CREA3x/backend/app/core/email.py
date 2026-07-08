@@ -1,0 +1,146 @@
+from __future__ import annotations
+
+import smtplib
+from email.mime.text import MIMEText
+from email.utils import formataddr
+
+from .config import settings
+
+
+def _send_email(*, to_email: str, subject: str, body_text: str) -> None:
+    msg = MIMEText(body_text, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = formataddr((settings.smtp_from_name, settings.smtp_from))
+    msg["To"] = to_email
+
+    if settings.smtp_ssl:
+        server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20)
+    else:
+        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
+
+    try:
+        server.ehlo()
+        if settings.smtp_tls and not settings.smtp_ssl:
+            server.starttls()
+            server.ehlo()
+
+        if settings.smtp_user and settings.smtp_pass:
+            server.login(settings.smtp_user, settings.smtp_pass)
+
+        server.send_message(msg)
+    finally:
+        try:
+            server.quit()
+        except Exception:
+            pass
+
+
+# Existing function (kept)
+def send_verification_email(to_email: str, token: str) -> None:
+    subject = "CREA3 — Email verification"
+    body = f"""Dear User,
+
+Thank you for registering with the CREA3 platform.
+
+To complete your registration and activate your account, please enter the
+verification code below in the application:
+
+    {token}
+
+If you did not request this registration, you may disregard this message.
+
+Kind regards,
+The CREA3 Team
+"""
+    _send_email(to_email=to_email, subject=subject, body_text=body)
+
+
+# Dispute invitation email
+def send_dispute_invitation_email(
+    *,
+    to_email: str,
+    invited_name: str,
+    invited_role: str,
+    dispute_id: int,
+    dispute_title: str,
+    invited_by_name: str,
+    invited_by_email: str,
+    entitlement_share: float | None = None,
+) -> None:
+    app_link = settings.public_invite_link  # platform entry point
+    register_link = settings.public_register_link  # registration page
+
+    share_line = ""
+    if entitlement_share is not None:
+        share_line = f"  - Entitlement share: {entitlement_share}\n"
+
+    subject = f"CREA3 — Invitation to dispute #{dispute_id}: {dispute_title}"
+
+    body = f"""Dear {invited_name},
+
+You have been invited to take part in a dispute resolution procedure on the
+CREA3 platform.
+
+DISPUTE DETAILS
+  - Reference: #{dispute_id}
+  - Title: {dispute_title}
+
+ASSIGNED ROLE
+  - Role: {invited_role}
+{share_line}
+INVITING PARTY
+  - Name: {invited_by_name}
+  - Email: {invited_by_email}
+
+HOW TO PROCEED
+  1. If you do not yet have an account, please register here:
+     {register_link}
+     Please register using exactly this email address: {to_email}
+  2. If you already have an account, sign in to the platform:
+     {app_link}
+  3. Once signed in, open the "Pending invitations" panel, where you may
+     accept or decline this dispute (a comment may be added if you decline).
+
+Should you have any questions, please contact the inviting party at the email
+address shown above.
+
+Kind regards,
+The CREA3 Team
+"""
+    _send_email(to_email=to_email, subject=subject, body_text=body)
+
+
+def send_meeting_reminder_email(
+    *,
+    to_email: str,
+    participant_name: str,
+    dispute_id: int,
+    dispute_title: str,
+    when_text: str,
+    conference_url: str,
+) -> None:
+    """Notify a participant that a mediation meeting has been confirmed, including
+    the link to join the video conference."""
+    subject = f"CREA3 — Confirmed mediation meeting for dispute #{dispute_id}: {dispute_title}"
+    body = f"""Dear {participant_name},
+
+We are writing to confirm that a mediation meeting for your CREA3 dispute has
+been scheduled.
+
+DISPUTE
+  - Reference: #{dispute_id}
+  - Title: {dispute_title}
+
+MEETING
+  - Date and time: {when_text}
+
+JOINING THE VIDEO CONFERENCE
+  {conference_url}
+
+Please open the link above at the scheduled time to join the session. You may
+also join from the "Dispute Room" tab within the platform.
+
+Kind regards,
+The CREA3 Team
+"""
+    _send_email(to_email=to_email, subject=subject, body_text=body)

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+  <head><title>Silent SSO check</title></head>
+  <body>
+    <script>
+      // keycloak-js loads this page inside a hidden iframe during check-sso and
+      // reads the auth result from here. Because Keycloak is served on the same
+      // origin (via the frontend proxy), this works without third-party cookies.
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>

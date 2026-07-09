@@ -1,10 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import {
+  Box, Stack, Typography, Button, TextField, MenuItem, Paper, IconButton, Tooltip,
+  Chip, Alert, InputAdornment,
+} from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import AddIcon from '@mui/icons-material/Add'
 import { api } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 import { removeRecentDispute } from '../utils/recent'
-import { Card, CardHeader, Button, Input, ErrorBox, Pill, Textarea, HelpTip } from '../components/ui'
+import { Card, CardHeader, HelpTip } from '../components/ui'
 import DisputeStatusBadge from '../components/dispute-status-badge'
 
 type Dispute = { id: number; title: string; method: 'bids'|'rates'; status: string }
@@ -20,6 +29,8 @@ type Invitation = {
   invited_by_email?: string | null
   invited_by_username?: string | null
 }
+
+const STATUSES = ['draft', 'collecting', 'reconciling', 'proposed', 'accepted', 'mediation', 'finalized', 'abandoned']
 
 export default function Dashboard() {
   const { t } = useI18n()
@@ -40,8 +51,6 @@ export default function Dashboard() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return items.filter(d => {
-      // Default ("all") view shows only active disputes; abandoned ones are
-      // hidden unless explicitly selected via the status filter.
       if (statusFilter === 'all' && d.status === 'abandoned') return false
       if (statusFilter !== 'all' && d.status !== statusFilter) return false
       if (q && !(`${d.title} ${d.id}`.toLowerCase().includes(q))) return false
@@ -126,31 +135,45 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="grid gap-4">
+    <Stack spacing={2}>
       <Card>
         <CardHeader
           title={t('dashboardTitle')}
           subtitle={t('dashboardSubtitle')}
-          right={<Button variant="ghost" onClick={load} disabled={loading}>{loading ? t('refreshing') : t('refresh')}</Button>}
+          right={<Button variant="text" color="inherit" onClick={load} disabled={loading}>{loading ? t('refreshing') : t('refresh')}</Button>}
         />
-        <div className="p-4 grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="text-sm text-slate-600">Signed in as <b>{user?.username}</b></div>
-            <div className="text-sm text-slate-600">Role: <Pill>{user?.role}</Pill></div>
-            <ErrorBox message={err} />
-          </div>
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">Create New Dispute</div>
-            <div className="text-xs text-slate-600">Only dispute owners/admins generate proposals and finalize reports.</div>
-            <div className="grid grid-cols-1 gap-2">
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('dashboardCreatePlaceholder')} />
-              <div className="flex items-center gap-2">
-                <Button onClick={create} disabled={!title.trim()}>Create</Button>
-                <HelpTip text={t('helpCreateDispute')} />
-              </div>
-            </div>
-          </div>
-        </div>
+        <Box sx={{ p: 2.5, display: 'grid', gap: 3, gridTemplateColumns: { md: '1fr 1fr' } }}>
+          <Stack spacing={1}>
+            <Typography variant="body2" color="text.secondary">
+              Signed in as <b>{user?.username}</b>
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" color="text.secondary">Role:</Typography>
+              <Chip label={user?.role ?? 'user'} size="small" variant="outlined" />
+            </Stack>
+            {err ? <Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert> : null}
+          </Stack>
+
+          <Stack spacing={1.25}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Create New Dispute</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Only dispute owners/admins generate proposals and finalize reports.
+            </Typography>
+            <TextField
+              size="small"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t('dashboardCreatePlaceholder')}
+              fullWidth
+            />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button variant="contained" startIcon={<AddIcon />} onClick={create} disabled={!title.trim()}>
+                Create
+              </Button>
+              <HelpTip text={t('helpCreateDispute')} />
+            </Stack>
+          </Stack>
+        </Box>
       </Card>
 
       {/* INVITES BANNER */}
@@ -160,110 +183,116 @@ export default function Dashboard() {
             title="Inviti in attesa"
             subtitle="Accetta o rifiuta le dispute a cui sei stato invitato (puoi lasciare un commento)."
           />
-          <div className="p-4 grid gap-3">
+          <Stack spacing={1.5} sx={{ p: 2.5 }}>
             {invites.map(inv => (
-              <div key={inv.dispute_id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div>
-                    <div className="font-semibold">{inv.dispute_title}</div>
-                    <div className="text-xs text-slate-600">
+              <Paper key={inv.dispute_id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2} flexWrap="wrap">
+                  <Box>
+                    <Typography sx={{ fontWeight: 600 }}>{inv.dispute_title}</Typography>
+                    <Typography variant="caption" color="text.secondary" component="div">
                       Dispute #{inv.dispute_id} · ruolo: {inv.invited_as} · quota: {inv.entitlement_share}
-                    </div>
-                    <div className="text-xs text-slate-600 mt-1">
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
                       Invitante: {inv.invited_by_username || '—'} {inv.invited_by_email ? `(${inv.invited_by_email})` : ''}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => respondInvite(inv.dispute_id, true)}>Accetta</Button>
-                    <Button variant="ghost" onClick={() => respondInvite(inv.dispute_id, false)}>Rifiuta</Button>
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="text-xs text-slate-600 mb-1">Commento (opzionale)</div>
-                  <Textarea
-                    rows={3}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1}>
+                    <Button variant="contained" onClick={() => respondInvite(inv.dispute_id, true)}>Accetta</Button>
+                    <Button variant="text" color="inherit" onClick={() => respondInvite(inv.dispute_id, false)}>Rifiuta</Button>
+                  </Stack>
+                </Stack>
+                <Box sx={{ mt: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Commento (opzionale)
+                  </Typography>
+                  <TextField
+                    multiline
+                    minRows={3}
+                    fullWidth
+                    size="small"
                     value={inviteComments[inv.dispute_id] || ''}
                     onChange={(e) => setInviteComments(prev => ({ ...prev, [inv.dispute_id]: e.target.value }))}
                     placeholder="Scrivi un commento per la controparte…"
                   />
-                </div>
-              </div>
+                </Box>
+              </Paper>
             ))}
-          </div>
+          </Stack>
         </Card>
       ) : null}
 
       <Card>
         <CardHeader title={t('dashboardManageCardTitle')} subtitle={t('dashboardManageCardSubtitle')} />
-        <div className="p-4">
+        <Box sx={{ p: 2.5 }}>
           {items.length > 0 ? (
-            <div className="flex flex-wrap gap-2 mb-3">
-              <input
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
+              <TextField
+                size="small"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('searchDisputesPlaceholder')}
-                className="flex-1 min-w-[180px] rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                sx={{ flex: 1 }}
+                InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
               />
-              <select
+              <TextField
+                size="small"
+                select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                sx={{ minWidth: 180 }}
               >
-                <option value="all">{t('filterAllStatuses')}</option>
-                <option value="draft">draft</option>
-                <option value="collecting">collecting</option>
-                <option value="reconciling">reconciling</option>
-                <option value="proposed">proposed</option>
-                <option value="accepted">accepted</option>
-                <option value="mediation">mediation</option>
-                <option value="finalized">finalized</option>
-                <option value="abandoned">abandoned</option>
-              </select>
-            </div>
+                <MenuItem value="all">{t('filterAllStatuses')}</MenuItem>
+                {STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </TextField>
+            </Stack>
           ) : null}
+
           {items.length === 0 ? (
-            <div className="text-sm text-slate-600">No disputes yet.</div>
+            <Typography variant="body2" color="text.secondary">No disputes yet.</Typography>
           ) : filtered.length === 0 ? (
-            <div className="text-sm text-slate-600">{t('noMatchingDisputes')}</div>
+            <Typography variant="body2" color="text.secondary">{t('noMatchingDisputes')}</Typography>
           ) : (
-            <div className="grid gap-2">
+            <Stack spacing={1}>
               {filtered.map(d => (
-                <Link key={d.id} to={`/app/disputes/${d.id}`} className="rounded-2xl border border-slate-200 bg-slate-50 hover:bg-slate-50 p-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{d.title}</div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-xs text-slate-500 shrink-0">ID {d.id}</span>
-                      <DisputeStatusBadge status={d.status} theme="light" showSteps />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={(e) => archiveDispute(e, d.id)}
-                      className="text-sm px-2 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 active:scale-95 transition-all"
-                      title={t('archiveDisputeTitle')}
-                      aria-label={t('archiveDisputeTitle')}
-                    >
-                      📥
-                    </button>
+                <Paper
+                  key={d.id}
+                  component={RouterLink}
+                  to={`/app/disputes/${d.id}`}
+                  variant="outlined"
+                  sx={{
+                    p: 1.75, borderRadius: 2, display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', gap: 2, textDecoration: 'none', color: 'inherit',
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 500 }} noWrap>{d.title}</Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>ID {d.id}</Typography>
+                      <DisputeStatusBadge status={d.status} showSteps />
+                    </Stack>
+                  </Box>
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+                    <Tooltip title={t('archiveDisputeTitle')}>
+                      <IconButton size="small" onClick={(e) => archiveDispute(e, d.id)} aria-label={t('archiveDisputeTitle')}>
+                        <Inventory2OutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <HelpTip text={t('helpArchiveAction')} />
-                    <button
-                      onClick={(e) => deleteDispute(e, d.id)}
-                      className="text-sm px-2 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 active:scale-95 transition-all"
-                      title={t('deleteDisputeTitle')}
-                      aria-label={t('deleteDisputeTitle')}
-                    >
-                      🗑
-                    </button>
+                    <Tooltip title={t('deleteDisputeTitle')}>
+                      <IconButton size="small" color="error" onClick={(e) => deleteDispute(e, d.id)} aria-label={t('deleteDisputeTitle')}>
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <HelpTip text={t('helpDeleteAction')} />
-                    <span className="text-slate-400">→</span>
-                  </div>
-                </Link>
+                    <ArrowForwardIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                  </Stack>
+                </Paper>
               ))}
-            </div>
+            </Stack>
           )}
-        </div>
+        </Box>
       </Card>
-    </div>
+    </Stack>
   )
 }

@@ -1,60 +1,54 @@
 #!/usr/bin/env bash
 #
-# run_be.sh — run ONLY the CREA3 backend (FastAPI) in the foreground.
-#
-# Expects the one-time setup done by ./run.sh (env files, Docker infra:
-# Keycloak/Postgres/Mailpit). Use this in its own terminal for backend dev;
-# Ctrl+C stops it. Logs print straight to the terminal.
+# run_be.sh — run the CREA3 backend (FastAPI) INSIDE a Docker container, in the
+# foreground. Source is mounted so uvicorn --reload gives hot-reload during dev.
+# Ctrl+C stops it. The container joins the compose network so it can reach
+# Keycloak/Postgres/Mailpit by service name.
 #
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
+NETWORK="crea3x_default"
+IMAGE="crea3x-backend"
+NAME="crea3x-backend"
 
 if [[ ! -f "$BACKEND_DIR/.env" ]]; then
   echo "backend/.env not found — run ./run.sh once first to bootstrap everything." >&2
   exit 1
 fi
 
-# Warn (don't block) if the Keycloak container isn't reachable.
-KC_URL="$(grep -E '^KEYCLOAK_URL=' "$BACKEND_DIR/.env" | tail -1 | cut -d= -f2-)"
-if [[ -n "${KC_URL:-}" ]] && ! curl -fsS --max-time 3 "${KC_URL}/realms/master" >/dev/null 2>&1; then
-  echo "! Keycloak not reachable at ${KC_URL} — start infra with:  docker compose up -d db keycloak mailpit" >&2
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is required (this now runs the backend in a container). Install Docker Desktop." >&2
+  exit 1
 fi
 
-# Pick a Python the pinned deps support (3.11–3.13; system 3.14 breaks them).
-PYBIN=""
-for c in python3.12 python3.13 python3.11; do
-  if command -v "$c" >/dev/null 2>&1; then PYBIN="$c"; break; fi
-done
-if [[ -z "$PYBIN" ]]; then
-  v="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 0)"
-  case "$v" in 3.11|3.12|3.13) PYBIN=python3 ;; *)
-    echo "No compatible Python (3.11–3.13) found — run ./run.sh once, or: brew install python@3.12" >&2
-    exit 1 ;;
-  esac
+# ── Ensure infra (Keycloak / Postgres / Mailpit) is up ────────────────────────
+if [[ -z "$(docker compose -f "$ROOT_DIR/docker-compose.yml" ps -q --status running keycloak 2>/dev/null)" ]]; then
+  echo "Infra not running — starting db / keycloak / keycloak-init / mailpit…"
+  docker compose -f "$ROOT_DIR/docker-compose.yml" up -d db keycloak mailpit
+  docker compose -f "$ROOT_DIR/docker-compose.yml" up keycloak-init >/dev/null 2>&1 || true
 fi
 
-cd "$BACKEND_DIR"
-# Recreate the venv if it's missing, or broken/moved: a venv copied from another
-# path keeps stale absolute shebangs (e.g. bin/pip points at a Python that no
-# longer exists), so `.venv/bin/pip` fails with "bad interpreter". Testing pip
-# via its own shebang detects exactly that.
-if [[ -d .venv ]] && ! .venv/bin/pip --version >/dev/null 2>&1; then
-  echo "Recreating virtualenv (existing one is broken or was moved)…"
-  rm -rf .venv
-fi
-if [[ ! -d .venv ]]; then "$PYBIN" -m venv .venv; fi
-# Use `python -m pip` (shebang-independent) so installs work regardless.
-.venv/bin/python -m pip install --quiet -r requirements.txt
+# ── Build the backend image (deps live in site-packages, not /app, so the source
+#    mount below doesn't hide them) ─────────────────────────────────────────────
+echo "Building $IMAGE image…"
+docker build -t "$IMAGE" "$BACKEND_DIR"
 
-# Clear any stale backend still holding the port, and wait for it to release.
-pkill -f "uvicorn app.main:app" 2>/dev/null || true
-for i in $(seq 1 10); do
-  lsof -nP -iTCP:8000 -sTCP:LISTEN >/dev/null 2>&1 || break
-  sleep 1
-  [[ $i -eq 10 ]] && { echo "Port 8000 is still in use by another process (lsof -i :8000)." >&2; exit 1; }
-done
+docker rm -f "$NAME" 2>/dev/null || true
 
-echo "Backend on http://127.0.0.1:8000 (Ctrl+C to stop)"
-exec .venv/bin/python -m uvicorn app.main:app --reload --port 8000
+# ── Run ───────────────────────────────────────────────────────────────────────
+# - source mounted at /app -> uvicorn --reload picks up live changes
+# - KEYCLOAK_INTERNAL_URL routes server->server calls (JWKS/admin) over the
+#   compose network; KEYCLOAK_URL (from .env, :8082) stays the public issuer.
+echo "Backend on http://localhost:8000 (Ctrl+C to stop)"
+exec docker run --rm --name "$NAME" \
+  --network "$NETWORK" \
+  -p 8000:8000 \
+  -v "$BACKEND_DIR":/app \
+  --env-file "$BACKEND_DIR/.env" \
+  -e KEYCLOAK_INTERNAL_URL=http://keycloak:8080 \
+  -e OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-}" \
+  --add-host host.docker.internal:host-gateway \
+  "$IMAGE" \
+  uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

@@ -1,1 +1,0 @@
-- language change should apply to all the text in the page

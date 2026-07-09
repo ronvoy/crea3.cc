@@ -5,14 +5,20 @@ import hashlib
 import hmac
 import json
 import re
+import secrets
 import time
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ..core.config import settings
-from ..core.email import _send_email
+from ..core.email import _send_email, send_verification_code_email
 from ..core.keycloak_admin import KeycloakAdmin, KeycloakAuthError, KeycloakConnectionError
+from ..core import verify_store
+
+# 6-digit email-verification code (alternative to Keycloak's link), stored on the
+# Keycloak user as attributes and valid for 30 minutes.
+VERIFY_CODE_TTL_SECONDS = 1800
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -234,6 +240,18 @@ def register(payload: RegisterIn, request: Request):
         except Exception:
             email_sent = False
 
+        # Also issue a 6-digit code as an alternative to the link. Stored on the
+        # backend (Keycloak 24 rejects custom user attributes); emailed via the
+        # backend SMTP. Best-effort.
+        code_sent = False
+        try:
+            code = f"{secrets.randbelow(1_000_000):06d}"
+            verify_store.set_code(email, code, VERIFY_CODE_TTL_SECONDS)
+            send_verification_code_email(email, code)
+            code_sent = True
+        except Exception:
+            code_sent = False
+
     except HTTPException:
         raise
     except KeycloakAuthError as exc:
@@ -250,4 +268,45 @@ def register(payload: RegisterIn, request: Request):
     except KeycloakConnectionError:
         raise HTTPException(status_code=503, detail="Registration service is unreachable. Please try again later.")
 
-    return {"ok": True, "email_verification_required": True, "email_sent": email_sent}
+    return {
+        "ok": True,
+        "email_verification_required": True,
+        "email_sent": email_sent,
+        "code_sent": code_sent,
+    }
+
+
+class VerifyCodeIn(BaseModel):
+    email: str
+    code: str = Field(min_length=4, max_length=12)
+
+
+@router.post("/verify-code")
+def verify_code(payload: VerifyCodeIn):
+    """Verify an account using the 6-digit code (alternative to the link)."""
+    email = payload.email.strip().lower()
+    code = payload.code.strip()
+
+    result = verify_store.check_and_consume(email, code)
+    if result == "expired":
+        raise HTTPException(status_code=400, detail="This code has expired. Request a new one.")
+    if result != "ok":
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+
+    try:
+        admin = KeycloakAdmin()
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="Verification is temporarily unavailable.")
+
+    try:
+        user = admin.find_user_by_email(email)
+        if not user or not user.get("id"):
+            raise HTTPException(status_code=400, detail="Invalid email or code.")
+        admin.enable_and_verify_email(user["id"])
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except KeycloakConnectionError:
+        raise HTTPException(status_code=503, detail="Verification service is unreachable. Please try again later.")
+    except KeycloakAuthError:
+        raise HTTPException(status_code=502, detail="Could not verify the code. Please try again.")

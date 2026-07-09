@@ -35,6 +35,22 @@ def _send_email(*, to_email: str, subject: str, body_text: str) -> None:
             pass
 
 
+def send_verification_code_email(to_email: str, code: str) -> None:
+    """Send the 6-digit email-verification code (alternative to the link)."""
+    subject = "CREA3 — Your verification code"
+    body = (
+        "Dear User,\n\n"
+        "Thank you for registering with the CREA3 platform.\n\n"
+        f"Your 6-digit verification code is: {code}\n\n"
+        "Enter this code on the verification page to activate your account. "
+        "The code expires in 30 minutes.\n\n"
+        "Alternatively, you can click the verification link in the separate email.\n\n"
+        "If you did not create a CREA3 account, please ignore this message.\n\n"
+        "— CREA3"
+    )
+    _send_email(to_email=to_email, subject=subject, body_text=body)
+
+
 # Existing function (kept)
 def send_verification_email(to_email: str, token: str) -> None:
     subject = "CREA3 — Email verification"

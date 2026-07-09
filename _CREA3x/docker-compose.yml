@@ -60,10 +60,10 @@ services:
       KC_HTTP_PORT: "8080"
       KC_PROXY: ${KC_PROXY:-edge}
       KC_HOSTNAME_STRICT: "false"
-      # Public origin the app is served on. Keycloak is reached through the
-      # frontend proxy at ${APP_PUBLIC_URL}/realms/... , so this fixes the token
-      # issuer and email links to that origin. (Admin console stays on :8080.)
-      KC_HOSTNAME_URL: ${APP_PUBLIC_URL:-http://localhost:3010}
+      # Public origin where the BROWSER reaches Keycloak directly (dev: :8082).
+      # This drives the token issuer and email verification links, so it must be
+      # the reachable Keycloak URL — not the app URL.
+      KC_HOSTNAME_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8082}
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
     volumes:
@@ -105,7 +105,7 @@ services:
     volumes:
       - ./scripts/keycloak:/scripts:ro
     entrypoint: ["/bin/bash", "-lc"]
-    command: ["/scripts/apply-config.sh"]
+    command: ["bash /scripts/apply-config.sh"]
 
   backend:
     build:

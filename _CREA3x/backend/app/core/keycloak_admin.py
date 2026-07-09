@@ -147,6 +147,26 @@ class KeycloakAdmin:
         if r.status_code >= 400:
             raise KeycloakAuthError(f"Failed to update user: {r.status_code} {r.text}")
 
+    def get_user(self, user_id: str) -> dict:
+        """Fetch the full user representation (includes attributes)."""
+        with self._client() as client:
+            r = client.get(f"{self._admin_base}/users/{user_id}", headers=self._headers())
+        if r.status_code >= 400:
+            raise KeycloakAuthError(f"Failed to read user: {r.status_code} {r.text}")
+        return r.json() or {}
+
+    def set_user_attributes(self, user_id: str, attributes: dict[str, list[str]]) -> None:
+        """Set (replace) the user's custom attributes map. Used to hold the
+        6-digit email-verification code alongside Keycloak's own link flow."""
+        with self._client() as client:
+            r = client.put(
+                f"{self._admin_base}/users/{user_id}",
+                headers=self._headers(),
+                json={"attributes": attributes},
+            )
+        if r.status_code >= 400:
+            raise KeycloakAuthError(f"Failed to set user attributes: {r.status_code} {r.text}")
+
     def send_verify_email(
         self,
         user_id: str,

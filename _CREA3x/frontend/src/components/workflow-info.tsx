@@ -1,18 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { Card, Button } from './ui'
+import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { Box, Stack, Typography, Button, Paper } from '@mui/material'
+import CheckIcon from '@mui/icons-material/Check'
+import { Card } from './ui'
 import { useI18n, type I18nKey } from '../i18n'
 import { api } from '../api/client'
 import DisputeStatusBadge from './dispute-status-badge'
 
 type ActiveDispute = { id: number; title: string; status: string }
-
-const stroke = (d: string, cls = 'h-6 w-6') => (
-  <svg viewBox="0 0 24 24" className={cls} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-)
-const CHECK = 'M5 12l4 4 10-10'
 
 // The five workflow phases, labelled with the dispute tab keys (already translated).
 const PHASES: I18nKey[] = ['tabAgents', 'tabGoods', 'tabPreferences', 'tabProposals', 'tabMediation']
@@ -39,7 +34,6 @@ export default function WorkflowInfo({
     api('/api/disputes')
       .then((rows: ActiveDispute[]) => {
         if (!alive) return
-        // Show only active disputes — exclude abandoned ones.
         setDisputes((rows || []).filter((d) => d.status !== 'abandoned'))
       })
       .catch(() => {
@@ -49,103 +43,120 @@ export default function WorkflowInfo({
       alive = false
     }
   }, [])
+
   return (
-    <div className="grid gap-4">
-      <Card>
-        <div className="flex h-full flex-col p-6 md:p-8">
-          {/* Header */}
-          <div className="flex items-start gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
-              {icon}
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{intro}</p>
-            </div>
-          </div>
+    <Card>
+      <Box sx={{ p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Header */}
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+          <Box
+            sx={{
+              height: 48, width: 48, flexShrink: 0, display: 'grid', placeItems: 'center',
+              borderRadius: 2, bgcolor: 'primary.main', color: 'primary.contrastText',
+            }}
+          >
+            {icon}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h5" sx={{ fontWeight: 600 }}>{title}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{intro}</Typography>
+          </Box>
+        </Stack>
 
-          {/* Phase stepper */}
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('workflow')}</div>
-            <ol className="mt-3 flex flex-wrap items-center gap-y-3">
-              {PHASES.map((key, i) => {
-                const active = i === activeStep
-                const done = i < activeStep
-                return (
-                  <li key={key} className="flex items-center">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-semibold ${
-                          active
-                            ? 'bg-blue-600 text-white ring-2 ring-blue-200'
-                            : done
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-white text-slate-500 ring-1 ring-slate-200'
-                        }`}
-                      >
-                        {done ? stroke(CHECK, 'h-4 w-4') : i + 1}
-                      </span>
-                      <span className={`text-sm ${active ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>{t(key)}</span>
-                    </div>
-                    {i < PHASES.length - 1 ? <span className="mx-2 hidden h-px w-6 bg-slate-300 sm:block" aria-hidden /> : null}
-                  </li>
-                )
-              })}
-            </ol>
-          </div>
+        {/* Phase stepper */}
+        <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 2 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{t('workflow')}</Typography>
+          <Stack direction="row" flexWrap="wrap" alignItems="center" sx={{ mt: 1, rowGap: 1.5 }}>
+            {PHASES.map((key, i) => {
+              const active = i === activeStep
+              const done = i < activeStep
+              return (
+                <Stack key={key} direction="row" alignItems="center">
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Box
+                      sx={{
+                        height: 28, width: 28, flexShrink: 0, display: 'grid', placeItems: 'center',
+                        borderRadius: '50%', fontSize: 12, fontWeight: 700,
+                        ...(active
+                          ? { bgcolor: 'primary.main', color: 'primary.contrastText' }
+                          : done
+                            ? { bgcolor: 'success.main', color: 'success.contrastText' }
+                            : { bgcolor: 'action.hover', color: 'text.secondary', border: 1, borderColor: 'divider' }),
+                      }}
+                    >
+                      {done ? <CheckIcon sx={{ fontSize: 16 }} /> : i + 1}
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: active ? 600 : 400, color: active ? 'text.primary' : 'text.secondary' }}>
+                      {t(key)}
+                    </Typography>
+                  </Stack>
+                  {i < PHASES.length - 1 ? (
+                    <Box sx={{ mx: 1, width: 24, height: '1px', bgcolor: 'divider', display: { xs: 'none', sm: 'block' } }} aria-hidden />
+                  ) : null}
+                </Stack>
+              )
+            })}
+          </Stack>
+        </Paper>
 
-          {/* Points */}
-          <ul className="mt-4 grid flex-1 gap-3 sm:grid-cols-3">
-            {points.map((p, i) => (
-              <li key={i} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
-                  {stroke(CHECK, 'h-5 w-5')}
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-slate-700">{p}</p>
-              </li>
-            ))}
-          </ul>
+        {/* Points */}
+        <Box sx={{ mt: 2, flex: 1, display: 'grid', gap: 2, gridTemplateColumns: { sm: 'repeat(3, 1fr)' } }}>
+          {points.map((p, i) => (
+            <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Box sx={{ height: 32, width: 32, display: 'grid', placeItems: 'center', borderRadius: 1.5, bgcolor: 'success.main', color: 'success.contrastText' }}>
+                <CheckIcon sx={{ fontSize: 18 }} />
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>{p}</Typography>
+            </Paper>
+          ))}
+        </Box>
 
-          {/* Active disputes (abandoned ones are excluded) */}
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('wfActiveDisputes')}</div>
-            {disputes === null ? (
-              <div className="mt-3 text-sm text-slate-500">…</div>
-            ) : disputes.length === 0 ? (
-              <div className="mt-3 text-sm text-slate-600">{t('wfNoActiveDisputes')}</div>
-            ) : (
-              <div className="mt-3 grid gap-2">
-                {disputes.map((d) => (
-                  <Link
-                    key={d.id}
-                    to={`/app/disputes/${d.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition hover:bg-white"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate font-medium text-slate-900">{d.title}</div>
-                      <div className="text-xs text-slate-500">ID {d.id}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <DisputeStatusBadge status={d.status} theme="light" />
-                      <span className="text-sm font-medium text-blue-700">{t('wfOpenDispute')}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* Active disputes */}
+        <Paper variant="outlined" sx={{ mt: 3, p: 2, borderRadius: 2 }}>
+          <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>{t('wfActiveDisputes')}</Typography>
+          {disputes === null ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>…</Typography>
+          ) : disputes.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{t('wfNoActiveDisputes')}</Typography>
+          ) : (
+            <Stack spacing={1} sx={{ mt: 1.5 }}>
+              {disputes.map((d) => (
+                <Paper
+                  key={d.id}
+                  component={RouterLink}
+                  to={`/app/disputes/${d.id}`}
+                  variant="outlined"
+                  sx={{
+                    p: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 2, textDecoration: 'none', color: 'inherit', '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontWeight: 500 }} noWrap>{d.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">ID {d.id}</Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <DisputeStatusBadge status={d.status} />
+                    <Typography variant="body2" color="primary" sx={{ fontWeight: 500 }}>{t('wfOpenDispute')}</Typography>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </Paper>
 
-          {/* Actions */}
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="flex-1 text-sm text-slate-600">{t('wfNeedDispute')}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => nav('/app/mediators')}>{t('mediatorsTitle')}</Button>
-              <Button variant="outline" onClick={() => nav('/app/faq')}>{t('navFaqs')}</Button>
-              <Button onClick={() => nav('/app')}>{t('wfGoToDisputes')}</Button>
-            </div>
-          </div>
-        </div>
-      </Card>
-    </div>
+        {/* Actions */}
+        <Paper variant="outlined" sx={{ mt: 2, p: 2, borderRadius: 2 }}>
+          <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={1.5}>
+            <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>{t('wfNeedDispute')}</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Button variant="outlined" color="inherit" onClick={() => nav('/app/mediators')}>{t('mediatorsTitle')}</Button>
+              <Button variant="outlined" color="inherit" onClick={() => nav('/app/faq')}>{t('navFaqs')}</Button>
+              <Button variant="contained" onClick={() => nav('/app')}>{t('wfGoToDisputes')}</Button>
+            </Stack>
+          </Stack>
+        </Paper>
+      </Box>
+    </Card>
   )
 }

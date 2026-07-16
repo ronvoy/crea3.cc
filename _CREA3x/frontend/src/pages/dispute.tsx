@@ -2016,7 +2016,7 @@ function Tab({
       disabled={disabled}
       className={[
         'rounded-xl px-3 py-2 text-sm border flex items-center gap-2',
-        active ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-50',
+        active ? 'bg-blue-50 text-slate-900 border-blue-500 ring-2 ring-blue-400 font-semibold' : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-50',
         disabled ? 'opacity-60 cursor-not-allowed' : '',
       ].join(' ')}
       title={disabled ? 'Blocked / not authorized' : ''}

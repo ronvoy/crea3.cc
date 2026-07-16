@@ -113,7 +113,7 @@ export default function Scope() {
   return (
     <div className="grid gap-4">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-blue-600 to-indigo-700 p-7 text-white shadow-sm md:p-10">
+      <section className="wf-hero relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-blue-600 to-indigo-700 p-7 text-white shadow-sm md:p-10">
         <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" aria-hidden />
         <div className="relative">
           <div className="text-xs font-semibold uppercase tracking-widest text-white/80">{c.kicker}</div>

@@ -99,11 +99,6 @@ export default function Help() {
         <CardHeader title={c.title} subtitle={c.subtitle} />
         <div className="grid gap-3 p-4">
           {c.items.map((f, i) => <FAQItem key={i} item={f} />)}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            <Link to="/scope" className="text-blue-700 underline-offset-4 hover:underline">
-              {lang === 'it' ? 'Ambito del progetto' : 'Project scope'}
-            </Link>
-          </div>
         </div>
       </Card>
     </div>

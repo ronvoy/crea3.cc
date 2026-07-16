@@ -173,3 +173,14 @@ html:not(.light):not(.hc) [class*="border-slate-2"],
 html:not(.light):not(.hc) [class*="border-slate-3"] { border-color: rgba(255,255,255,0.12) !important; }
 
 html:not(.light):not(.hc) [class*="hover:bg-slate-50"]:hover { background-color: #1a2436 !important; }
+
+/* ── More theme-net fixes ─────────────────────────────────────────────────── */
+/* Entitlement / info panels use bg-blue-50 tints — darken them in dark mode. */
+html:not(.light):not(.hc) [class*="bg-blue-50"]   { background-color: #101d33 !important; }
+html:not(.light):not(.hc) [class*="border-blue-2"] { border-color: rgba(96,165,250,0.22) !important; }
+
+/* Partners page: sky-tinted badges/labels are light — darken them in LIGHT mode
+   so they stay readable on the light background. */
+html.light [class*="text-sky-2"],
+html.light [class*="text-sky-3"] { color: #0369a1 !important; }
+html.light [class*="bg-sky-500/2"] { background-color: rgba(2,132,199,0.12) !important; }

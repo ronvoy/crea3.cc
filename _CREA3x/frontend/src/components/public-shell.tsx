@@ -54,33 +54,22 @@ export default function PublicShell({ children }: { children: React.ReactNode })
           <Box sx={{ flexGrow: 1 }} />
 
           <Stack direction="row" spacing={1} alignItems="center">
-            <MuiLink
-              component={RouterLink}
-              to="/scope"
-              color="text.secondary"
-              underline="hover"
-              sx={{ display: { xs: 'none', sm: 'block' } }}
-            >
-              Scope
-            </MuiLink>
-            <MuiLink
-              component={RouterLink}
-              to="/partners"
-              color="text.secondary"
-              underline="hover"
-              sx={{ display: { xs: 'none', sm: 'block' } }}
-            >
-              Partners
-            </MuiLink>
-            <MuiLink
-              component={RouterLink}
-              to="/help"
-              color="text.secondary"
-              underline="hover"
-              sx={{ display: { xs: 'none', sm: 'block' } }}
-            >
-              Help
-            </MuiLink>
+            <Box component="nav" aria-label="Primary" sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
+              {[
+                { to: '/workflow', label: 'Workflow' },
+                { to: '/partners', label: 'Partners' },
+                { to: '/scope', label: 'Scope' },
+                { to: '/help', label: 'Help' },
+              ].map((n) => (
+                <RouterLink
+                  key={n.to}
+                  to={n.to}
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                >
+                  {n.label}
+                </RouterLink>
+              ))}
+            </Box>
             {user ? (
               <Button component={RouterLink} to="/app" variant="contained">
                 Open app

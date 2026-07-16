@@ -13,9 +13,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Links — but never MUI buttons (which set their own text color; otherwise
-   contained buttons rendered as <a> would get link-blue text). */
-a:not(.MuiButtonBase-root) { @apply text-blue-700 hover:text-blue-800; }
+/* Links — but never MUI buttons, nor links that set their own text-* colour
+   (nav buttons styled text-white would otherwise be forced link-blue → looks
+   black on the dark hero). Only plain content links get the blue link colour. */
+a:not(.MuiButtonBase-root):not([class*="text-"]) { @apply text-blue-700 hover:text-blue-800; }
 
 /* WCAG-friendly focus ring for all keyboard users */
 :focus-visible {
@@ -124,7 +125,18 @@ html.light .bg-black\/40                  { background-color: rgba(0,0,0,0.40) !
 html.light .bg-black\/60                  { background-color: rgba(0,0,0,0.60) !important; }
 
 /* ── Links ── */
-html.light a:not(.MuiButtonBase-root) { color: #1d4ed8; }
+html.light a:not(.MuiButtonBase-root):not([class*="text-"]) { color: #1d4ed8; }
+
+/* Workflow page: the blue hero + phase badges keep blue bg + white text in dark
+   mode, but in light mode the net flips their text dark — so lighten the
+   backgrounds there so the (now dark) text reads well. */
+html.light .wf-hero  { background-image: linear-gradient(to bottom right, #eff6ff, #eef2ff) !important; }
+html.light .wf-badge { background-color: #dbeafe !important; }
+/* Dark mode: the default blue is too dark to read — lighten it (white on hover).
+   Only plain content links: skip MUI buttons and any link that already sets its
+   own text-* colour (e.g. nav buttons styled text-white). */
+html:not(.light):not(.hc) a:not(.MuiButtonBase-root):not([class*="text-"])       { color: #93c5fd; }
+html:not(.light):not(.hc) a:not(.MuiButtonBase-root):not([class*="text-"]):hover { color: #ffffff; }
 
 /* ── Mobile hamburger stays readable in light mode ──
    White button text + SVG stroke are already handled by .text-white override.
@@ -150,7 +162,9 @@ html:not(.light):not(.hc) [class*="text-slate-4"] { color: #9fb0c3 !important; }
 
 html:not(.light):not(.hc) .bg-white,
 html:not(.light):not(.hc) [class*="bg-white/9"],
-html:not(.light):not(.hc) [class*="bg-white/8"]   { background-color: #131c2e !important; }
+html:not(.light):not(.hc) [class*="bg-white/8"],
+html:not(.light):not(.hc) [class*="bg-white/7"],
+html:not(.light):not(.hc) [class*="bg-white/6"]   { background-color: #131c2e !important; }
 
 html:not(.light):not(.hc) [class*="bg-slate-50"],
 html:not(.light):not(.hc) [class*="bg-slate-100"] { background-color: #0b1220 !important; }

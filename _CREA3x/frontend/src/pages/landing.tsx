@@ -87,13 +87,13 @@ export default function Landing() {
                 </Link>
                 {user ? null : (
                   <Link to="/login">
-                    <Button variant="ghost" className="border border-white/20 bg-white/10 px-5 py-2.5 text-white hover:bg-white/15">
+                    <Button className="px-5 py-2.5">
                       {t('landingSignIn')}
                     </Button>
                   </Link>
                 )}
                 <Link to="/help">
-                  <Button variant="ghost" className="border border-white/20 bg-white/10 px-5 py-2.5 text-white hover:bg-white/15">
+                  <Button className="px-5 py-2.5">
                     {t('landingHowItWorks')}
                   </Button>
                 </Link>
@@ -291,7 +291,7 @@ function TopNav({ to, label }: { to: string; label: string }) {
   return (
     <Link
       to={to}
-      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/85 transition hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
     >
       {label}
     </Link>

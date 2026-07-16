@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
-import { Button } from './ui'
+import { Button, Select } from './ui'
 
 type Country = { code: string; name: string }
 
@@ -56,16 +56,14 @@ export function CountryOnboarding() {
         <div className="text-sm text-slate-600 mt-1">{t('onboardingHint')}</div>
 
         <label className="block text-sm font-medium text-slate-700 mt-4">{t('countryLabel')}</label>
-        <select
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-        >
-          <option value="">{t('selectCountryPlaceholder')}</option>
-          {countries.map((c) => (
-            <option key={c.code} value={c.code}>{c.name}</option>
-          ))}
-        </select>
+        <div className="mt-1">
+          <Select value={code} onChange={(e) => setCode(e.target.value)}>
+            <option value="">{t('selectCountryPlaceholder')}</option>
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </Select>
+        </div>
 
         {err ? <div className="mt-2 text-sm text-rose-600">{err}</div> : null}
 
@@ -118,16 +116,14 @@ export function CountrySettings() {
       <div className="mt-3 grid sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-slate-700">{t('countryLabel')}</label>
-          <select
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            <option value="">{t('selectCountryPlaceholder')}</option>
-            {countries.map((c) => (
-              <option key={c.code} value={c.code}>{c.name}</option>
-            ))}
-          </select>
+          <div className="mt-1">
+            <Select value={code} onChange={(e) => setCode(e.target.value)}>
+              <option value="">{t('selectCountryPlaceholder')}</option>
+              {countries.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </Select>
+          </div>
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">{t('timezoneLabel')}</label>

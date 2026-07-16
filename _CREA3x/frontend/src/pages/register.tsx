@@ -102,13 +102,10 @@ export default function RegisterPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`)}>
-              Enter verification code
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/login')}>{t('registerGoToLogin')}</Button>
-            <Button variant="ghost" onClick={resendVerification} disabled={resend === 'sending'}>
+            <Button onClick={resendVerification} disabled={resend === 'sending'}>
               {resend === 'sending' ? t('loginResendSending') : t('loginResend')}
             </Button>
+            <Button variant="outline" onClick={() => navigate('/login')}>{t('registerGoToLogin')}</Button>
           </div>
           {resend !== 'idle' && resend !== 'sending' ? (
             <div className="text-xs text-slate-500">{resendMsg[resend]}</div>

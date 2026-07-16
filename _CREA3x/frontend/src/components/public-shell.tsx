@@ -87,7 +87,7 @@ export default function PublicShell({ children }: { children: React.ReactNode })
               </Button>
             ) : (
               <>
-                <Button component={RouterLink} to="/login" variant="text" color="inherit">
+                <Button component={RouterLink} to="/login" variant="outlined">
                   Sign in
                 </Button>
                 <Button component={RouterLink} to="/register" variant="contained">

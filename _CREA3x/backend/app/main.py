@@ -1,8 +1,9 @@
 import os
 
-from fastapi import FastAPI, HTTPException
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .middleware.access_log import AccessLogMiddleware
@@ -84,6 +85,50 @@ app.include_router(support.router)
 app.include_router(auth.router)
 
 
+# ── Reverse-proxy Keycloak under this origin (single port) ────────────────────
+# So the browser reaches Keycloak at  <origin>/realms/...  and <origin>/resources/...
+# instead of :8082. That lets the whole app (SPA + API + Keycloak login/verify
+# links) be tunnelled through ONE port. X-Forwarded-* tell Keycloak the public
+# origin so it builds correct token issuers + verification links for any domain.
+_KC_INTERNAL = (settings.keycloak_internal_url or settings.keycloak_url).rstrip("/")
+_KC_HOP_BY_HOP = {"content-encoding", "transfer-encoding", "content-length", "connection", "keep-alive"}
+
+
+async def _proxy_keycloak(request: Request, kc_path: str) -> Response:
+    fwd_headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
+    fwd_headers["X-Forwarded-Host"] = request.headers.get("host", "")
+    fwd_headers["X-Forwarded-Proto"] = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if request.client:
+        fwd_headers["X-Forwarded-For"] = request.client.host
+    body = await request.body()
+    try:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=30.0) as client:
+            kc = await client.request(
+                request.method, f"{_KC_INTERNAL}{kc_path}",
+                params=request.query_params, content=body, headers=fwd_headers,
+            )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Identity provider is unreachable.")
+    # Relay status + body + headers (preserving multiple Set-Cookie via raw headers).
+    out = Response(content=kc.content, status_code=kc.status_code)
+    out.raw_headers = [
+        (k.encode("latin-1"), v.encode("latin-1"))
+        for k, v in kc.headers.multi_items()
+        if k.lower() not in _KC_HOP_BY_HOP
+    ]
+    return out
+
+
+@app.api_route("/realms/{kc_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"], include_in_schema=False)
+async def _kc_realms(kc_path: str, request: Request):
+    return await _proxy_keycloak(request, f"/realms/{kc_path}")
+
+
+@app.api_route("/resources/{kc_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+async def _kc_resources(kc_path: str, request: Request):
+    return await _proxy_keycloak(request, f"/resources/{kc_path}")
+
+
 # ── Serve the built frontend (single origin: app + API on http://localhost:8000)
 # Enabled when FRONTEND_DIST_DIR points at a Vite `dist` build. The SPA calls the
 # API at a relative path (/api) on this same origin. Keycloak stays on :8082.
@@ -94,7 +139,7 @@ if _DIST and os.path.isdir(_DIST):
         app.mount("/assets", StaticFiles(directory=_assets), name="assets")
 
     _index = os.path.join(_DIST, "index.html")
-    _RESERVED = ("api/", "api", "docs", "redoc", "openapi.json", "health")
+    _RESERVED = ("api/", "api", "docs", "redoc", "openapi.json", "health", "realms", "resources", "admin/")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa_fallback(full_path: str):

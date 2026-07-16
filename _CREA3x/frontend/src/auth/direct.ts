@@ -11,7 +11,7 @@
 
 import { setAccessToken } from '../api/client'
 
-const RAW_URL = (import.meta.env.VITE_KEYCLOAK_URL || '').toString().replace(/\/+$/, '')
+const RAW_URL = (import.meta.env.VITE_KEYCLOAK_URL || (typeof window !== 'undefined' ? window.location.origin : '')).toString().replace(/\/+$/, '')
 const REALM = (import.meta.env.VITE_KEYCLOAK_REALM || '').toString()
 const CLIENT_ID = (import.meta.env.VITE_KEYCLOAK_CLIENT_ID || '').toString()
 const REFRESH_KEY = 'refresh_token'

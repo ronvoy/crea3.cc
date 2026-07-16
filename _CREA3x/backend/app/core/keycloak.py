@@ -61,7 +61,7 @@ def _select_jwk(token: str) -> Dict[str, Any]:
 
 def verify_access_token(token: str) -> Dict[str, Any]:
     """Verify a Keycloak access token and return its claims."""
-    issuer = settings.keycloak_issuer.rstrip("/")
+    realm = settings.keycloak_realm
 
     # Try with cached JWKS; if the kid is missing (rotation), refresh once.
     try:
@@ -72,22 +72,25 @@ def verify_access_token(token: str) -> Dict[str, Any]:
         _JWKS_CACHE = None
         key = _select_jwk(token)
 
-    # Keycloak access tokens frequently carry aud="account" rather than the
-    # client id, while the authorized party is in `azp`. We therefore verify the
-    # signature + issuer here (verify_aud disabled in the library) and then
-    # explicitly assert the token was issued for our client via azp/aud below.
+    # Verify signature + expiry against OUR Keycloak's JWKS. The issuer is checked
+    # host-agnostically below: because Keycloak is proxied under the app origin
+    # (single-port), the token's `iss` reflects whatever domain the browser used
+    # (localhost:8000 or a tunnel domain), so we only require it to be OUR realm.
     claims = jwt.decode(
         token,
         key,
         algorithms=["RS256", "ES256"],
-        issuer=issuer,
         options={
             "verify_aud": False,
             "verify_signature": True,
             "verify_exp": True,
-            "verify_iss": True,
+            "verify_iss": False,
         },
     )
+
+    iss = str(claims.get("iss", "")).rstrip("/")
+    if not iss.endswith(f"/realms/{realm}"):
+        raise ValueError(f"Invalid issuer: {iss!r}")
 
     # Explicit client check (Keycloak uses `azp` for the authorized party).
     client_id = settings.keycloak_client_id

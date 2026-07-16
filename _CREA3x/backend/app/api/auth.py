@@ -236,6 +236,10 @@ def register(payload: RegisterIn, request: Request):
 
         origin = request.headers.get("origin") or ""
         redirect_uri = f"{origin}/app" if origin.startswith("http") else None
+        # Public origin the browser used — so Keycloak builds the verification
+        # LINK for it (tunnel domain / :8000), not the internal keycloak:8080.
+        fwd_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        fwd_proto = request.headers.get("x-forwarded-proto") or request.url.scheme
 
         # LINK_VERIFY=1 -> Keycloak's verification link (best-effort).
         email_sent = False
@@ -245,6 +249,8 @@ def register(payload: RegisterIn, request: Request):
                     user_id,
                     client_id=settings.keycloak_client_id,
                     redirect_uri=redirect_uri,
+                    forwarded_host=fwd_host,
+                    forwarded_proto=fwd_proto,
                 )
                 email_sent = True
             except Exception:

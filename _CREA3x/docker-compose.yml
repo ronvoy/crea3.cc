@@ -59,11 +59,12 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8080"
       KC_PROXY: ${KC_PROXY:-edge}
+      KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
-      # Public origin where the BROWSER reaches Keycloak directly (dev: :8082).
-      # This drives the token issuer and email verification links, so it must be
-      # the reachable Keycloak URL — not the app URL.
-      KC_HOSTNAME_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8082}
+      # No hardcoded hostname: Keycloak is proxied under the app origin (the
+      # backend forwards X-Forwarded-Host/Proto), so it builds token issuers and
+      # verification links for whatever origin the browser used — localhost:8000
+      # OR any tunnel domain. Single port, no per-domain config needed.
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
     volumes:

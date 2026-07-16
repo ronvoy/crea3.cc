@@ -64,7 +64,15 @@ class KeycloakAdmin:
     def _client(self) -> httpx.Client:
         return httpx.Client(timeout=15.0)
 
-    def _get_admin_access_token(self) -> str:
+    def _get_admin_access_token(self, forwarded_host: str | None = None, forwarded_proto: str | None = None) -> str:
+        # When forwarding X-Forwarded-Host on an admin call (so Keycloak builds
+        # links for the public origin), the token MUST be minted with the same
+        # host — otherwise its issuer won't match and Keycloak returns 401.
+        fwd: dict[str, str] = {}
+        if forwarded_host:
+            fwd["X-Forwarded-Host"] = forwarded_host
+        if forwarded_proto:
+            fwd["X-Forwarded-Proto"] = forwarded_proto
         try:
             with self._client() as client:
                 r = client.post(
@@ -74,6 +82,7 @@ class KeycloakAdmin:
                         "client_id": settings.keycloak_admin_client_id,
                         "client_secret": settings.keycloak_admin_client_secret,
                     },
+                    headers=fwd or None,
                 )
         except httpx.ConnectError:
             raise KeycloakConnectionError(
@@ -95,8 +104,8 @@ class KeycloakAdmin:
             )
         return token
 
-    def _headers(self) -> dict[str, str]:
-        token = self._get_admin_access_token()
+    def _headers(self, forwarded_host: str | None = None, forwarded_proto: str | None = None) -> dict[str, str]:
+        token = self._get_admin_access_token(forwarded_host=forwarded_host, forwarded_proto=forwarded_proto)
         return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     # ---------------------------------------------------------------------
@@ -189,12 +198,15 @@ class KeycloakAdmin:
         *,
         client_id: str | None = None,
         redirect_uri: str | None = None,
+        forwarded_host: str | None = None,
+        forwarded_proto: str | None = None,
     ) -> None:
         """Trigger Keycloak to send a verification email to the user.
 
-        Notes:
-        - Requires SMTP configured in the realm (this project uses Mailpit in docker-compose).
-        - Keycloak returns 204 on success.
+        `forwarded_host`/`forwarded_proto` are passed as X-Forwarded-* on this
+        admin call so Keycloak builds the verification LINK for the public origin
+        the browser used (e.g. the tunnel domain) instead of the internal
+        `keycloak:8080` hostname.
         """
         params: dict[str, str] = {}
         if client_id:
@@ -202,10 +214,18 @@ class KeycloakAdmin:
         if redirect_uri:
             params["redirect_uri"] = redirect_uri
 
+        # Mint the token WITH the forwarded host too, so its issuer matches the
+        # forwarded host on the request below (otherwise Keycloak returns 401).
+        headers = self._headers(forwarded_host=forwarded_host, forwarded_proto=forwarded_proto)
+        if forwarded_host:
+            headers["X-Forwarded-Host"] = forwarded_host
+        if forwarded_proto:
+            headers["X-Forwarded-Proto"] = forwarded_proto
+
         with self._client() as client:
             r = client.put(
                 f"{self._admin_base}/users/{user_id}/send-verify-email",
-                headers=self._headers(),
+                headers=headers,
                 params=params or None,
             )
         if r.status_code >= 400:

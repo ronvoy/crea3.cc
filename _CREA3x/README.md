@@ -20,6 +20,7 @@
 10. [Dispute lifecycle workflow](#10-dispute-lifecycle-workflow)
 11. [Running the stack](#11-running-the-stack)
 12. [Security notes](#12-security-notes)
+13. [Tech stack & components](#13-tech-stack--components)
 
 ---
 
@@ -402,3 +403,79 @@ Point the tunnel at the single origin (`:8000` or `:3010`). Ensure it forwards `
 - Only expose **one** port publicly. Keycloak (`:8082`), Mailpit (`:1025/:8025`), and Postgres should stay on the internal network.
 - `admin` authorization is by **Keycloak realm role**, not a static password — grant the `admin` role deliberately.
 - Mailpit is a **dev mail sink**; production uses the real `mail.crea3.cc` SMTP configured in `.env`.
+
+---
+
+## 13. Tech stack & components
+
+### Backend (Python)
+
+| Technology | Version | Role |
+|------------|---------|------|
+| Python | 3.11+ | Runtime |
+| FastAPI | 0.115.2 | Web / REST framework |
+| Uvicorn (`[standard]`) | 0.30.6 | ASGI server (`--reload` in dev) |
+| SQLModel | 0.0.22 | ORM models |
+| SQLAlchemy | 2.0.x | DB engine (under SQLModel) |
+| SQLite | — | Application data store (`crea3.db` on a volume) |
+| Pydantic Settings | 2.5.2 | Typed configuration from `.env` |
+| python-jose | 3.3.0 | JWT validation via Keycloak JWKS (RS256/ES256) |
+| httpx | 0.27.2 | Keycloak proxy + admin REST + Ollama / Legal-AI calls |
+| passlib | 1.7.4 | Password hashing helpers |
+| python-multipart | 0.0.9 | File-upload parsing |
+| email-validator | 2.3.0 | Email validation |
+| reportlab | 4.2.2 | PDF report generation |
+| openpyxl | 3.1.5 | XLSX export |
+| Pillow | 12.0.0 | Image handling |
+| PyYAML | 6.0.3 | YAML config/data |
+| python-dotenv | 1.2.1 | `.env` loading |
+
+### Frontend (TypeScript / React)
+
+| Technology | Version | Role |
+|------------|---------|------|
+| React + React DOM | 18.3.1 | UI framework |
+| TypeScript | 5.5.4 | Language |
+| Vite | 5.4.8 | Build tool + dev server (HMR) |
+| `@vitejs/plugin-react` | 4.3.1 | React fast-refresh plugin |
+| MUI (`@mui/material`, `@mui/icons-material`) | 6.5.0 | Component library (primary UI) |
+| Emotion (`@emotion/react`, `@emotion/styled`) | 11.14.x | CSS-in-JS engine for MUI |
+| Tailwind CSS | 3.4.10 | Utility CSS + dark/light theming layer |
+| PostCSS / autoprefixer | 8.4.45 / 10.4.20 | CSS pipeline |
+| react-router-dom | 6.26.2 | Client-side routing |
+| zustand | 4.5.5 | Lightweight state management |
+| keycloak-js | 24.0.5 | OIDC client (login / token) |
+
+### Infrastructure & platform
+
+| Technology | Version | Role |
+|------------|---------|------|
+| Keycloak | 24.0.5 | Identity provider (OIDC, realm `crea`) |
+| PostgreSQL | 16-alpine | Keycloak database |
+| Mailpit | latest | Dev SMTP capture + inbox UI |
+| Ollama | host | Local LLM runtime (`llama3.2:3b`) for the workflow assistant |
+| nginx | (frontend image) | Serves SPA + reverse-proxy in compose mode |
+| Docker / Docker Compose | — | Container orchestration |
+| node:22-alpine | — | Frontend build/dev container |
+| Cloudflare Tunnel | optional | Single-origin public exposure |
+| SMTP (`mail.crea3.cc`) | — | Production outbound email |
+
+### Key application components / modules
+
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| Keycloak reverse proxy | `backend/app/main.py` | Forwards `/realms` + `/resources` to Keycloak with `X-Forwarded-*` |
+| SPA serving / fallback | `backend/app/main.py` | Serves `dist` + SPA catch-all (single origin) |
+| Token verifier | `backend/app/core/keycloak.py` | Host-agnostic JWT/JWKS validation |
+| Admin client | `backend/app/core/keycloak_admin.py` | User create / verify-email / password (admin REST) |
+| Verify store | `backend/app/core/verify_store.py` | File-based 6-digit code store (TTL) |
+| Email sender | `backend/app/core/email.py` | SMTP (invitations, codes) |
+| Ollama client | `backend/app/core/ollama.py` | Workflow-assistant LLM calls |
+| Access-log middleware | `backend/app/middleware/access_log.py` | Request audit → `/api/admin/access-logs` |
+| Auth flow (embedded) | `frontend/src/auth/direct.ts` | Direct-grant login without redirect |
+| Public shell | `frontend/src/public-shell.tsx` | Pill nav + public informational pages |
+| Protected shell / Dashboard | `frontend/src/dashboard.tsx` | Authenticated app layout |
+| Dispute workspace | `frontend/src/dispute.tsx` | Per-dispute stages UI |
+| Help widget | `frontend/src/help-widget.tsx` | Public assistant chatbot (theme-aware) |
+| UI primitives | `frontend/src/ui.tsx` | MUI-backed shared components |
+| Theme + a11y | `frontend/src/theme.tsx`, `a11y-provider.tsx` | Dark/light + accessibility (light mode) |

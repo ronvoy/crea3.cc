@@ -225,32 +225,48 @@ def register(payload: RegisterIn, request: Request):
         if admin.find_user_by_email(email):
             raise HTTPException(status_code=409, detail="An account with this email already exists.")
 
-        user_id = admin.create_user(email=email, username=username, password=payload.password)
+        # Verification is required only if at least one method is enabled.
+        verification_required = bool(settings.link_verify or settings.code_verify)
+        user_id = admin.create_user(
+            email=email,
+            username=username,
+            password=payload.password,
+            email_verified=not verification_required,
+        )
 
-        # Best-effort verification email (account already exists even if this fails).
         origin = request.headers.get("origin") or ""
         redirect_uri = f"{origin}/app" if origin.startswith("http") else None
-        try:
-            admin.send_verify_email(
-                user_id,
-                client_id=settings.keycloak_client_id,
-                redirect_uri=redirect_uri,
-            )
-            email_sent = True
-        except Exception:
-            email_sent = False
 
-        # Also issue a 6-digit code as an alternative to the link. Stored on the
-        # backend (Keycloak 24 rejects custom user attributes); emailed via the
-        # backend SMTP. Best-effort.
+        # LINK_VERIFY=1 -> Keycloak's verification link (best-effort).
+        email_sent = False
+        if settings.link_verify:
+            try:
+                admin.send_verify_email(
+                    user_id,
+                    client_id=settings.keycloak_client_id,
+                    redirect_uri=redirect_uri,
+                )
+                email_sent = True
+            except Exception:
+                email_sent = False
+
+        # CODE_VERIFY=1 -> a 6-digit code (stored backend-side, emailed via SMTP).
         code_sent = False
-        try:
-            code = f"{secrets.randbelow(1_000_000):06d}"
-            verify_store.set_code(email, code, VERIFY_CODE_TTL_SECONDS)
-            send_verification_code_email(email, code)
-            code_sent = True
-        except Exception:
-            code_sent = False
+        if settings.code_verify:
+            try:
+                code = f"{secrets.randbelow(1_000_000):06d}"
+                verify_store.set_code(email, code, VERIFY_CODE_TTL_SECONDS)
+                send_verification_code_email(email, code)
+                code_sent = True
+            except Exception:
+                code_sent = False
+
+        # No method enabled -> auto-verify so the account can sign in immediately.
+        if not verification_required:
+            try:
+                admin.enable_and_verify_email(user_id)
+            except Exception:
+                pass
 
     except HTTPException:
         raise
@@ -270,7 +286,7 @@ def register(payload: RegisterIn, request: Request):
 
     return {
         "ok": True,
-        "email_verification_required": True,
+        "email_verification_required": verification_required,
         "email_sent": email_sent,
         "code_sent": code_sent,
     }

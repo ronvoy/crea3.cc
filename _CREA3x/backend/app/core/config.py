@@ -46,6 +46,20 @@ class Settings(BaseSettings):
 
     keycloak_require_verified_email: bool = True
 
+    # When set to a built frontend `dist` directory, the backend also serves the
+    # SPA so the app + API share one origin (single-port, like _CREA3).
+    frontend_dist_dir: str = Field(
+        default="",
+        validation_alias=AliasChoices("FRONTEND_DIST_DIR", "frontend_dist_dir"),
+    )
+
+    # Email-verification methods offered at registration:
+    #   LINK_VERIFY=1 -> send Keycloak's verification link
+    #   CODE_VERIFY=1 -> send a 6-digit code (verified via /api/auth/verify-code)
+    # If BOTH are 0, no verification is required and the account is auto-verified.
+    link_verify: bool = Field(default=True, validation_alias=AliasChoices("LINK_VERIFY", "link_verify"))
+    code_verify: bool = Field(default=True, validation_alias=AliasChoices("CODE_VERIFY", "code_verify"))
+
     # Token lifetime for the email-verification token we mint locally (minutes).
     email_verification_ttl_minutes: int = 60 * 24  # 24h
 

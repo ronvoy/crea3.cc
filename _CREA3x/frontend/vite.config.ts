@@ -6,8 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Dev convenience: forward API calls to the FastAPI backend
-      '/api': 'http://127.0.0.1:8000',
+      // HMR dev: forward /api to the backend. In the container this is set to
+      // the backend service name (see run_fe.sh); locally it defaults to :8000.
+      '/api': process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000',
     },
+    // Allow the container/host to serve HMR to the browser at localhost:5173.
+    hmr: { clientPort: 5173 },
   },
 })

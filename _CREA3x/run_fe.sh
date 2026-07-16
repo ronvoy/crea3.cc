@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 #
-# run_fe.sh — run the CREA3 frontend (Vite dev server) INSIDE a Docker container,
-# in the foreground, with hot-module reload. Source is mounted; node_modules
-# lives in a named volume (Linux binaries, kept separate from the host's).
-# Ctrl+C stops it. The browser calls the backend directly on :8000 and Keycloak
-# on :8082 (see frontend/.env), so this container needs no compose network.
+# run_fe.sh — OPTIONAL: run the frontend Vite dev server (hot-reload) in a
+# container on :5173 for active development. The single-port app is served by
+# run_be.sh on :8000; use this only when you want HMR. It joins the compose
+# network and proxies /api to the backend container. Requires run_be.sh running.
 #
 set -euo pipefail
 
@@ -31,9 +30,11 @@ docker rm -f "$NAME" 2>/dev/null || true
 echo "Frontend on http://localhost:5173 (Ctrl+C to stop)"
 echo "(first run installs node_modules in the container — this can take a minute)"
 exec docker run --rm --name "$NAME" \
+  --network crea3x_default \
   -p 5173:5173 \
   -v "$FRONTEND_DIR":/app \
   -v "$MODULES_VOL":/app/node_modules \
   -w /app \
+  -e VITE_PROXY_TARGET=http://crea3x-backend:8000 \
   "$NODE_IMAGE" \
   sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173"

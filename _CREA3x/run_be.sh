@@ -56,7 +56,7 @@ exec docker run --rm --name "$NAME" \
   --env-file "$BACKEND_DIR/.env" \
   -e FRONTEND_DIST_DIR=/app/frontend_dist \
   -e KEYCLOAK_INTERNAL_URL=http://keycloak:8080 \
-  -e OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-}" \
+  -e OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://host.docker.internal:11434}" \
   --add-host host.docker.internal:host-gateway \
   "$IMAGE" \
   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

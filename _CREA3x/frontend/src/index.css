@@ -176,7 +176,8 @@ html:not(.light):not(.hc) [class*="hover:bg-slate-50"]:hover { background-color:
 
 /* ── More theme-net fixes ─────────────────────────────────────────────────── */
 /* Entitlement / info panels use bg-blue-50 tints — darken them in dark mode. */
-html:not(.light):not(.hc) [class*="bg-blue-50"]   { background-color: #101d33 !important; }
+html:not(.light):not(.hc) [class~="bg-blue-50"],
+html:not(.light):not(.hc) [class*="bg-blue-50/"]   { background-color: #101d33 !important; }
 html:not(.light):not(.hc) [class*="border-blue-2"] { border-color: rgba(96,165,250,0.22) !important; }
 
 /* Partners page: sky-tinted badges/labels are light — darken them in LIGHT mode
@@ -188,8 +189,10 @@ html.light [class*="bg-sky-500/2"] { background-color: rgba(2,132,199,0.12) !imp
 /* ── Semantic info panels (amber / emerald) → dark-tinted in dark mode ─────── */
 /* Light-first colored callouts (bg-amber-50, bg-emerald-50, …) with dark text.
    In dark mode: darken the background and lighten the semantic text so they read. */
-html:not(.light):not(.hc) [class*="bg-amber-50"]    { background-color: #2a2410 !important; }
-html:not(.light):not(.hc) [class*="bg-emerald-50"]  { background-color: #0f241b !important; }
+html:not(.light):not(.hc) [class~="bg-amber-50"],
+html:not(.light):not(.hc) [class*="bg-amber-50/"]    { background-color: #2a2410 !important; }
+html:not(.light):not(.hc) [class~="bg-emerald-50"],
+html:not(.light):not(.hc) [class*="bg-emerald-50/"]  { background-color: #0f241b !important; }
 html:not(.light):not(.hc) [class*="bg-amber-100"]   { background-color: #3a300f !important; }
 html:not(.light):not(.hc) [class*="bg-emerald-100"] { background-color: #123528 !important; }
 html:not(.light):not(.hc) [class*="border-amber-2"]   { border-color: rgba(251,191,36,0.25) !important; }
@@ -198,3 +201,8 @@ html:not(.light):not(.hc) [class*="text-amber-7"],
 html:not(.light):not(.hc) [class*="text-amber-8"]   { color: #fcd34d !important; }
 html:not(.light):not(.hc) [class*="text-emerald-7"],
 html:not(.light):not(.hc) [class*="text-emerald-8"] { color: #6ee7b7 !important; }
+
+/* Status badges on bg-slate-200 (e.g. "adding") — darken in dark mode so the
+   light text reads. Matches the -200 token only (not -2000, which doesn't exist). */
+html:not(.light):not(.hc) [class~="bg-slate-200"],
+html:not(.light):not(.hc) [class*="bg-slate-200/"] { background-color: #1e293b !important; }

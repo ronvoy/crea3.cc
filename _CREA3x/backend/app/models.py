@@ -34,6 +34,16 @@ class User(SQLModel, table=True):
     # For local/dev flows we persist the verification token so users can copy/paste it
     email_verification_token: Optional[str] = Field(default=None, index=True)
     email_verification_expires_at: Optional[datetime] = Field(default=None)
+    # 6-digit email verification code + last-sent timestamp (resend throttle).
+    email_verification_code: Optional[str] = Field(default=None, index=True)
+    email_verification_sent_at: Optional[datetime] = Field(default=None)
+    # Password reset (forgot-password) one-time code lifecycle.
+    password_reset_code: Optional[str] = Field(default=None, index=True)
+    password_reset_expires_at: Optional[datetime] = Field(default=None)
+    password_reset_sent_at: Optional[datetime] = Field(default=None)
+    # Account + activity timestamps (self-contained auth).
+    created_at: datetime = Field(default_factory=utcnow)
+    last_login_at: Optional[datetime] = Field(default=None)
     # Provenance: the user's country drives their timezone (for meeting times) and
     # default UI language. Set at first login (onboarding) and editable in Account.
     country: Optional[str] = Field(default=None, index=True)   # ISO-ish code: IT, BE, SI, LT, HR, EE, ...
@@ -208,6 +218,53 @@ class Report(SQLModel, table=True):
     pdf_path: str
     report_hash: str = Field(index=True)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class DocumentSignature(SQLModel, table=True):
+    """Append-only integrity ledger for every generated document.
+
+    GDPR / EU accountability: generated PDFs are personal-data records, so each
+    generation is recorded here as an immutable signature that lets tampering be
+    detected. Unlike `Report` (upserted, keeps only the latest render), this
+    table keeps ONE ROW PER GENERATION and is never updated or deleted in normal
+    operation.
+
+    Two levels of integrity:
+      • file_hash  — SHA-256 of the produced file, so any change to the file on
+        disk is detectable (SHA-256, not MD5: MD5 is collision-broken and not
+        acceptable for tamper-evidence).
+      • chain_hash — links each row to the previous one (per dispute), making the
+        LEDGER itself tamper-evident: a row cannot be altered or removed without
+        breaking every later chain_hash.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    dispute_id: int = Field(foreign_key="dispute.id", index=True)
+    filename: str = Field(index=True)
+    kind: str  # "proposal" | "final"
+    algorithm: str = Field(default="sha256")
+    file_hash: str = Field(index=True)
+    file_size: int = 0
+    generated_by_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    generated_at: datetime = Field(default_factory=utcnow, index=True)
+    # Tamper-evident hash chain (per dispute).
+    prev_chain_hash: Optional[str] = Field(default=None)
+    chain_hash: str = Field(index=True)
+
+class UserActivity(SQLModel, table=True):
+    """Per-user security/activity log (self-contained auth).
+
+    Captures logins, registrations, verifications and password resets with a
+    timestamp and client IP, so the admin panel can show who did what and when.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    email: Optional[str] = Field(default=None, index=True)
+    event: str = Field(index=True)  # login|login_failed|register|verify_email|password_reset|logout|token_refresh
+    ip: Optional[str] = Field(default=None)
+    user_agent: Optional[str] = Field(default=None)
+    detail: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
 
 class AuditEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

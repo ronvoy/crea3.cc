@@ -95,6 +95,18 @@ export async function api<T = any>(path: string, options: ApiOptions = {}): Prom
   const data: any = isJson ? await res.json().catch(() => null) : await res.text().catch(() => "");
 
   if (!res.ok) {
+    // An authenticated call returning 401 means the stored token is dead
+    // (expired, or signed by a previous realm after a reset). Clear it so the
+    // app's route guard sends the user back to sign-in instead of looping on a
+    // token that can never succeed.
+    if (res.status === 401 && options.auth !== false) {
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem("refresh_token");
+      } catch {
+        /* ignore */
+      }
+    }
     const message =
       (data && (data.detail || data.message)) ||
       (typeof data === "string" && data) ||

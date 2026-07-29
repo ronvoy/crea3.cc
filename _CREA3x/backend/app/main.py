@@ -29,7 +29,7 @@ from .api import (
     invitations,
     notifications,
     documents,
-    mediator_tools, support, auth,)
+    mediator_tools, support, auth, admin_panel,)
 
 app = FastAPI(title="CREA3 API", version="0.2.0")
 
@@ -77,6 +77,7 @@ app.include_router(chat.router)          # external Legal AI proxy
 app.include_router(assistant.router)     # local Ollama workflow assistant
 app.include_router(metrics.router)
 app.include_router(admin.router)
+app.include_router(admin_panel.router)  # /admin-dashboard: Users / Mail / Database
 app.include_router(invitations.router)
 app.include_router(notifications.router)
 app.include_router(documents.router)

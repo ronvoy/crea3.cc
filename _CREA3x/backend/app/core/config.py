@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -46,11 +46,67 @@ class Settings(BaseSettings):
 
     keycloak_require_verified_email: bool = True
 
+    # DOMAIN SELECT: the public origin users actually reach, e.g.
+    #   APP_PUBLIC_URL=https://crea3.serveousercontent.com
+    # Builds every link we hand out (password reset, Keycloak's verification
+    # link, invitation/registration links) and is added to CORS. When empty the
+    # links fall back to the incoming request's Origin/Host (local dev).
+    app_public_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("APP_PUBLIC_URL", "app_public_url"),
+    )
+
     # When set to a built frontend `dist` directory, the backend also serves the
     # SPA so the app + API share one origin (single-port, like _CREA3).
     frontend_dist_dir: str = Field(
         default="",
         validation_alias=AliasChoices("FRONTEND_DIST_DIR", "frontend_dist_dir"),
+    )
+
+    # ----------------------------
+    # Admin panel (/admin -> /admin/dashboard) — a standalone login that does NOT
+    # depend on Keycloak. Credentials live ONLY here (server-side); they are never
+    # sent to the browser. Sign-in returns a short-lived signed JWT.
+    # ----------------------------
+    admin_email: str = Field(default="", validation_alias=AliasChoices("ADMIN_EMAIL", "admin_email"))
+    admin_password: str = Field(default="", validation_alias=AliasChoices("ADMIN_PASSWORD", "admin_password"))
+    # Secret used to sign admin-panel tokens. MUST be set to a long random value;
+    # when empty the panel refuses to issue tokens rather than using a guessable
+    # default (a forgeable admin token is worse than a disabled panel).
+    admin_jwt_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("ADMIN_JWT_SECRET", "admin_jwt_secret"),
+    )
+    admin_session_minutes: int = Field(
+        default=120,
+        validation_alias=AliasChoices("ADMIN_SESSION_MINUTES", "admin_session_minutes"),
+    )
+
+    # ----------------------------
+    # Self-contained auth (no Keycloak). The app issues its own HS256 JWTs.
+    # ----------------------------
+    # Signs user session tokens. MUST be a long random value in production.
+    jwt_secret: str = Field(
+        default="dev-jwt-secret-change-me",
+        validation_alias=AliasChoices("JWT_SECRET", "jwt_secret"),
+    )
+    # Session timeout: how long an access token is valid (minutes).
+    access_token_expire_minutes: int = Field(
+        default=60 * 24,  # 24h
+        validation_alias=AliasChoices(
+            "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "ACCESS_TOKEN_EXPIRE_MINUTES", "access_token_expire_minutes"
+        ),
+    )
+    refresh_token_expire_days: int = Field(
+        default=7,
+        validation_alias=AliasChoices(
+            "JWT_REFRESH_TOKEN_EXPIRE_DAYS", "REFRESH_TOKEN_EXPIRE_DAYS", "refresh_token_expire_days"
+        ),
+    )
+    # "dev" surfaces one-time codes in API responses to ease local testing.
+    deployment_environment: str = Field(
+        default="prod",
+        validation_alias=AliasChoices("DEPLOYMENT_ENVIRONMENT", "ENVIRONMENT", "deployment_environment"),
     )
 
     # Email-verification methods offered at registration:
@@ -80,6 +136,43 @@ class Settings(BaseSettings):
     ollama_timeout_seconds: float = Field(
         default=60.0,
         validation_alias=AliasChoices("OLLAMA_TIMEOUT_SECONDS", "ollama_timeout_seconds"),
+    )
+
+    # ----------------------------
+    # OpenRouter — hosted FALLBACK for the workflow assistant.
+    # Ollama above is always tried first; these are used only when the Ollama
+    # endpoint is unreachable. Leave OPENROUTER_API_KEY empty to disable the
+    # fallback entirely (behaviour is then unchanged).
+    # ----------------------------
+    openrouter_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENROUTER_API_KEY", "openrouter_api_key"),
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        validation_alias=AliasChoices("OPENROUTER_BASE_URL", "openrouter_base_url"),
+    )
+    # Free models end in ":free" (https://openrouter.ai/models). Prefer one with
+    # CONSISTENT latency: behind a tunnel a slow reply is cut off by the proxy
+    # and the widget only shows "offline".
+    openrouter_model: str = Field(
+        default="inclusionai/ling-3.0-flash:free,google/gemma-4-26b-a4b-it:free,nvidia/nemotron-3-super-120b-a12b:free,openai/gpt-oss-20b:free",
+        validation_alias=AliasChoices("OPENROUTER_MODEL", "openrouter_model"),
+    )
+    # Keep BELOW the tunnel/proxy timeout so a slow model fails fast with a clear
+    # message instead of hanging until the proxy kills the connection.
+    openrouter_timeout_seconds: float = Field(
+        default=25.0,
+        validation_alias=AliasChoices("OPENROUTER_TIMEOUT_SECONDS", "openrouter_timeout_seconds"),
+    )
+    # Optional attribution headers (OpenRouter rankings); safe to leave empty.
+    openrouter_site_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENROUTER_SITE_URL", "openrouter_site_url"),
+    )
+    openrouter_app_name: str = Field(
+        default="CREA3",
+        validation_alias=AliasChoices("OPENROUTER_APP_NAME", "openrouter_app_name"),
     )
 
     # ----------------------------
@@ -124,6 +217,21 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("PUBLIC_REGISTER_LINK", "public_register_link"),
     )
 
+    @model_validator(mode="after")
+    def _derive_public_links(self) -> "Settings":
+        """Point the emailed invite/register links at APP_PUBLIC_URL.
+
+        Only fills links the environment did not set explicitly, so an override
+        still wins. Without APP_PUBLIC_URL the defaults are kept unchanged.
+        """
+        base = (self.app_public_url or "").strip().rstrip("/")
+        if base:
+            if "public_invite_link" not in self.model_fields_set:
+                self.public_invite_link = f"{base}/app"
+            if "public_register_link" not in self.model_fields_set:
+                self.public_register_link = f"{base}/register"
+        return self
+
     @property
     def keycloak_issuer(self) -> str:
         return f"{self.keycloak_url.rstrip('/')}/realms/{self.keycloak_realm}"
@@ -142,7 +250,13 @@ class Settings(BaseSettings):
         return f"{self.keycloak_issuer}/protocol/openid-connect/certs"
 
     def cors_list(self) -> List[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        # The selected public domain is always allowed, so switching
+        # APP_PUBLIC_URL never requires editing CORS_ORIGINS too.
+        base = (self.app_public_url or "").strip().rstrip("/")
+        if base and "*" not in origins and base not in origins:
+            origins.append(base)
+        return origins
 
 
 settings = Settings()

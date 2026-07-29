@@ -40,6 +40,20 @@ def init_db() -> None:
                 if user_cols and col not in user_cols:
                     conn.exec_driver_sql(f"ALTER TABLE user ADD COLUMN {col} BOOLEAN DEFAULT 1")
 
+            # Self-contained auth: verification code + password-reset + timestamps
+            user_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(user)").fetchall()}
+            for col, ddl in (
+                ("email_verification_code", "VARCHAR"),
+                ("email_verification_sent_at", "TIMESTAMP"),
+                ("password_reset_code", "VARCHAR"),
+                ("password_reset_expires_at", "TIMESTAMP"),
+                ("password_reset_sent_at", "TIMESTAMP"),
+                ("created_at", "TIMESTAMP"),
+                ("last_login_at", "TIMESTAMP"),
+            ):
+                if user_cols and col not in user_cols:
+                    conn.exec_driver_sql(f"ALTER TABLE user ADD COLUMN {col} {ddl}")
+
             # Dispute deadline columns
             if disp_cols and "deadline_at" not in disp_cols:
                 conn.exec_driver_sql("ALTER TABLE dispute ADD COLUMN deadline_at TIMESTAMP")

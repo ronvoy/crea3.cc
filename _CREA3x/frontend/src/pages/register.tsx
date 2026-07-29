@@ -49,11 +49,16 @@ export default function RegisterPage() {
     }
     setBusy(true)
     try {
-      await api('/api/auth/register', {
+      const data = await api('/api/auth/register', {
         method: 'POST',
         body: { username: username.trim(), email: email.trim(), password },
       })
-      setDone(true)
+      // Verification uses a 6-digit code — send the user to the code-entry page.
+      if (data?.email_verification_required === false) {
+        navigate('/login')
+      } else {
+        navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`)
+      }
     } catch (err: any) {
       const status = err?.status
       if (status === 409) setError(t('registerErrExists'))

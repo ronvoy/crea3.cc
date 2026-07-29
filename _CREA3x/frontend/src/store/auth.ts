@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { api } from '../api/client'
-import { keycloak } from '../keycloak'
 
 type Role = 'admin' | 'agent' | 'user' | 'mediator'
 
@@ -24,12 +23,11 @@ export const useAuth = create<AuthState>((set) => ({
   error: null,
 
   async login() {
-    // Login page already redirects, but keep for safety.
-    await keycloak.login({ redirectUri: window.location.origin + '/app' })
+    // No-op: the sign-in page posts to /api/auth/login directly.
   },
 
   async register() {
-    await keycloak.register({ redirectUri: window.location.origin + '/app' })
+    // No-op: the register page posts to /api/auth/register directly.
   },
 
   setUser(u) {
@@ -50,11 +48,10 @@ export const useAuth = create<AuthState>((set) => ({
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     set({ user: null })
-    // Best-effort Keycloak logout (if we have a session)
     try {
-      keycloak.logout({ redirectUri: window.location.origin + '/' })
+      window.location.assign('/')
     } catch {
-      // ignore
+      /* ignore */
     }
   },
 }))

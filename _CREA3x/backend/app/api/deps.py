@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.config import settings
 from ..db import get_session
-from ..core.keycloak import verify_access_token
+from ..core.auth_tokens import decode_token
 from ..models import User, Dispute, DisputeAgent
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -104,84 +104,49 @@ def get_current_user(
             detail="Authentication credentials were not provided.",
         )
 
-    payload = verify_access_token(credentials.credentials)
-    # Cache claims so the access-log middleware can read the email without
-    # verifying the token a second time.
+    # Verify OUR app JWT (self-contained auth, no Keycloak). A bad/expired token
+    # is a 401, never a 500.
+    try:
+        payload = decode_token(credentials.credentials)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your session is invalid or has expired. Please sign in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if payload.get("type") not in (None, "access"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid session token.",
+        )
+
+    # Cache claims for the access-log middleware.
     try:
         request.state.token_claims = payload
     except Exception:
         pass
 
-    if settings.keycloak_require_verified_email and payload.get("email_verified") is False:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email address is not verified. Please verify your email in Keycloak.",
-        )
-
-    email = payload.get("email")
-    if not email:
+    # Resolve the user row by id (sub), falling back to email.
+    user = None
+    sub = payload.get("sub")
+    if sub is not None:
+        try:
+            user = session.get(User, int(sub))
+        except (TypeError, ValueError):
+            user = None
+    if not user and payload.get("email"):
+        user = session.exec(select(User).where(User.email == payload["email"])).first()
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token does not include an email claim.",
+            detail="Your session is no longer valid. Please sign in again.",
         )
 
-    sub = payload.get("sub")
-    preferred = payload.get("preferred_username") or email.split("@", 1)[0]
-    email_verified = bool(payload.get("email_verified", False))
-
-    roles = _extract_roles(payload)
-    local_role = _pick_local_role(roles)
-
-    # find by keycloak_sub first (if present), else by email
-    user = None
-    if sub:
-        user = session.exec(select(User).where(User.keycloak_sub == sub)).first()
-    if not user:
-        user = session.exec(select(User).where(User.email == email)).first()
-
-    if not user:
-        user = _provision_user(
-            session,
-            email=email,
-            username=preferred,
-            email_verified=email_verified,
-            sub=sub,
-            role=local_role,
+    if settings.keycloak_require_verified_email and not getattr(user, "email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email address is not verified.",
         )
-    else:
-        changed = False
-
-        # update email_verified
-        if hasattr(user, "email_verified") and getattr(user, "email_verified", None) != email_verified:
-            setattr(user, "email_verified", email_verified)
-            changed = True
-
-        # update sub
-        if sub and hasattr(user, "keycloak_sub") and getattr(user, "keycloak_sub", None) != sub:
-            setattr(user, "keycloak_sub", sub)
-            changed = True
-
-        # update role (from token)
-        if hasattr(user, "role") and getattr(user, "role", None) != local_role:
-            setattr(user, "role", local_role)
-            changed = True
-
-        # update username ONLY if it won't conflict
-        desired = preferred
-        if desired and hasattr(user, "username"):
-            safe = _unique_username(session, desired, exclude_user_id=user.id)
-            if safe != user.username:
-                user.username = safe
-                changed = True
-
-        if changed:
-            try:
-                session.add(user)
-                session.commit()
-                session.refresh(user)
-            except IntegrityError:
-                session.rollback()
-                # don't block login if username collision still happens for old DB state
 
     # AUTO-LINK invitations: attach DisputeAgent rows by email
     # so invited user can see/respond properly

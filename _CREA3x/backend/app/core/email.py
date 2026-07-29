@@ -51,6 +51,22 @@ def send_verification_code_email(to_email: str, code: str) -> None:
     _send_email(to_email=to_email, subject=subject, body_text=body)
 
 
+def send_password_reset_code_email(to_email: str, code: str) -> None:
+    """Send the 6-digit password-reset code (no URL — reliable delivery)."""
+    subject = "CREA3 — Your password reset code"
+    body = (
+        "Dear User,\n\n"
+        "We received a request to reset the password for your CREA3 account.\n\n"
+        f"Your 6-digit password reset code is: {code}\n\n"
+        "Enter this code on the reset-password page to choose a new password. "
+        "The code expires in 15 minutes.\n\n"
+        "If you did not request this, you can safely ignore this email — your "
+        "password will not change.\n\n"
+        "— CREA3"
+    )
+    _send_email(to_email=to_email, subject=subject, body_text=body)
+
+
 # Existing function (kept)
 def send_verification_email(to_email: str, token: str) -> None:
     subject = "CREA3 — Email verification"

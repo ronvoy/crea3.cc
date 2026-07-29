@@ -1,74 +1,110 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
-import re
-import secrets
-import time
+"""Self-contained authentication (no Keycloak).
 
-from fastapi import APIRouter, HTTPException, Request
+Users are stored in the local `user` table with salted PBKDF2 password hashes.
+Sign-in issues the app's own JWTs (see core.auth_tokens). Email verification and
+password reset use 6-digit one-time CODES (reliable delivery: unlike a link,
+a code carries no URL that an outbound spam filter can blocklist).
+"""
+
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from sqlmodel import Session, select
 
 from ..core.config import settings
-from ..core.email import _send_email, send_verification_code_email
-from ..core.keycloak_admin import KeycloakAdmin, KeycloakAuthError, KeycloakConnectionError
-from ..core import verify_store
+from ..core.auth_tokens import create_access_token, create_refresh_token, decode_token
+from ..core.email import send_verification_code_email, send_password_reset_code_email
+from ..core.security import generate_code, hash_password, verify_password
+from ..db import get_session
+from ..models import User, UserActivity, utcnow
 
-# 6-digit email-verification code (alternative to Keycloak's link), stored on the
-# Keycloak user as attributes and valid for 30 minutes.
-VERIFY_CODE_TTL_SECONDS = 1800
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-RESET_TTL_SECONDS = 3600  # reset links are valid for one hour
-
-
-def _reset_secret() -> bytes:
-    raw = (
-        settings.keycloak_admin_client_secret
-        or settings.keycloak_client_secret
-        or "crea3-password-reset-secret"
-    )
-    return hashlib.sha256(raw.encode("utf-8")).digest()
+CODE_TTL_MINUTES = 15
+RESEND_COOLDOWN_SECONDS = 60
 
 
-def _b64e(b: bytes) -> str:
-    return base64.urlsafe_b64encode(b).decode("ascii").rstrip("=")
+# ── helpers ───────────────────────────────────────────────────────────────────
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def _b64d(s: str) -> bytes:
-    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+def _as_utc(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def make_reset_token(user_id: str, email: str, ttl: int = RESET_TTL_SECONDS) -> str:
-    payload = {"uid": user_id, "email": email, "exp": int(time.time()) + ttl}
-    body = _b64e(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    sig = _b64e(hmac.new(_reset_secret(), body.encode("ascii"), hashlib.sha256).digest())
-    return f"{body}.{sig}"
+def _is_dev() -> bool:
+    return (settings.deployment_environment or "").strip().lower() == "dev"
 
 
-def verify_reset_token(token: str) -> dict:
-    try:
-        body, sig = token.split(".", 1)
-    except ValueError:
-        raise ValueError("malformed token")
-    expected = _b64e(hmac.new(_reset_secret(), body.encode("ascii"), hashlib.sha256).digest())
-    if not hmac.compare_digest(sig, expected):
-        raise ValueError("bad signature")
-    payload = json.loads(_b64d(body))
-    if int(payload.get("exp", 0)) < int(time.time()):
-        raise ValueError("expired")
-    return payload
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
+def _log(session: Session, request: Request, event: str, *, user: User | None = None, email: str | None = None, detail: str | None = None) -> None:
+    session.add(UserActivity(
+        user_id=(user.id if user else None),
+        email=(email or (user.email if user else None)),
+        event=event,
+        ip=_client_ip(request),
+        user_agent=request.headers.get("user-agent", "")[:400],
+        detail=detail,
+    ))
+
+
+def _find_user(session: Session, identifier: str) -> User | None:
+    ident = (identifier or "").strip()
+    if not ident:
+        return None
+    low = ident.lower()
+    user = session.exec(select(User).where(User.email == low)).first()
+    if not user:
+        user = session.exec(select(User).where(User.username == ident)).first()
+    return user
+
+
+def _cooldown_remaining(sent_at: datetime | None) -> int:
+    sent = _as_utc(sent_at)
+    if not sent:
+        return 0
+    elapsed = (_now() - sent).total_seconds()
+    return max(0, int(RESEND_COOLDOWN_SECONDS - elapsed))
+
+
+# ── schemas ───────────────────────────────────────────────────────────────────
 class RegisterIn(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     username: str = Field(min_length=3, max_length=60)
     password: str = Field(min_length=8, max_length=128)
+    role: str | None = None
+
+
+class LoginIn(BaseModel):
+    email: str = Field(min_length=3, max_length=254)  # email OR username
+    password: str = Field(min_length=1, max_length=128)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class VerifyCodeIn(BaseModel):
+    email: str
+    code: str = Field(min_length=4, max_length=12)
 
 
 class ResendIn(BaseModel):
@@ -80,255 +116,212 @@ class ForgotPasswordIn(BaseModel):
 
 
 class ResetPasswordIn(BaseModel):
-    token: str = Field(min_length=8, max_length=4096)
+    email: str = Field(min_length=3, max_length=254)
+    code: str = Field(min_length=4, max_length=12)
     password: str = Field(min_length=8, max_length=128)
 
 
-@router.post("/forgot-password")
-def forgot_password(payload: ForgotPasswordIn, request: Request):
-    """Email the user a link to a reset-password page embedded in the platform.
+class RefreshIn(BaseModel):
+    refresh_token: str
 
-    Always responds the same way to avoid revealing whether an account exists.
-    """
+
+# ── endpoints ─────────────────────────────────────────────────────────────────
+@router.post("/register")
+def register(payload: RegisterIn, request: Request, session: Session = Depends(get_session)):
     email = payload.email.strip().lower()
-    if not EMAIL_RE.match(email):
+    username = payload.username.strip()
+    if "@" not in email or "." not in email.split("@", 1)[-1]:
         raise HTTPException(status_code=422, detail="Please enter a valid email address.")
 
-    try:
-        admin = KeycloakAdmin()
-    except RuntimeError:
-        raise HTTPException(status_code=503, detail="Password reset is unavailable. Please try again later.")
+    if session.exec(select(User).where(User.email == email)).first():
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
+    if session.exec(select(User).where(User.username == username)).first():
+        raise HTTPException(status_code=409, detail="This username is already taken.")
 
-    try:
-        user = admin.find_user_by_email(email)
-    except (KeycloakConnectionError, KeycloakAuthError):
-        raise HTTPException(status_code=503, detail="Password reset service is unreachable. Please try again later.")
+    role = (payload.role or "agent").strip().lower()
+    if role not in ("agent", "mediator"):
+        role = "agent"
 
-    if user and user.get("id"):
-        token = make_reset_token(user["id"], email)
-        origin = request.headers.get("origin") or ""
-        base = origin if origin.startswith("http") else ""
-        link = f"{base}/reset-password?token={token}"
-        subject = "CREA3 — Reset your password"
-        body = (
-            "We received a request to reset the password for your CREA3 account.\n\n"
-            "Open the link below to choose a new password (valid for one hour):\n"
-            f"{link}\n\n"
-            "If you did not request this, you can safely ignore this email — your password will not change.\n\n"
-            "—\nCREA3\n"
-        )
+    verification_required = bool(settings.link_verify or settings.code_verify)
+    code = generate_code()
+    now = _now()
+    user = User(
+        email=email,
+        username=username,
+        role=role,
+        hashed_password=hash_password(payload.password),
+        email_verified=not verification_required,
+        email_verification_code=(code if verification_required else None),
+        email_verification_expires_at=(now + timedelta(minutes=CODE_TTL_MINUTES) if verification_required else None),
+        email_verification_sent_at=(now if verification_required else None),
+        created_at=now,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    code_sent = False
+    if verification_required:
         try:
-            _send_email(to_email=email, subject=subject, body_text=body)
-        except Exception:
-            # Never reveal delivery problems to the caller.
-            pass
+            send_verification_code_email(to_email=email, code=code)
+            code_sent = True
+        except Exception as exc:
+            logger.warning("Verification email failed for %s: %s", email, exc)
 
-    return {"ok": True}
+    _log(session, request, "register", user=user)
+    session.commit()
+
+    return {
+        "ok": True,
+        "email": email,
+        "email_verification_required": verification_required,
+        "code_sent": code_sent,
+        "dev_code": code if (_is_dev() and verification_required) else "",
+    }
 
 
-@router.post("/reset-password")
-def reset_password(payload: ResetPasswordIn):
-    """Set a new password from a signed reset token (embedded reset page)."""
-    try:
-        data = verify_reset_token(payload.token)
-    except Exception:
-        raise HTTPException(
-            status_code=400,
-            detail="This reset link is invalid or has expired. Please request a new one.",
-        )
+@router.post("/verify-code")
+def verify_code(payload: VerifyCodeIn, request: Request, session: Session = Depends(get_session)):
+    email = payload.email.strip().lower()
+    user = _find_user(session, email)
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or code.")
+    if user.email_verified:
+        return {"ok": True, "status": "already_verified"}
+    if not user.email_verification_code or payload.code.strip() != user.email_verification_code:
+        raise HTTPException(status_code=400, detail="Invalid verification code.")
+    expires = _as_utc(user.email_verification_expires_at)
+    if expires and expires < _now():
+        raise HTTPException(status_code=400, detail="This code has expired. Request a new one.")
 
-    user_id = data.get("uid")
-    if not user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="This reset link is invalid or has expired. Please request a new one.",
-        )
-
-    try:
-        admin = KeycloakAdmin()
-    except RuntimeError:
-        raise HTTPException(status_code=503, detail="Password reset is unavailable. Please try again later.")
-
-    try:
-        admin.update_password(user_id, payload.password)
-    except KeycloakAuthError as exc:
-        if "password" in str(exc).lower():
-            raise HTTPException(
-                status_code=422,
-                detail="Your password does not meet the requirements. Use at least 8 characters, mixing letters and numbers.",
-            )
-        raise HTTPException(status_code=502, detail="Could not reset the password. Please try again.")
-    except KeycloakConnectionError:
-        raise HTTPException(status_code=503, detail="Password reset service is unreachable. Please try again later.")
-
+    user.email_verified = True
+    user.email_verification_code = None
+    user.email_verification_expires_at = None
+    session.add(user)
+    _log(session, request, "verify_email", user=user)
+    session.commit()
     return {"ok": True}
 
 
 @router.post("/resend-verification")
-def resend_verification(payload: ResendIn, request: Request):
-    """Re-send the email-verification message for an unverified account."""
+def resend_verification(payload: ResendIn, request: Request, session: Session = Depends(get_session)):
     email = payload.email.strip().lower()
-    if not EMAIL_RE.match(email):
-        raise HTTPException(status_code=422, detail="Please enter a valid email address.")
-
-    try:
-        admin = KeycloakAdmin()
-    except RuntimeError:
-        raise HTTPException(status_code=503, detail="Verification service is unavailable. Please try again later.")
-
-    try:
-        user = admin.find_user_by_email(email)
-    except KeycloakConnectionError:
-        raise HTTPException(status_code=503, detail="Verification service is unreachable. Please try again later.")
-    except KeycloakAuthError:
-        raise HTTPException(status_code=502, detail="Could not process the request. Please try again.")
-
+    user = _find_user(session, email)
     # Do not reveal whether an account exists.
     if not user:
         return {"ok": True, "status": "not_found"}
-    if user.get("emailVerified"):
+    if user.email_verified:
         return {"ok": True, "status": "already_verified"}
 
-    user_id = user.get("id")
-    origin = request.headers.get("origin") or ""
-    redirect_uri = f"{origin}/app" if origin.startswith("http") else None
+    remaining = _cooldown_remaining(user.email_verification_sent_at)
+    if remaining > 0:
+        raise HTTPException(status_code=429, detail=f"Please wait {remaining}s before requesting another code.")
+
+    code = generate_code()
+    now = _now()
+    user.email_verification_code = code
+    user.email_verification_expires_at = now + timedelta(minutes=CODE_TTL_MINUTES)
+    user.email_verification_sent_at = now
+    session.add(user)
+    session.commit()
+
     try:
-        admin.send_verify_email(user_id, client_id=settings.keycloak_client_id, redirect_uri=redirect_uri)
-    except Exception:
-        raise HTTPException(status_code=502, detail="Could not send the verification email. Please try again.")
-    return {"ok": True, "status": "sent"}
+        send_verification_code_email(to_email=user.email, code=code)
+    except Exception as exc:
+        logger.warning("Resend verification failed for %s: %s", email, exc)
+    return {"ok": True, "status": "sent", "dev_code": code if _is_dev() else ""}
 
 
-@router.post("/register")
-def register(payload: RegisterIn, request: Request):
-    """Create a new account directly (embedded registration).
-
-    The user is created in Keycloak (disabled email-verification), then a
-    verification email is sent. Sign-in is blocked until the email is verified,
-    matching the platform's existing policy.
-    """
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordIn, request: Request, session: Session = Depends(get_session)):
     email = payload.email.strip().lower()
-    username = payload.username.strip()
-    if not EMAIL_RE.match(email):
-        raise HTTPException(status_code=422, detail="Please enter a valid email address.")
+    user = _find_user(session, email)
+    generic = {"ok": True}
+    if not user:
+        return generic
+
+    remaining = _cooldown_remaining(user.password_reset_sent_at)
+    if remaining > 0:
+        raise HTTPException(status_code=429, detail=f"Please wait {remaining}s before requesting another code.")
+
+    code = generate_code()
+    now = _now()
+    user.password_reset_code = code
+    user.password_reset_expires_at = now + timedelta(minutes=CODE_TTL_MINUTES)
+    user.password_reset_sent_at = now
+    session.add(user)
+    session.commit()
 
     try:
-        admin = KeycloakAdmin()
-    except RuntimeError:
-        # Admin service account not configured in this environment.
-        raise HTTPException(
-            status_code=503,
-            detail="Registration is temporarily unavailable. Please try again later.",
-        )
+        send_password_reset_code_email(to_email=user.email, code=code)
+    except Exception as exc:
+        logger.warning("Reset email failed for %s: %s", email, exc)
 
-    try:
-        if admin.find_user_by_email(email):
-            raise HTTPException(status_code=409, detail="An account with this email already exists.")
-
-        # Verification is required only if at least one method is enabled.
-        verification_required = bool(settings.link_verify or settings.code_verify)
-        user_id = admin.create_user(
-            email=email,
-            username=username,
-            password=payload.password,
-            email_verified=not verification_required,
-        )
-
-        origin = request.headers.get("origin") or ""
-        redirect_uri = f"{origin}/app" if origin.startswith("http") else None
-        # Public origin the browser used — so Keycloak builds the verification
-        # LINK for it (tunnel domain / :8000), not the internal keycloak:8080.
-        fwd_host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
-        fwd_proto = request.headers.get("x-forwarded-proto") or request.url.scheme
-
-        # LINK_VERIFY=1 -> Keycloak's verification link (best-effort).
-        email_sent = False
-        if settings.link_verify:
-            try:
-                admin.send_verify_email(
-                    user_id,
-                    client_id=settings.keycloak_client_id,
-                    redirect_uri=redirect_uri,
-                    forwarded_host=fwd_host,
-                    forwarded_proto=fwd_proto,
-                )
-                email_sent = True
-            except Exception:
-                email_sent = False
-
-        # CODE_VERIFY=1 -> a 6-digit code (stored backend-side, emailed via SMTP).
-        code_sent = False
-        if settings.code_verify:
-            try:
-                code = f"{secrets.randbelow(1_000_000):06d}"
-                verify_store.set_code(email, code, VERIFY_CODE_TTL_SECONDS)
-                send_verification_code_email(email, code)
-                code_sent = True
-            except Exception:
-                code_sent = False
-
-        # No method enabled -> auto-verify so the account can sign in immediately.
-        if not verification_required:
-            try:
-                admin.enable_and_verify_email(user_id)
-            except Exception:
-                pass
-
-    except HTTPException:
-        raise
-    except KeycloakAuthError as exc:
-        msg = str(exc)
-        low = msg.lower()
-        if "already exists" in low:
-            raise HTTPException(status_code=409, detail="An account with this email already exists.")
-        if "password" in low:
-            raise HTTPException(
-                status_code=422,
-                detail="Your password does not meet the requirements. Use at least 8 characters, mixing letters and numbers.",
-            )
-        raise HTTPException(status_code=502, detail="Could not create the account. Please try again.")
-    except KeycloakConnectionError:
-        raise HTTPException(status_code=503, detail="Registration service is unreachable. Please try again later.")
-
-    return {
-        "ok": True,
-        "email_verification_required": verification_required,
-        "email_sent": email_sent,
-        "code_sent": code_sent,
-    }
+    if _is_dev():
+        return {"ok": True, "dev_code": code}
+    return generic
 
 
-class VerifyCodeIn(BaseModel):
-    email: str
-    code: str = Field(min_length=4, max_length=12)
-
-
-@router.post("/verify-code")
-def verify_code(payload: VerifyCodeIn):
-    """Verify an account using the 6-digit code (alternative to the link)."""
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordIn, request: Request, session: Session = Depends(get_session)):
     email = payload.email.strip().lower()
-    code = payload.code.strip()
+    user = _find_user(session, email)
+    if not user or not user.password_reset_code:
+        raise HTTPException(status_code=400, detail="Invalid email or reset code.")
+    if payload.code.strip() != user.password_reset_code:
+        raise HTTPException(status_code=400, detail="Invalid reset code.")
+    expires = _as_utc(user.password_reset_expires_at)
+    if expires and expires < _now():
+        raise HTTPException(status_code=400, detail="This reset code has expired. Request a new one.")
 
-    result = verify_store.check_and_consume(email, code)
-    if result == "expired":
-        raise HTTPException(status_code=400, detail="This code has expired. Request a new one.")
-    if result != "ok":
-        raise HTTPException(status_code=400, detail="Invalid verification code.")
+    user.hashed_password = hash_password(payload.password)
+    user.email_verified = True  # proving control of the inbox verifies the email
+    user.password_reset_code = None
+    user.password_reset_expires_at = None
+    session.add(user)
+    _log(session, request, "password_reset", user=user)
+    session.commit()
+    return {"ok": True}
 
+
+@router.post("/login", response_model=TokenOut)
+def login(payload: LoginIn, request: Request, session: Session = Depends(get_session)):
+    user = _find_user(session, payload.email)
+    if not user or not verify_password(payload.password, user.hashed_password):
+        _log(session, request, "login_failed", email=payload.email.strip().lower(),
+             detail="bad credentials")
+        session.commit()
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    if not user.email_verified:
+        _log(session, request, "login_failed", user=user, detail="email unverified")
+        session.commit()
+        raise HTTPException(status_code=403, detail="Your email is not verified. Please verify it first.")
+
+    access, expires_in = create_access_token(user)
+    refresh = create_refresh_token(user)
+    user.last_login_at = _now()
+    session.add(user)
+    _log(session, request, "login", user=user)
+    session.commit()
+    return TokenOut(access_token=access, refresh_token=refresh, expires_in=expires_in)
+
+
+@router.post("/refresh", response_model=TokenOut)
+def refresh(body: RefreshIn, request: Request, session: Session = Depends(get_session)):
     try:
-        admin = KeycloakAdmin()
-    except RuntimeError:
-        raise HTTPException(status_code=503, detail="Verification is temporarily unavailable.")
-
+        claims = decode_token(body.refresh_token)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session.")
+    if claims.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid session token.")
     try:
-        user = admin.find_user_by_email(email)
-        if not user or not user.get("id"):
-            raise HTTPException(status_code=400, detail="Invalid email or code.")
-        admin.enable_and_verify_email(user["id"])
-        return {"ok": True}
-    except HTTPException:
-        raise
-    except KeycloakConnectionError:
-        raise HTTPException(status_code=503, detail="Verification service is unreachable. Please try again later.")
-    except KeycloakAuthError:
-        raise HTTPException(status_code=502, detail="Could not verify the code. Please try again.")
+        user = session.get(User, int(claims.get("sub")))
+    except (TypeError, ValueError):
+        user = None
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid session.")
+    access, expires_in = create_access_token(user)
+    new_refresh = create_refresh_token(user)
+    _log(session, request, "token_refresh", user=user)
+    session.commit()
+    return TokenOut(access_token=access, refresh_token=new_refresh, expires_in=expires_in)

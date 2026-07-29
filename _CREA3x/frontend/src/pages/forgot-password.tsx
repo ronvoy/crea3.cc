@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/auth-layout'
 import { Button, Input, ErrorBox } from '../components/ui'
 import { useI18n } from '../i18n'
@@ -9,6 +9,7 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export default function ForgotPasswordPage() {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,11 +38,19 @@ export default function ForgotPasswordPage() {
       <AuthLayout title={t('forgotSentTitle')} subtitle="">
         <div className="space-y-4">
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            {t('forgotSentBody')}
+            We emailed you a 6-digit reset code. Enter it on the next page to set a new password.
           </div>
-          <Link to="/login">
-            <Button className="w-full justify-center">{t('forgotBackToLogin')}</Button>
-          </Link>
+          <Button
+            className="w-full justify-center"
+            onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email.trim())}`)}
+          >
+            Enter reset code
+          </Button>
+          <div className="text-sm text-slate-600">
+            <Link className="underline underline-offset-4" to="/login">
+              {t('forgotBackToLogin')}
+            </Link>
+          </div>
         </div>
       </AuthLayout>
     )

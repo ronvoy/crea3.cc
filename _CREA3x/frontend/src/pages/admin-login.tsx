@@ -4,8 +4,9 @@ import AuthLayout from "../components/auth-layout";
 
 export default function AdminLoginPage() {
   const nav = useNavigate();
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("admin123");
+  // Never prefill credentials: they would ship to every visitor in the bundle.
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +28,7 @@ export default function AdminLoginPage() {
 
       const data = await r.json();
       localStorage.setItem("admin_token", data.access_token);
-      nav("/admin/dashboard");
+      nav("/admin-dashboard");
     } catch (err: any) {
       setError(err?.message || "Login failed");
     } finally {
@@ -79,8 +80,8 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="text-xs text-white/60">
-          <span className="font-semibold text-white">Mock credentials:</span>{" "}
-          admin@example.com / admin123 (change in backend .env with ADMIN_EMAIL / ADMIN_PASSWORD)
+          Restricted area. Credentials are configured server-side
+          (ADMIN_EMAIL / ADMIN_PASSWORD in the backend environment).
         </div>
       </form>
     </AuthLayout>

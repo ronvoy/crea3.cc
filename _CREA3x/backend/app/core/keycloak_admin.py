@@ -161,8 +161,12 @@ class KeycloakAdmin:
         return location.rstrip("/").split("/")[-1]
 
     def enable_and_verify_email(self, user_id: str) -> None:
-        # Partial update is accepted by Keycloak.
-        payload = {"enabled": True, "emailVerified": True}
+        # Also CLEAR requiredActions: when the realm has verifyEmail=true, a user
+        # created with emailVerified=false carries a pending VERIFY_EMAIL action.
+        # Setting emailVerified alone leaves that action, and Keycloak then blocks
+        # direct-grant login with "Account is not fully set up" — i.e. verified
+        # but still unable to sign in. Clearing it completes the account.
+        payload = {"enabled": True, "emailVerified": True, "requiredActions": []}
         with self._client() as client:
             r = client.put(
                 f"{self._admin_base}/users/{user_id}",

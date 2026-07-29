@@ -1,27 +1,20 @@
-// Embedded login against Keycloak using the OAuth2 Resource Owner Password
-// Credentials (direct access grant) flow. This keeps Keycloak as the identity
-// provider while rendering the sign-in form inside the platform instead of
-// redirecting to Keycloak's hosted login page.
-//
-// Requirements on the Keycloak client:
-//   - public client (no client secret) — the existing keycloak-js client is one
-//   - "Direct access grants" enabled
-// If direct grants are disabled, passwordLogin throws { code: 'direct_grant_disabled' }
-// and the UI offers the hosted-login fallback.
+// Embedded login against the app's OWN auth (self-contained, no Keycloak).
+// Posts credentials to /api/auth/login and stores the returned JWTs. The public
+// interface (passwordLogin / refreshTokens / DirectAuthError codes) is unchanged
+// so the login page keeps working as-is.
 
-import { setAccessToken } from '../api/client'
+import { setAccessToken, API_BASE } from '../api/client'
 
-const RAW_URL = (import.meta.env.VITE_KEYCLOAK_URL || (typeof window !== 'undefined' ? window.location.origin : '')).toString().replace(/\/+$/, '')
-const REALM = (import.meta.env.VITE_KEYCLOAK_REALM || '').toString()
-const CLIENT_ID = (import.meta.env.VITE_KEYCLOAK_CLIENT_ID || '').toString()
 const REFRESH_KEY = 'refresh_token'
 
-function tokenEndpoint(): string {
-  return `${RAW_URL}/realms/${encodeURIComponent(REALM)}/protocol/openid-connect/token`
+function apiUrl(path: string): string {
+  const base = (API_BASE || '').replace(/\/+$/, '')
+  return `${base}${path}`
 }
 
+// Self-contained auth is always available (no external IdP to configure).
 export function directAuthConfigured(): boolean {
-  return Boolean(RAW_URL && REALM && CLIENT_ID)
+  return true
 }
 
 export class DirectAuthError extends Error {
@@ -50,16 +43,15 @@ export function clearDirectTokens() {
   }
 }
 
-async function tokenRequest(form: Record<string, string>): Promise<any> {
+async function postJson(path: string, body: Record<string, unknown>): Promise<any> {
   let res: Response
   try {
-    res = await fetch(tokenEndpoint(), {
+    res = await fetch(apiUrl(path), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_id: CLIENT_ID, ...form }).toString(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     })
   } catch {
-    // Network failure / server unreachable.
     throw new DirectAuthError('unavailable', 'The sign-in service is unreachable.')
   }
 
@@ -67,27 +59,21 @@ async function tokenRequest(form: Record<string, string>): Promise<any> {
   try {
     data = await res.json()
   } catch {
-    /* non-JSON error */
+    /* non-JSON */
   }
 
   if (!res.ok) {
-    const err = (data?.error || '').toString()
-    const desc = (data?.error_description || '').toString()
-    if (err === 'invalid_grant') {
-      // Wrong credentials, or account not fully set up (e.g. email not verified).
-      if (/verif|not fully/i.test(desc)) throw new DirectAuthError('email_unverified', desc)
-      throw new DirectAuthError('invalid_credentials', desc || 'Invalid credentials')
-    }
-    if (err === 'unauthorized_client' || /direct access grants/i.test(desc)) {
-      throw new DirectAuthError('direct_grant_disabled', desc || 'Direct access grants are disabled')
-    }
-    throw new DirectAuthError('error', desc || `Sign-in failed (${res.status})`)
+    const detail = (data?.detail || '').toString()
+    if (res.status === 403) throw new DirectAuthError('email_unverified', detail || 'Email not verified')
+    if (res.status === 401) throw new DirectAuthError('invalid_credentials', detail || 'Invalid credentials')
+    throw new DirectAuthError('error', detail || `Sign-in failed (${res.status})`)
   }
   return data
 }
 
 export async function passwordLogin(username: string, password: string): Promise<void> {
-  const data = await tokenRequest({ grant_type: 'password', username, password, scope: 'openid' })
+  // `username` is the email-or-username field from the login form.
+  const data = await postJson('/api/auth/login', { email: username, password })
   storeTokens(data)
 }
 
@@ -99,9 +85,13 @@ export async function refreshTokens(): Promise<boolean> {
     /* ignore */
   }
   if (!refresh) return false
-  const data = await tokenRequest({ grant_type: 'refresh_token', refresh_token: refresh })
-  storeTokens(data)
-  return true
+  try {
+    const data = await postJson('/api/auth/refresh', { refresh_token: refresh })
+    storeTokens(data)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function hasDirectSession(): boolean {

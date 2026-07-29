@@ -49,6 +49,10 @@ export default function App() {
         path="/admin/dashboard"
         element={<AdminProtected><AdminDashboardPage /></AdminProtected>}
       />
+      <Route
+        path="/admin-dashboard"
+        element={<AdminProtected><AdminDashboardPage /></AdminProtected>}
+      />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />

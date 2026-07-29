@@ -24,7 +24,7 @@ from sqlmodel import Session, select
 from .deps import get_current_user
 from ..db import get_session
 from ..models import Dispute, DisputeAgent, Good, Preference, Strategy, User
-from ..core import ollama
+from ..core import llm
 from ..core.authz import require_access, get_participant, participant_is_mediator
 
 router = APIRouter(prefix="/api/assistant", tags=["workflow-assistant"])
@@ -126,12 +126,12 @@ def list_models(_user: User = Depends(get_current_user)):
     """List models installed on the local Ollama server (for the model picker)."""
     from ..core.config import settings
     try:
-        available = ollama.list_models()
-    except ollama.OllamaUnavailable as e:
+        info = llm.list_models()
+    except llm.LLMUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e))
-    except ollama.OllamaError as e:
+    except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
-    return ModelsOut(current=settings.ollama_model, available=available)
+    return ModelsOut(current=info.current, available=info.available)
 
 
 class PublicAssistantIn(BaseModel):
@@ -167,17 +167,17 @@ def assistant_public(payload: PublicAssistantIn):
     """
     from ..core.config import settings
     try:
-        answer = ollama.chat(
+        result = llm.chat(
             system=PUBLIC_GUIDE + _lang_instruction(payload.lang),
             user_message=payload.question,
             history=_history_payload(payload.history),
             model=None,
         )
-    except ollama.OllamaUnavailable as e:
+    except llm.LLMUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e))
-    except ollama.OllamaError as e:
+    except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
-    return AssistantOut(answer=answer, model=settings.ollama_model)
+    return AssistantOut(answer=result.text, model=result.model)
 
 
 @router.post("", response_model=AssistantOut)
@@ -185,17 +185,17 @@ def assistant_general(payload: AssistantIn, _user: User = Depends(get_current_us
     """General how-to-use-the-platform assistant (no dispute context)."""
     from ..core.config import settings
     try:
-        answer = ollama.chat(
+        result = llm.chat(
             system=PLATFORM_GUIDE + _lang_instruction(payload.lang),
             user_message=payload.question,
             history=_history_payload(payload.history),
             model=payload.model,
         )
-    except ollama.OllamaUnavailable as e:
+    except llm.LLMUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e))
-    except ollama.OllamaError as e:
+    except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
-    return AssistantOut(answer=answer, model=(payload.model or settings.ollama_model))
+    return AssistantOut(answer=result.text, model=result.model)
 
 
 @router.post("/disputes/{dispute_id}", response_model=AssistantOut)
@@ -282,19 +282,19 @@ def assistant_for_dispute(
     )
 
     try:
-        answer = ollama.chat(
+        result = llm.chat(
             system=system,
             user_message=payload.question,
             history=_history_payload(payload.history),
             model=payload.model,
         )
-    except ollama.OllamaUnavailable as e:
+    except llm.LLMUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e))
-    except ollama.OllamaError as e:
+    except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     return AssistantOut(
-        answer=answer,
-        model=(payload.model or settings.ollama_model),
+        answer=result.text,
+        model=result.model,
         grounded_on_dispute=dispute_id,
     )

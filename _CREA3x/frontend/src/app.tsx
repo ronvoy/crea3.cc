@@ -19,7 +19,6 @@ import Help from './pages/help'
 import Workflow from './pages/workflow'
 import ForgotPasswordPage from './pages/forgot-password'
 import ResetPasswordPage from './pages/reset-password'
-import LegalAiAssistant from './pages/legal-ai'
 import NotificationsAll from './pages/notifications-all'
 import ArchiveAll from './pages/archive-all'
 import PublicShell from './components/public-shell'
@@ -75,7 +74,6 @@ export default function App() {
       >
         <Route index element={<Dashboard />} />
         <Route path="disputes/:id" element={<Dispute />} />
-        <Route path="legal-ai" element={<LegalAiAssistant />} />
         <Route path="notifications" element={<NotificationsAll />} />
         <Route path="archive" element={<ArchiveAll />} />
         <Route path="dispute" element={<Navigate to="/app" replace />} />

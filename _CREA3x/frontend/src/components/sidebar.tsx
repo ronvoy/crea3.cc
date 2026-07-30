@@ -15,7 +15,6 @@ import {
   Tooltip,
 } from '@mui/material'
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined'
-import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined'
 import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined'
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
@@ -73,7 +72,6 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
 
   const items: Array<{ to: string; label: string; icon: React.ReactNode; end?: boolean }> = [
     { to: '/app', label: t('navMyDisputes'), icon: <GavelOutlinedIcon fontSize="small" />, end: true },
-    { to: '/app/legal-ai', label: t('navLegalAi'), icon: <SmartToyOutlinedIcon fontSize="small" /> },
     { to: '/app/mediators', label: t('navMediators'), icon: <PeopleOutlinedIcon fontSize="small" /> },
     { to: '/app/faq', label: t('navFaqs'), icon: <HelpOutlineOutlinedIcon fontSize="small" /> },
     { to: '/app/scope', label: t('navScope'), icon: <DescriptionOutlinedIcon fontSize="small" /> },
@@ -189,7 +187,6 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
         </Button>
         <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', gap: 1 }}>
           <Chip label={t('navFaqs')} size="small" variant="outlined" onClick={() => go('/app/faq')} />
-          <Chip label={t('navLegalAi')} size="small" variant="outlined" onClick={() => go('/app/legal-ai')} />
           <Chip label={t('navMediators')} size="small" variant="outlined" onClick={() => go('/app/mediators')} />
         </Stack>
       </Box>

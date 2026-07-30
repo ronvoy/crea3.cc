@@ -32,7 +32,6 @@ const COPY: Record<'en' | 'it', { intro: string; onPlatform: string; references:
     internal: [
       { to: '/app/scope', title: 'Project scope', body: 'What CREA3 is, its objectives, and how it builds on the earlier CREA platform.', icon: Icon(ICONS.scope) },
       { to: '/app/partners', title: 'Partners', body: 'The consortium of universities and organisations behind the platform, shown on a map.', icon: Icon(ICONS.partners) },
-      { to: '/app/legal-ai', title: 'Legal AI assistant', body: 'Ask legal questions and get guidance from the dedicated assistant.', icon: Icon(ICONS.legal) },
       { to: '/app/mediators', title: 'Mediators', body: 'Find and invite a mediator, and coordinate a conference.', icon: Icon(ICONS.mediators) },
       { to: '/app/faq', title: 'FAQs', body: 'Quick answers about accounts, running a dispute, and the assistant.', icon: Icon(ICONS.faq) },
       { to: '/app/account', title: 'Account & privacy', body: 'Manage your email, password, notification preferences, and data.', icon: Icon(ICONS.account) },
@@ -51,7 +50,6 @@ const COPY: Record<'en' | 'it', { intro: string; onPlatform: string; references:
     internal: [
       { to: '/app/scope', title: 'Ambito del progetto', body: 'Cos’è CREA3, i suoi obiettivi e come si basa sulla precedente piattaforma CREA.', icon: Icon(ICONS.scope) },
       { to: '/app/partners', title: 'Partner', body: 'Il consorzio di università e organizzazioni dietro la piattaforma, su una mappa.', icon: Icon(ICONS.partners) },
-      { to: '/app/legal-ai', title: 'Assistente AI Legale', body: 'Poni domande legali e ricevi indicazioni dall’assistente dedicato.', icon: Icon(ICONS.legal) },
       { to: '/app/mediators', title: 'Mediatori', body: 'Trova e invita un mediatore e coordina una conferenza.', icon: Icon(ICONS.mediators) },
       { to: '/app/faq', title: 'Domande frequenti', body: 'Risposte rapide su account, gestione di una controversia e assistente.', icon: Icon(ICONS.faq) },
       { to: '/app/account', title: 'Account e privacy', body: 'Gestisci email, password, preferenze di notifica e i tuoi dati.', icon: Icon(ICONS.account) },

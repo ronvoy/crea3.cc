@@ -4,7 +4,6 @@ import { api, apiBlob, API_BASE } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 import { Card, CardHeader, Button, Input, Select, ErrorBox, Pill, HelpTip } from '../components/ui'
-import WorkflowAssistant from '../components/workflow-assistant'
 import ReconciliationPanel from '../components/reconciliation-panel'
 import DocumentsPanel from '../components/documents'
 import DisputeStatusBadge from '../components/dispute-status-badge'
@@ -1370,9 +1369,6 @@ export default function DisputeDetail() {
                 </div>
               </div>
             ) : null}
-            <div className="min-w-0">
-              <WorkflowAssistant disputeId={disputeId} />
-            </div>
 
             {/* Overview + guide */}
             <div className="grid gap-4 lg:grid-cols-2 items-start">

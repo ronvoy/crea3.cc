@@ -15,6 +15,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material'
+import AccessibilityNewOutlinedIcon from '@mui/icons-material/AccessibilityNewOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
@@ -62,6 +63,7 @@ export default function SettingsDock() {
   const { lang, setLang, t } = useI18n()
 
   const [open, setOpen] = useState(false)
+  const [a11yOpen, setA11yOpen] = useState(false)
 
   const currentLabel = useMemo(() => {
     return LANG_OPTIONS.find((o) => o.code === lang)?.label || lang.toUpperCase()
@@ -95,6 +97,11 @@ export default function SettingsDock() {
           gap: 0.5,
         }}
       >
+        <Tooltip title="Accessibility" placement="left">
+          <IconButton aria-label="Open accessibility panel" onClick={() => setA11yOpen(true)}>
+            <AccessibilityNewOutlinedIcon />
+          </IconButton>
+        </Tooltip>
         <Tooltip title={t('openSettings')} placement="left">
           <IconButton aria-label={t('openSettings')} onClick={() => setOpen(true)}>
             <SettingsOutlinedIcon />
@@ -110,6 +117,31 @@ export default function SettingsDock() {
           </IconButton>
         </Tooltip>
       </Paper>
+
+      {/* Accessibility panel — blank for now (placeholder to be filled in). */}
+      <Drawer
+        anchor="right"
+        open={a11yOpen}
+        onClose={() => setA11yOpen(false)}
+        sx={{ zIndex: (th) => th.zIndex.drawer + 5 }}
+      >
+        <Box sx={{ width: { xs: '92vw', sm: 360 }, maxWidth: 420, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+              Accessibility
+            </Typography>
+            <IconButton aria-label={t('close')} onClick={() => setA11yOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+          <Box sx={{ p: 2, overflow: 'auto', flex: 1 }} />
+        </Box>
+      </Drawer>
 
       {/* Full settings drawer — above the top app bar, but below MUI menus/popovers
           (Select dropdowns) so those still open on top of the panel. */}

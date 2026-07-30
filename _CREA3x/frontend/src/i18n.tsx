@@ -529,6 +529,24 @@ const strings = {
     assistantUnavailable: 'The assistant is currently unavailable.',
     assistantModel: 'Model',
     assistantHint: 'Runs locally via Ollama. For legal questions, use the Legal AI Assistant page.',
+    // Unified floating AI assistant (Workflow + Legal AI tabs)
+    aiWidgetOpen: 'AI Assistant',
+    aiWidgetTitle: 'AI Assistant',
+    aiWidgetClose: 'Close assistant',
+    aiWidgetSend: 'Send',
+    aiWidgetSending: 'Thinking…',
+    aiWidgetPlaceholder: 'Type your question…',
+    aiTabWorkflow: 'Workflow',
+    aiTabLegal: 'Legal AI',
+    aiWorkflowWelcome: 'Hi! I can help you use the platform and, when you\'re in a dispute, guide you through each step. How can I help?',
+    aiLegalWelcome: 'Hi! I\'m the Legal AI Assistant. Ask me a question about family law across the six jurisdictions.',
+    aiLegalComingSoon: 'The Legal AI Assistant is being connected in the next step.',
+    aiWidgetUnavailable: 'The assistant is currently unavailable. Please try again shortly.',
+    aiWidgetDisclaimer: 'AI can make mistakes. This does not replace professional legal advice.',
+    aiRecordStart: 'Record a voice question',
+    aiRecordStop: 'Stop recording',
+    aiSpeak: 'Play answer aloud',
+    aiTranscribing: 'Transcribing…',
     clearChat: 'Clear chat',
     modeLabel: 'Interaction mode',
     modeText: 'Text',
@@ -4198,7 +4216,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }
 
   const t = useMemo(() => {
-    return (key: keyof typeof strings['en']) => strings[lang][key] || strings.en[key]
+    // English is the source of truth for the key set; other locales are treated
+    // as a partial of it and fall back to English for any key they don't define.
+    const current = strings[lang] as Partial<typeof strings['en']>
+    return (key: keyof typeof strings['en']) => current[key] || strings.en[key]
   }, [lang])
 
   const value: I18nState = { lang, setLang, t }

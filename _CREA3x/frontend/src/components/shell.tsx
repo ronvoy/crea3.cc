@@ -21,6 +21,7 @@ import SiteFooter from './site-footer'
 import NotificationsBell from './notifications'
 import ArchiveButton from './archive'
 import { CountryOnboarding } from './country'
+import AssistantWidget from './assistant-widget'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 
@@ -157,6 +158,9 @@ export default function Shell() {
           <SiteFooter />
         </Box>
       </Box>
+
+      {/* Floating AI assistant (Workflow + Legal AI), whole logged-in app */}
+      <AssistantWidget />
     </Box>
   )
 }

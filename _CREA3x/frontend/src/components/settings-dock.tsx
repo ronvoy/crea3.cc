@@ -21,6 +21,7 @@ import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import TextIncreaseOutlinedIcon from '@mui/icons-material/TextIncreaseOutlined'
 import TextDecreaseOutlinedIcon from '@mui/icons-material/TextDecreaseOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import { useLocation } from 'react-router-dom'
 import { useA11y } from './a11y-provider'
 import { useI18n, Lang } from '../i18n'
 
@@ -45,6 +46,9 @@ const LANG_OPTIONS: Array<{ code: Lang; label: string }> = [
 // gear + light/dark toggle; all the finer controls (high contrast, reduce motion,
 // font size) live INSIDE the settings drawer.
 export default function SettingsDock() {
+  // The admin console has its own theme toggle — hide the global settings/theme
+  // dock there so there is only one control.
+  const location = useLocation()
   const {
     reduceMotion,
     fontScale,
@@ -69,6 +73,9 @@ export default function SettingsDock() {
     window.addEventListener('crea3-open-settings', handler as any)
     return () => window.removeEventListener('crea3-open-settings', handler as any)
   }, [])
+
+  // Not on the admin console (it has its own theme control).
+  if (location.pathname.startsWith('/admin')) return null
 
   return (
     <>

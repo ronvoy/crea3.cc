@@ -13,15 +13,17 @@ which is issued from ADMIN_EMAIL / ADMIN_PASSWORD in backend/.env:
 Credentials never reach the browser: all IMAP/SMTP/DB access is server-side.
 """
 
+import base64
 import imaplib
 import email as email_lib
+import json
 import socket
 import ssl
 from datetime import datetime
 from email.header import decode_header, make_header
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import inspect as sa_inspect, text
 from sqlmodel import Session, select
@@ -30,7 +32,7 @@ from ..core.config import settings
 from ..core.email import _send_email
 from ..core.security import hash_password
 from ..db import engine, get_session
-from ..models import User, UserActivity
+from ..models import User, UserActivity, MailMessage, MailAttachmentRow, utcnow
 from .admin import require_admin_panel
 
 router = APIRouter(prefix="/api/admin", tags=["admin-panel"])
@@ -171,10 +173,30 @@ def _decode(s: Any) -> str:
         return str(s)
 
 
+def _detect_sent_mailbox(M) -> str:
+    return _detect_mailbox(M, "\\Sent", "sent", "INBOX.Sent")
+
+
+def _detect_junk_mailbox(M) -> str:
+    return _detect_mailbox(M, "\\Junk", "junk", "INBOX.Junk")
+
+
 @router.get("/mail/config")
 def mail_config(_admin: str = Depends(require_admin_panel)):
-    """SMTP settings in use (password intentionally NOT returned)."""
+    """SMTP settings + detected mailbox names (password intentionally NOT returned)."""
+    sent = "INBOX.Sent"
+    junk = "INBOX.Junk"
+    if settings.smtp_user and settings.smtp_pass:
+        socket.setdefaulttimeout(15)
+        try:
+            M = _imap_connect()
+            sent = _detect_sent_mailbox(M)
+            junk = _detect_junk_mailbox(M)
+            M.logout()
+        except Exception:
+            pass
     return {
+        "junk_mailbox": junk,
         "smtp_host": settings.smtp_host,
         "smtp_port": settings.smtp_port,
         "smtp_user": settings.smtp_user,
@@ -183,100 +205,457 @@ def mail_config(_admin: str = Depends(require_admin_panel)):
         "smtp_ssl": settings.smtp_ssl,
         "smtp_starttls": settings.smtp_tls,
         "imap_available": bool(settings.smtp_user and settings.smtp_pass),
+        "inbox_mailbox": "INBOX",
+        "sent_mailbox": sent,
     }
 
 
-@router.get("/mail/received")
-def mail_received(
+def _imap_connect():
+    M = imaplib.IMAP4_SSL(settings.smtp_host, 993, ssl_context=ssl.create_default_context())
+    M.login(settings.smtp_user, settings.smtp_pass)
+    return M
+
+
+def _parse_body_attachments(msg) -> tuple[str, list[dict]]:
+    """Return (body_text, attachments). Each attachment includes its raw bytes."""
+    body = ""
+    attachments: list[dict] = []
+    if msg.is_multipart():
+        for part in msg.walk():
+            disp = str(part.get("Content-Disposition") or "")
+            fname = part.get_filename()
+            if fname or "attachment" in disp.lower():
+                try:
+                    raw = part.get_payload(decode=True) or b""
+                except Exception:
+                    raw = b""
+                attachments.append({
+                    "filename": _decode(fname) or "attachment",
+                    "content_type": part.get_content_type(),
+                    "content": raw,
+                })
+                continue
+            if part.get_content_type() == "text/plain" and not body:
+                try:
+                    body = part.get_payload(decode=True).decode("utf-8", "ignore")
+                except Exception:
+                    pass
+        if not body:
+            for part in msg.walk():
+                if part.get_content_type() == "text/html":
+                    try:
+                        body = part.get_payload(decode=True).decode("utf-8", "ignore")
+                    except Exception:
+                        pass
+                    break
+    else:
+        try:
+            body = msg.get_payload(decode=True).decode("utf-8", "ignore")
+        except Exception:
+            body = str(msg.get_payload())
+    return body[:60000], attachments
+
+
+def _detect_mailbox(M, flag: str, name_kw: str, fallback: str) -> str:
+    """Find a mailbox by special-use flag (e.g. \\Junk) or by name keyword."""
+    try:
+        typ, boxes = M.list()
+        parsed = []
+        for b in boxes or []:
+            line = b.decode(errors="ignore")
+            name = line.split(' "." ')[-1].strip().strip('"') if '"."' in line else line.split()[-1].strip('"')
+            parsed.append((line, name))
+        for line, name in parsed:
+            if flag in line:
+                return name
+        for line, name in parsed:
+            if name_kw in name.lower():
+                return name
+    except Exception:
+        pass
+    return fallback
+
+
+@router.post("/mail/sync")
+def mail_sync(
     mailbox: str = Query("INBOX"),
-    limit: int = Query(30, ge=1, le=100),
+    limit: int = Query(100, ge=1, le=1000),
+    default_status: str = Query("inbox"),  # 'junk' when syncing the junk folder
     _admin: str = Depends(require_admin_panel),
+    session: Session = Depends(get_session),
 ):
-    """Read recent messages from the real mailbox over IMAP (host = SMTP host)."""
+    """Fetch from IMAP into the DB cache. New messages inserted (with body),
+    existing ones updated (read status), server-removed ones marked deleted.
+    Records are never erased."""
     if not (settings.smtp_user and settings.smtp_pass):
         raise HTTPException(status_code=503, detail="No mailbox credentials configured (SMTP_USER/SMTP_PASS).")
-    host = settings.smtp_host
-    socket.setdefaulttimeout(20)
+    socket.setdefaulttimeout(40)
+    new = updated = removed = 0
     try:
-        M = imaplib.IMAP4_SSL(host, 993, ssl_context=ssl.create_default_context())
-        M.login(settings.smtp_user, settings.smtp_pass)
+        M = _imap_connect()
         M.select(mailbox, readonly=True)
         typ, data = M.search(None, "ALL")
         ids = data[0].split()
-        out = []
+        unseen = set()
+        try:
+            _t, ud = M.search(None, "UNSEEN")
+            unseen = set(ud[0].split())
+        except Exception:
+            pass
+
+        server_msgids: set[str] = set()
+        # Existing rows for this mailbox, keyed by message_id.
+        existing = {m.message_id: m for m in session.exec(
+            select(MailMessage).where(MailMessage.mailbox == mailbox)
+        ).all()}
+
         for i in reversed(ids[-limit:]):
-            typ, d = M.fetch(i, "(BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT DATE)])")
+            _t, d = M.fetch(i, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM TO CC SUBJECT DATE)])")
             hdr = email_lib.message_from_bytes(d[0][1]) if d and d[0] else None
             if hdr is None:
                 continue
-            out.append({
-                "id": i.decode(),
-                "from": _decode(hdr.get("From")),
-                "to": _decode(hdr.get("To")),
-                "subject": _decode(hdr.get("Subject")),
-                "date": _decode(hdr.get("Date")),
-            })
+            msgid = (hdr.get("Message-ID") or "").strip() or f"{mailbox}:seq:{i.decode()}:{_decode(hdr.get('Subject'))[:40]}"
+            server_msgids.add(msgid)
+            seen = i not in unseen
+
+            row = existing.get(msgid)
+            if row:
+                # Only sync read-status from the server; NEVER override a manual
+                # archive/spam/delete the admin has set (those are local decisions).
+                if row.seen != seen:
+                    row.seen = seen
+                    row.updated_at = utcnow()
+                    session.add(row)
+                    updated += 1
+                continue
+
+            # New message: fetch full body once.
+            _t2, fd = M.fetch(i, "(BODY.PEEK[])")
+            full = email_lib.message_from_bytes(fd[0][1]) if fd and fd[0] else hdr
+            body, atts = _parse_body_attachments(full)
+            meta = [{"filename": a["filename"], "content_type": a["content_type"]} for a in atts]
+            mrow = MailMessage(
+                message_id=msgid, mailbox=mailbox, imap_uid=i.decode(),
+                from_addr=_decode(hdr.get("From")), to_addr=_decode(hdr.get("To")),
+                cc=_decode(hdr.get("Cc")), subject=_decode(hdr.get("Subject")),
+                date_str=_decode(hdr.get("Date")), body=body,
+                attachments_json=json.dumps(meta), seen=seen, status=default_status,
+            )
+            session.add(mrow)
+            session.flush()  # get mrow.id
+            for a in atts:
+                raw = a.get("content") or b""
+                session.add(MailAttachmentRow(
+                    mail_id=mrow.id, filename=a["filename"], content_type=a["content_type"],
+                    size=len(raw), content_b64=base64.b64encode(raw).decode("ascii"),
+                ))
+            new += 1
         M.logout()
-        return {"mailbox": mailbox, "count": len(out), "messages": out}
+
+        # Messages that vanished from the server → mark deleted (kept as records).
+        # (Skip when syncing the junk folder — those are junk, not inbox.)
+        if default_status == "inbox":
+            for mid, row in existing.items():
+                if mid not in server_msgids and row.status == "inbox":
+                    row.status = "deleted"
+                    row.updated_at = utcnow()
+                    session.add(row)
+                    removed += 1
+
+        session.commit()
+        return {"ok": True, "new": new, "updated": updated, "removed": removed}
     except imaplib.IMAP4.error as e:
         raise HTTPException(status_code=502, detail=f"IMAP error: {str(e)[:150]}")
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Could not read mailbox: {type(e).__name__}")
+        raise HTTPException(status_code=502, detail=f"Sync failed: {type(e).__name__}: {str(e)[:150]}")
 
 
-@router.get("/mail/received/{msg_id}")
-def mail_message(msg_id: str, mailbox: str = Query("INBOX"), _admin: str = Depends(require_admin_panel)):
-    """Full body of one message."""
-    if not (settings.smtp_user and settings.smtp_pass):
-        raise HTTPException(status_code=503, detail="No mailbox credentials configured.")
-    socket.setdefaulttimeout(20)
+_STATUSES = ("inbox", "archived", "junk", "spam", "deleted")
+
+
+@router.get("/mail/messages")
+def mail_messages(
+    filter: str = Query("all"),  # all|unread|read|inbox|archived|junk|deleted
+    mailbox: str = Query("INBOX"),  # "ALL" spans every mailbox (used by Junk)
+    _admin: str = Depends(require_admin_panel),
+    session: Session = Depends(get_session),
+):
+    """List cached messages from the DB (fast; no IMAP round-trip)."""
+    stmt = select(MailMessage)
+    if mailbox and mailbox.upper() != "ALL":
+        stmt = stmt.where(MailMessage.mailbox == mailbox)
+    f = (filter or "all").lower()
+    if f == "unread":
+        stmt = stmt.where(MailMessage.seen == False, MailMessage.status.notin_(("deleted", "junk", "spam")))  # noqa: E712
+    elif f == "read":
+        stmt = stmt.where(MailMessage.seen == True, MailMessage.status.notin_(("deleted", "junk", "spam")))  # noqa: E712
+    elif f in ("inbox", "archived", "deleted"):
+        stmt = stmt.where(MailMessage.status == f)
+    elif f in ("junk", "spam"):
+        stmt = stmt.where(MailMessage.status.in_(("junk", "spam")))
+    else:
+        # 'all' for a normal tab = everything EXCEPT junk/deleted (those live in
+        # the Junk tab), so moving a message to junk removes it from this view.
+        stmt = stmt.where(MailMessage.status.notin_(("deleted", "junk", "spam")))
+    rows = session.exec(stmt.order_by(MailMessage.id.desc())).all()
+    return {
+        "count": len(rows),
+        "messages": [
+            {
+                "id": r.id, "from": r.from_addr, "to": r.to_addr, "subject": r.subject,
+                "date": r.date_str, "seen": r.seen, "status": r.status, "mailbox": r.mailbox,
+            }
+            for r in rows
+        ],
+    }
+
+
+@router.get("/mail/messages/{row_id}")
+def mail_message_detail(row_id: int, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Full cached message; opening marks it read in the DB."""
+    r = session.get(MailMessage, row_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    if not r.seen:
+        r.seen = True
+        r.updated_at = utcnow()
+        session.add(r)
+        session.commit()
+    # Prefer stored attachment rows (downloadable); fall back to JSON metadata.
+    att_rows = session.exec(select(MailAttachmentRow).where(MailAttachmentRow.mail_id == r.id)).all()
+    if att_rows:
+        atts = [{"id": a.id, "filename": a.filename, "content_type": a.content_type, "size": a.size, "downloadable": True} for a in att_rows]
+    else:
+        try:
+            meta = json.loads(r.attachments_json or "[]")
+        except Exception:
+            meta = []
+        atts = [{"id": None, "filename": m.get("filename"), "content_type": m.get("content_type"), "downloadable": False} for m in meta]
+    return {
+        "id": r.id, "from": r.from_addr, "to": r.to_addr, "cc": r.cc,
+        "subject": r.subject, "date": r.date_str, "body": r.body,
+        "attachments": atts, "seen": r.seen, "status": r.status,
+    }
+
+
+@router.get("/mail/attachments/{att_id}/download")
+def mail_attachment_download(att_id: int, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Download a stored attachment's bytes."""
+    a = session.get(MailAttachmentRow, att_id)
+    if not a:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
     try:
-        M = imaplib.IMAP4_SSL(settings.smtp_host, 993, ssl_context=ssl.create_default_context())
-        M.login(settings.smtp_user, settings.smtp_pass)
-        M.select(mailbox, readonly=True)
-        typ, d = M.fetch(msg_id.encode(), "(RFC822)")
-        M.logout()
-        if not d or not d[0]:
-            raise HTTPException(status_code=404, detail="Message not found.")
-        msg = email_lib.message_from_bytes(d[0][1])
-        body = ""
-        if msg.is_multipart():
-            for part in msg.walk():
-                if part.get_content_type() == "text/plain":
-                    body = part.get_payload(decode=True).decode("utf-8", "ignore")
-                    break
-            if not body:
-                for part in msg.walk():
-                    if part.get_content_type() == "text/html":
-                        body = part.get_payload(decode=True).decode("utf-8", "ignore")
-                        break
-        else:
-            body = msg.get_payload(decode=True).decode("utf-8", "ignore")
-        return {
-            "from": _decode(msg.get("From")), "to": _decode(msg.get("To")),
-            "subject": _decode(msg.get("Subject")), "date": _decode(msg.get("Date")),
-            "body": body[:20000],
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Could not read message: {type(e).__name__}")
+        raw = base64.b64decode(a.content_b64 or "")
+    except Exception:
+        raw = b""
+    safe = (a.filename or "attachment").replace('"', "").replace("\n", "").replace("\r", "")
+    return Response(
+        content=raw,
+        media_type=a.content_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{safe}"'},
+    )
+
+
+@router.delete("/mail/messages/{row_id}/permanent")
+def mail_delete_permanent(row_id: int, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Permanently delete: remove from the mail SERVER (best-effort) and the DB."""
+    r = session.get(MailMessage, row_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    server_deleted = False
+    if settings.smtp_user and settings.smtp_pass and r.message_id and not r.message_id.startswith(f"{r.mailbox}:seq:"):
+        socket.setdefaulttimeout(25)
+        try:
+            M = _imap_connect()
+            M.select(r.mailbox)
+            mid = r.message_id.replace('"', '')
+            typ, d = M.search(None, "HEADER", "Message-ID", f'"{mid}"')
+            for sid in (d[0].split() if d and d[0] else []):
+                M.store(sid, "+FLAGS", "\\Deleted")
+                server_deleted = True
+            if server_deleted:
+                M.expunge()
+            M.logout()
+        except Exception:
+            pass
+    for a in session.exec(select(MailAttachmentRow).where(MailAttachmentRow.mail_id == r.id)).all():
+        session.delete(a)
+    session.delete(r)
+    session.commit()
+    return {"ok": True, "server_deleted": server_deleted}
+
+
+class MailStatusIn(BaseModel):
+    status: str | None = None   # inbox|archived|junk|deleted
+    seen: bool | None = None
+
+
+@router.post("/mail/messages/{row_id}/status")
+def mail_set_status(row_id: int, body: MailStatusIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    r = session.get(MailMessage, row_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    if body.status is not None:
+        if body.status not in _STATUSES:
+            raise HTTPException(status_code=400, detail="Invalid status.")
+        r.status = body.status
+    if body.seen is not None:
+        r.seen = bool(body.seen)
+    r.updated_at = utcnow()
+    session.add(r)
+    session.commit()
+    return {"ok": True, "status": r.status, "seen": r.seen}
+
+
+class MailBulkIn(BaseModel):
+    ids: list[int]
+    status: str | None = None
+    seen: bool | None = None
+
+
+@router.post("/mail/bulk-status")
+def mail_bulk_status(body: MailBulkIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Apply a status and/or read-flag change to many messages at once."""
+    if body.status is not None and body.status not in _STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status.")
+    n = 0
+    for r in session.exec(select(MailMessage).where(MailMessage.id.in_(body.ids))).all():
+        if body.status is not None:
+            r.status = body.status
+        if body.seen is not None:
+            r.seen = bool(body.seen)
+        r.updated_at = utcnow()
+        session.add(r)
+        n += 1
+    session.commit()
+    return {"ok": True, "updated": n}
+
+
+@router.post("/mail/bulk-permanent")
+def mail_bulk_permanent(body: MailBulkIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Permanently delete many messages from the mail SERVER + the DB."""
+    rows = session.exec(select(MailMessage).where(MailMessage.id.in_(body.ids))).all()
+    server_deleted = 0
+    if settings.smtp_user and settings.smtp_pass:
+        socket.setdefaulttimeout(40)
+        # Group by mailbox so we select each folder once.
+        by_box: dict[str, list] = {}
+        for r in rows:
+            if r.message_id and not r.message_id.startswith(f"{r.mailbox}:seq:"):
+                by_box.setdefault(r.mailbox, []).append(r)
+        for mb, group in by_box.items():
+            try:
+                M = _imap_connect()
+                M.select(mb)
+                any_del = False
+                for r in group:
+                    mid = r.message_id.replace('"', '')
+                    typ, d = M.search(None, "HEADER", "Message-ID", f'"{mid}"')
+                    for sid in (d[0].split() if d and d[0] else []):
+                        M.store(sid, "+FLAGS", "\\Deleted")
+                        any_del = True
+                        server_deleted += 1
+                if any_del:
+                    M.expunge()
+                M.logout()
+            except Exception:
+                pass
+    for r in rows:
+        for a in session.exec(select(MailAttachmentRow).where(MailAttachmentRow.mail_id == r.id)).all():
+            session.delete(a)
+        session.delete(r)
+    session.commit()
+    return {"ok": True, "deleted": len(rows), "server_deleted": server_deleted}
+
+
+class MailAttachment(BaseModel):
+    filename: str
+    content_b64: str  # base64-encoded file bytes
 
 
 class SendMailIn(BaseModel):
     to: str = Field(min_length=3, max_length=254)
+    cc: str | None = None
+    bcc: str | None = None
     subject: str = Field(min_length=1, max_length=300)
-    body: str = Field(min_length=1, max_length=20000)
+    body: str = Field(min_length=1, max_length=40000)
+    attachments: list[MailAttachment] = Field(default_factory=list)
+
+
+def _split_addrs(s: str | None) -> list[str]:
+    if not s:
+        return []
+    return [a.strip() for a in s.replace(";", ",").split(",") if a.strip()]
 
 
 @router.post("/mail/send")
 def mail_send(body: SendMailIn, _admin: str = Depends(require_admin_panel)):
-    """Send an email through the configured SMTP account."""
+    """Send an email (To/Cc/Bcc + attachments) through the configured SMTP account."""
+    import base64
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.application import MIMEApplication
+    from email.utils import formataddr, make_msgid
+
+    to_list = _split_addrs(body.to)
+    cc_list = _split_addrs(body.cc)
+    bcc_list = _split_addrs(body.bcc)
+    if not to_list:
+        raise HTTPException(status_code=422, detail="At least one 'to' recipient is required.")
+
+    msg = MIMEMultipart()
+    msg["Message-ID"] = make_msgid(domain="crea3.cc")  # so it can be tracked/deleted server-side
+    msg["From"] = formataddr((settings.smtp_from_name, settings.smtp_from))
+    msg["To"] = ", ".join(to_list)
+    if cc_list:
+        msg["Cc"] = ", ".join(cc_list)
+    msg["Subject"] = body.subject
+    msg.attach(MIMEText(body.body, "plain", "utf-8"))
+
+    for att in body.attachments:
+        try:
+            raw = base64.b64decode(att.content_b64)
+        except Exception:
+            raise HTTPException(status_code=422, detail=f"Attachment '{att.filename}' is not valid base64.")
+        part = MIMEApplication(raw)
+        part.add_header("Content-Disposition", "attachment", filename=att.filename)
+        msg.attach(part)
+
+    recipients = to_list + cc_list + bcc_list  # Bcc: envelope only, not a header
     try:
-        _send_email(to_email=body.to.strip(), subject=body.subject, body_text=body.body)
+        if settings.smtp_ssl:
+            server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=25)
+        else:
+            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=25)
+        try:
+            server.ehlo()
+            if settings.smtp_tls and not settings.smtp_ssl:
+                server.starttls(); server.ehlo()
+            if settings.smtp_user and settings.smtp_pass:
+                server.login(settings.smtp_user, settings.smtp_pass)
+            server.sendmail(settings.smtp_from, recipients, msg.as_string())
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                pass
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Send failed: {type(e).__name__}: {str(e)[:150]}")
-    return {"ok": True}
+
+    # SMTP does not copy the message to the Sent folder — do it over IMAP so the
+    # message shows up in the Sent tab. Best-effort; a failure here doesn't fail
+    # the send.
+    try:
+        import time as _time
+        M = _imap_connect()
+        sent_box = _detect_sent_mailbox(M)
+        M.append(sent_box, "\\Seen", imaplib.Time2Internaldate(_time.time()), msg.as_bytes())
+        M.logout()
+    except Exception:
+        pass
+
+    return {"ok": True, "recipients": len(recipients)}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

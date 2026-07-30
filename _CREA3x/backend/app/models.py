@@ -250,6 +250,43 @@ class DocumentSignature(SQLModel, table=True):
     prev_chain_hash: Optional[str] = Field(default=None)
     chain_hash: str = Field(index=True)
 
+class MailMessage(SQLModel, table=True):
+    """Persistent cache of fetched inbox messages (admin Mail tab).
+
+    'Fetch Mail' syncs from IMAP into this table: new messages are inserted with
+    their full body, existing ones have their read/removed status updated, and
+    rows are NEVER erased — a message removed from the server is marked
+    status='deleted' but its record is kept.
+    """
+    __table_args__ = (UniqueConstraint("mailbox", "message_id", name="uq_mail_message"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    message_id: str = Field(index=True)              # RFC Message-ID (or synthetic)
+    mailbox: str = Field(default="INBOX", index=True)
+    imap_uid: Optional[str] = Field(default=None)
+    from_addr: str = Field(default="")
+    to_addr: str = Field(default="")
+    cc: Optional[str] = Field(default=None)
+    subject: str = Field(default="")
+    date_str: str = Field(default="")                # original Date header
+    body: str = Field(default="")
+    attachments_json: str = Field(default="[]")      # JSON: [{filename, content_type}]
+    seen: bool = Field(default=False, index=True)    # read / unread
+    status: str = Field(default="inbox", index=True)  # inbox|archived|spam|deleted
+    fetched_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class MailAttachmentRow(SQLModel, table=True):
+    """Stored bytes of an email attachment (base64), so it can be downloaded
+    from the admin Mail tab without another IMAP round-trip."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    mail_id: int = Field(foreign_key="mailmessage.id", index=True)
+    filename: str = Field(default="attachment")
+    content_type: str = Field(default="application/octet-stream")
+    size: int = Field(default=0)
+    content_b64: str = Field(default="")  # base64 of the raw file bytes
+
+
 class UserActivity(SQLModel, table=True):
     """Per-user security/activity log (self-contained auth).
 

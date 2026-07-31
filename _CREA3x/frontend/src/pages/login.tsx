@@ -91,7 +91,7 @@ export default function LoginPage() {
               component={RouterLink}
               color="inherit"
               size="small"
-              to={`/register?verify=1${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ''}`}
+              to={`/verify-email${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ''}`}
             >
               {t('loginResend')}
             </Button>

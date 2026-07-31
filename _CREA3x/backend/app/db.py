@@ -45,6 +45,8 @@ def init_db() -> None:
             for col, ddl in (
                 ("email_verification_code", "VARCHAR"),
                 ("email_verification_sent_at", "TIMESTAMP"),
+                ("email_verification_expires_at", "TIMESTAMP"),
+                ("email_verification_token", "VARCHAR"),
                 ("password_reset_code", "VARCHAR"),
                 ("password_reset_expires_at", "TIMESTAMP"),
                 ("password_reset_sent_at", "TIMESTAMP"),

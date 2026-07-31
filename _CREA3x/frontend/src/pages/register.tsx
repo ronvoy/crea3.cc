@@ -23,6 +23,7 @@ export default function RegisterPage() {
   const [done, setDone] = useState(false)
   const [showFallback, setShowFallback] = useState(false)
   const [resend, setResend] = useState<ResendState>('idle')
+  const [resendErr, setResendErr] = useState<string | null>(null)
 
   function hostedRegister() {
     keycloak.register({ redirectUri: window.location.origin + '/app' })
@@ -77,6 +78,7 @@ export default function RegisterPage() {
       return
     }
     setResend('sending')
+    setResendErr(null)
     try {
       const data = await api('/api/auth/resend-verification', {
         method: 'POST',
@@ -84,7 +86,10 @@ export default function RegisterPage() {
         body: { email: email.trim() },
       })
       setResend(data?.status === 'already_verified' ? 'already' : 'sent')
-    } catch {
+    } catch (e: any) {
+      // Surface the real reason (e.g. the "please wait Ns" cooldown) instead of a
+      // generic error, so a rate-limit doesn't look like a broken button.
+      setResendErr(e?.detail || e?.message || null)
       setResend('error')
     }
   }
@@ -94,7 +99,7 @@ export default function RegisterPage() {
     sending: t('loginResendSending'),
     sent: t('loginResendSent'),
     already: t('loginResendAlready'),
-    error: t('loginResendError'),
+    error: resendErr || t('loginResendError'),
     need_email: t('loginResendNeedEmail'),
   }
 

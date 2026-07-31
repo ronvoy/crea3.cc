@@ -64,6 +64,8 @@ def extract_text(filename: str, content_type: str, data: bytes) -> str:
             return _extract_docx(data)
         if ext == "odt" or "opendocument" in (content_type or ""):
             return _extract_odt(data)
+        if ext == "rtf" or "rtf" in (content_type or ""):
+            return _extract_rtf(data)
         if ext == "json":
             try:
                 return json.dumps(json.loads(data.decode("utf-8", "replace")), indent=2, ensure_ascii=False)
@@ -76,15 +78,54 @@ def extract_text(filename: str, content_type: str, data: bytes) -> str:
         return ""
 
 
-def _extract_pdf(data: bytes) -> str:
+def missing_parser(filename: str, content_type: str = "") -> str | None:
+    """Return the pip package needed to read this file type if it's NOT installed.
+
+    Lets callers tell "the server can't parse this type" apart from "the file has
+    no extractable text". Returns None when the parser is available or the type
+    needs no third-party library (txt/md/json/csv/rtf).
+    """
+    name = (filename or "").lower()
+    ext = name.rsplit(".", 1)[-1] if "." in name else ""
+    needed = {"pdf": ("pypdf", "pypdf"), "docx": ("docx", "python-docx"),
+              "odt": ("odf", "odfpy")}
+    entry = needed.get(ext)
+    if not entry:
+        if "pdf" in (content_type or ""):
+            entry = ("pypdf", "pypdf")
+        else:
+            return None
+    module, package = entry
     try:
-        from pypdf import PdfReader  # lazy
-        import io
-        reader = PdfReader(io.BytesIO(data))
-        return "\n\n".join((p.extract_text() or "") for p in reader.pages).strip()
-    except Exception as e:
-        logger.warning("PDF parse failed (is pypdf installed?): %s", e)
-        return ""
+        __import__(module)
+        return None
+    except Exception:
+        return package
+
+
+def _extract_pdf(data: bytes) -> str:
+    import io
+    from pypdf import PdfReader  # lazy; ImportError surfaces via missing_parser()
+    reader = PdfReader(io.BytesIO(data))
+    # Many real-world (esp. legal) PDFs are permission-encrypted with an empty
+    # user password; pypdf then returns no text until decrypted.
+    if getattr(reader, "is_encrypted", False):
+        for pw in ("", "\x00"):
+            try:
+                if reader.decrypt(pw):
+                    break
+            except Exception:
+                pass
+    parts: list[str] = []
+    for page in reader.pages:
+        try:
+            txt = page.extract_text() or ""
+        except Exception as e:
+            logger.warning("PDF page extract failed: %s", e)
+            txt = ""
+        if txt.strip():
+            parts.append(txt)
+    return "\n\n".join(parts).strip()
 
 
 def _extract_docx(data: bytes) -> str:
@@ -96,6 +137,20 @@ def _extract_docx(data: bytes) -> str:
     except Exception as e:
         logger.warning("DOCX parse failed (is python-docx installed?): %s", e)
         return ""
+
+
+def _extract_rtf(data: bytes) -> str:
+    raw = data.decode("utf-8", "replace")
+    try:
+        from striprtf.striprtf import rtf_to_text  # lazy
+        return (rtf_to_text(raw) or "").strip()
+    except Exception:
+        # Minimal fallback: drop RTF control words/groups.
+        import re as _re
+        txt = _re.sub(r"\\'[0-9a-fA-F]{2}", "", raw)
+        txt = _re.sub(r"\\[a-zA-Z]+-?\d* ?", "", txt)
+        txt = txt.replace("{", "").replace("}", "")
+        return txt.strip()
 
 
 def _extract_odt(data: bytes) -> str:

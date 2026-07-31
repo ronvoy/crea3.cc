@@ -7,6 +7,8 @@ import CloseIcon from '@mui/icons-material/Close'
 import SendIcon from '@mui/icons-material/Send'
 import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
+import AttachFileIcon from '@mui/icons-material/AttachFile'
+import CircularProgress from '@mui/material/CircularProgress'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useLocation, matchPath } from 'react-router-dom'
@@ -14,7 +16,10 @@ import { api } from '../api/client'
 import { useI18n, type I18nKey } from '../i18n'
 
 type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
-type Msg = { role: 'user' | 'bot'; text: string; intent?: Intent; sources?: string[] }
+type Msg = { role: 'user' | 'bot'; text: string; intent?: Intent; sources?: string[]; files?: string[] }
+type Attachment = { filename: string; text: string; chars: number; truncated: boolean }
+
+const ATTACH_ACCEPT = '.pdf,.doc,.docx,.odt,.rtf,.txt,.md,.markdown,.json,.csv,.log,.tsv'
 
 const INTENT_LABEL: Record<Intent, I18nKey> = {
   workflow: 'aiIntentWorkflow',
@@ -75,7 +80,12 @@ export default function AssistantWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([{ role: 'bot', text: t('aiWelcome') }])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [attaching, setAttaching] = useState(false)
+  const [attachErr, setAttachErr] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   // Ground Workflow answers on the dispute the user is currently viewing.
   const disputeId = useMemo(() => {
@@ -103,12 +113,36 @@ export default function AssistantWidget() {
     }))
   }
 
+  async function onAttach(files: FileList | null) {
+    if (!files || !files.length) return
+    setAttachErr(null)
+    setAttaching(true)
+    try {
+      for (const f of Array.from(files)) {
+        const form = new FormData()
+        form.append('file', f)
+        const data = await api('/api/assistant/attach', { method: 'POST', body: form })
+        setAttachments((a) => [
+          ...a,
+          { filename: data.filename, text: data.text, chars: data.chars, truncated: !!data.truncated },
+        ])
+      }
+    } catch (e: any) {
+      setAttachErr(e?.message || 'Could not read that file.')
+    } finally {
+      setAttaching(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
   async function ask(question: string) {
     const q = question.trim()
     if (!q || sending) return
     setInput('')
     const list = msgs
-    setMsgs((m) => [...m, { role: 'user', text: q }])
+    const sentFiles = attachments
+    setMsgs((m) => [...m, { role: 'user', text: q, files: sentFiles.map((a) => a.filename) }])
+    setAttachments([])
     setSending(true)
     try {
       const data = await api('/api/assistant/ask', {
@@ -119,6 +153,7 @@ export default function AssistantWidget() {
           lang,
           dispute_id: disputeId,
           mode: 'auto',
+          attachments: sentFiles.map((a) => ({ filename: a.filename, text: a.text })),
         },
       })
       setMsgs((m) => [
@@ -137,10 +172,12 @@ export default function AssistantWidget() {
     }
   }
 
-  // Panel geometry: docked card vs. full-screen overlay.
+  // Panel geometry: docked card vs. full-screen overlay. `position` is part of
+  // this (fixed when expanded so it fills the viewport; relative when docked so
+  // the drag-drop overlay anchors to the panel) — do NOT override it below.
   const panelSx = full
     ? { position: 'fixed' as const, inset: 0, width: '100vw', height: '100dvh', borderRadius: 0, mb: 0 }
-    : { mb: 1.5, width: 'min(94vw, 24rem)', height: 'auto', borderRadius: 3 }
+    : { position: 'relative' as const, mb: 1.5, width: 'min(94vw, 24rem)', height: 'auto', borderRadius: 3 }
 
   const showLegalDisclaimer = msgs.some((m) => m.intent === 'legal_statutes' || m.intent === 'past_cases')
 
@@ -155,8 +192,26 @@ export default function AssistantWidget() {
       {open ? (
         <Paper
           elevation={8}
+          onDragOver={(e) => { e.preventDefault(); if (!dragOver) setDragOver(true) }}
+          onDragLeave={(e) => { e.preventDefault(); if (e.currentTarget === e.target) setDragOver(false) }}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); onAttach(e.dataTransfer.files) }}
           sx={{ ...panelSx, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
+          {dragOver ? (
+            <Box
+              sx={{
+                position: 'absolute', inset: 0, zIndex: 5,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                bgcolor: 'action.hover', border: 2, borderStyle: 'dashed', borderColor: 'primary.main',
+                pointerEvents: 'none',
+              }}
+            >
+              <Stack alignItems="center" spacing={1}>
+                <AttachFileIcon color="primary" />
+                <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>{t('aiDropHere')}</Typography>
+              </Stack>
+            </Box>
+          ) : null}
           {/* Header: [expand]  avatar+title  [close] */}
           <Stack
             direction="row" alignItems="center" justifyContent="space-between" spacing={1}
@@ -216,6 +271,11 @@ export default function AssistantWidget() {
                       {t('aiSources')}: {m.sources.join(', ')}
                     </Typography>
                   ) : null}
+                  {m.role === 'user' && m.files && m.files.length ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                      📎 {m.files.join(', ')}
+                    </Typography>
+                  ) : null}
                 </Box>
               ))}
               {sending ? (
@@ -233,12 +293,46 @@ export default function AssistantWidget() {
             </Typography>
           ) : null}
 
-          {/* Input: multiline, grows downward up to 5 rows then scrolls. */}
+          {/* Pending attachments + attach errors */}
+          {(attachments.length > 0 || attachErr) ? (
+            <Box sx={{ px: 1.5, pt: 1 }}>
+              {attachErr ? (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mb: 0.5 }}>{attachErr}</Typography>
+              ) : null}
+              <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                {attachments.map((a, i) => (
+                  <Chip
+                    key={i} size="small" variant="outlined" label={a.truncated ? `${a.filename} (trimmed)` : a.filename}
+                    onDelete={() => setAttachments((list) => list.filter((_, j) => j !== i))}
+                    deleteIcon={<CloseIcon />}
+                    sx={{ maxWidth: '100%' }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
+
+          {/* Input: attach + multiline (grows down to 5 rows, then scrolls). */}
           <Stack
-            component="form" direction="row" spacing={1} alignItems="flex-end"
+            component="form" direction="row" spacing={0.5} alignItems="flex-end"
             sx={{ p: 1.5, borderTop: 1, borderColor: 'divider' }}
             onSubmit={(e) => { e.preventDefault(); ask(input) }}
           >
+            <input
+              ref={fileRef} type="file" hidden multiple accept={ATTACH_ACCEPT}
+              onChange={(e) => onAttach(e.target.files)}
+            />
+            <Tooltip title={t('aiAttach')} placement="top">
+              <span>
+                <IconButton
+                  onClick={() => fileRef.current?.click()}
+                  disabled={attaching || sending}
+                  aria-label={t('aiAttach')}
+                >
+                  {attaching ? <CircularProgress size={20} /> : <AttachFileIcon />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <TextField
               size="small" fullWidth multiline minRows={1} maxRows={5}
               value={input} onChange={(e) => setInput(e.target.value)}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip,
+  Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip, Button,
 } from '@mui/material'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import CloseIcon from '@mui/icons-material/Close'
@@ -8,6 +8,16 @@ import SendIcon from '@mui/icons-material/Send'
 import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
+import HistoryIcon from '@mui/icons-material/History'
+import AddCommentOutlinedIcon from '@mui/icons-material/AddCommentOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
+import MicNoneIcon from '@mui/icons-material/MicNone'
+import StopCircleIcon from '@mui/icons-material/StopCircle'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
+import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined'
+import VolumeOffOutlinedIcon from '@mui/icons-material/VolumeOffOutlined'
 import CircularProgress from '@mui/material/CircularProgress'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -16,8 +26,32 @@ import { api } from '../api/client'
 import { useI18n, type I18nKey } from '../i18n'
 
 type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
-type Msg = { role: 'user' | 'bot'; text: string; intent?: Intent; sources?: string[]; files?: string[] }
+type Msg = {
+  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: string[]; files?: string[]
+  voice?: boolean; audioUrl?: string; msgId?: number; hasAudioIn?: boolean
+}
 type Attachment = { filename: string; text: string; chars: number; truncated: boolean }
+type SessionRow = { id: number; title: string; updated_at: string; message_count: number }
+
+const WELCOME_KEY = 'aiWelcome' as const
+
+// UI language code → BCP-47 tag for browser SpeechRecognition / STT hint.
+const SPEECH_LANG: Record<string, string> = {
+  en: 'en-US', it: 'it-IT', sl: 'sl-SI', et: 'et-EE', be: 'fr-BE', lt: 'lt-LT', hr: 'hr-HR',
+}
+// UI language code → ISO-639-1 for server Whisper (`be` is French-Belgium → fr).
+const STT_LANG: Record<string, string> = {
+  en: 'en', it: 'it', sl: 'sl', et: 'et', be: 'fr', lt: 'lt', hr: 'hr',
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onloadend = () => resolve(String(r.result).split(',')[1] || '')
+    r.onerror = reject
+    r.readAsDataURL(blob)
+  })
+}
 
 const ATTACH_ACCEPT = '.pdf,.doc,.docx,.odt,.rtf,.txt,.md,.markdown,.json,.csv,.log,.tsv'
 
@@ -84,8 +118,25 @@ export default function AssistantWidget() {
   const [attaching, setAttaching] = useState(false)
   const [attachErr, setAttachErr] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [sessionId, setSessionId] = useState<number | null>(null)
+  const [sessions, setSessions] = useState<SessionRow[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const [sttAvailable, setSttAvailable] = useState(false)
+  const [ttsAvailable, setTtsAvailable] = useState(false)
+  const [autoplay, setAutoplay] = useState(true)
+  // Unified audio playback state: which message/kind is playing and whether paused.
+  const [nowPlaying, setNowPlaying] = useState<{ key: string; paused: boolean } | null>(null)
+  const audioElRef = useRef<HTMLAudioElement | null>(null)
+  const [voiceErr, setVoiceErr] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+  const recognitionRef = useRef<any>(null)
+  const recognizedRef = useRef<string>('')
 
   // Ground Workflow answers on the dispute the user is currently viewing.
   const disputeId = useMemo(() => {
@@ -99,11 +150,267 @@ export default function AssistantWidget() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [msgs, open, full])
 
+  // Load the user's saved chats + voice capability when the panel opens.
+  useEffect(() => {
+    if (!open) return
+    api('/api/assistant/sessions').then((rows) => setSessions(rows || [])).catch(() => {})
+    api('/api/assistant/voice/config').then((c) => { setSttAvailable(!!c?.stt); setTtsAvailable(!!c?.tts) }).catch(() => {})
+  }, [open])
+
+  const speechSupported = typeof window !== 'undefined' &&
+    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+  const voiceSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices &&
+    (sttAvailable || !!speechSupported)
+
+  async function startRecording() {
+    setVoiceErr(null)
+    recognizedRef.current = ''
+
+    // Always capture the audio (for storage + playback in EVERY browser, and as a
+    // transcription fallback when browser recognition is blocked, e.g. Brave).
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      setVoiceErr(t('aiMicDenied'))
+      return
+    }
+    streamRef.current = stream
+    chunksRef.current = []
+    try {
+      const rec = new MediaRecorder(stream)
+      rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data) }
+      rec.start()
+      recorderRef.current = rec
+    } catch {
+      // MediaRecorder unsupported — continue; recognition may still work.
+      recorderRef.current = null
+    }
+
+    // Browser transcription in parallel only when there's no server STT.
+    if (!sttAvailable && speechSupported) {
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      const recog = new SR()
+      recog.lang = SPEECH_LANG[lang] || 'en-US'
+      recog.continuous = true
+      recog.interimResults = true
+      recog.onresult = (ev: any) => {
+        let finalTxt = ''
+        for (let i = 0; i < ev.results.length; i++) {
+          if (ev.results[i].isFinal) finalTxt += ev.results[i][0].transcript + ' '
+        }
+        if (finalTxt.trim()) recognizedRef.current = finalTxt.trim()
+      }
+      recog.onerror = (e: any) => {
+        const code = e?.error
+        if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') setVoiceErr(t('aiMicDenied'))
+        else if (code === 'no-speech') setVoiceErr(t('aiVoiceNoSpeech'))
+        else if (code === 'network') setVoiceErr(t('aiBraveHint'))   // Brave blocks the cloud recognizer
+        else setVoiceErr(t('aiVoiceUnsupported'))
+      }
+      recognitionRef.current = recog
+      try { recog.start() } catch { /* keep recording; upload fallback may handle it */ }
+    }
+    setRecording(true)
+  }
+
+  async function stopRecording() {
+    setRecording(false)
+
+    // Finalize browser recognition (if running) — WAIT for async results.
+    let recogText = ''
+    if (recognitionRef.current) {
+      const recog = recognitionRef.current
+      recogText = await new Promise<string>((resolve) => {
+        let settled = false
+        const done = () => { if (!settled) { settled = true; resolve(recognizedRef.current.trim()) } }
+        recog.onend = done
+        setTimeout(done, 1500)
+        try { recog.stop() } catch { done() }
+      })
+      recognitionRef.current = null
+    }
+
+    // Finalize the recorded audio blob.
+    let blob: Blob | null = null
+    const rec = recorderRef.current
+    if (rec) {
+      blob = await new Promise<Blob>((resolve) => {
+        rec.onstop = () => resolve(new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' }))
+        try { rec.stop() } catch { resolve(new Blob(chunksRef.current, { type: 'audio/webm' })) }
+      })
+    }
+    streamRef.current?.getTracks().forEach((tr) => tr.stop())
+    streamRef.current = null
+    recorderRef.current = null
+
+    const mime = blob?.type || 'audio/webm'
+    const audioUrl = blob ? URL.createObjectURL(blob) : undefined
+    const audioB64 = blob ? await blobToBase64(blob).catch(() => '') : ''
+
+    // Transcript: server STT (any browser, incl. Brave) or browser recognition.
+    let transcript = recogText
+    if (sttAvailable && blob) {
+      try {
+        setTranscribing(true)
+        const form = new FormData()
+        form.append('file', blob, 'recording.webm')
+        if (STT_LANG[lang]) form.append('lang', STT_LANG[lang])
+        const data = await api('/api/assistant/voice/transcribe', { method: 'POST', body: form })
+        transcript = String(data?.text || '').trim()
+      } catch (e: any) {
+        setVoiceErr(e?.message || t('aiVoiceUnsupported'))
+      } finally {
+        setTranscribing(false)
+      }
+    }
+
+    if (!transcript) {
+      // Nothing recognised. In a browser that blocks recognition (Brave) and with
+      // no server STT, guide the user; otherwise it was just silence.
+      if (!sttAvailable && (!speechSupported || voiceErr)) setVoiceErr((v) => v || t('aiBraveHint'))
+      else setVoiceErr((v) => v || t('aiVoiceNoSpeech'))
+      return
+    }
+    setVoiceErr(null)
+    // Always attach the recorded audio so the user can replay it in any browser.
+    ask(transcript, audioUrl ? { audioUrl, audioB64, mime } : undefined)
+  }
+
+  function toggleRecording() {
+    if (recording) stopRecording()
+    else startRecording()
+  }
+
+  // ── Unified audio playback (play / pause / resume) ─────────────────────────
+  function stopAudio() {
+    if (audioElRef.current) { try { audioElRef.current.pause() } catch {} ; audioElRef.current = null }
+    try { window.speechSynthesis?.cancel() } catch {}
+    setNowPlaying(null)
+  }
+
+  function togglePauseResume() {
+    setNowPlaying((p) => {
+      if (!p) return p
+      if (audioElRef.current) {
+        if (audioElRef.current.paused) { audioElRef.current.play().catch(() => {}); return { ...p, paused: false } }
+        audioElRef.current.pause(); return { ...p, paused: true }
+      }
+      // speechSynthesis path
+      try {
+        if (window.speechSynthesis.paused) { window.speechSynthesis.resume(); return { ...p, paused: false } }
+        window.speechSynthesis.pause(); return { ...p, paused: true }
+      } catch { return p }
+    })
+  }
+
+  function playSrc(key: string, src: string) {
+    stopAudio()
+    const a = new Audio(src)
+    audioElRef.current = a
+    a.onended = () => setNowPlaying((p) => (p?.key === key ? null : p))
+    a.play().catch(() => setNowPlaying((p) => (p?.key === key ? null : p)))
+    setNowPlaying({ key, paused: false })
+  }
+
+  // Speak a bot answer: server TTS (e.g. Kokoro) if available, else browser voice.
+  async function speak(m: Msg) {
+    const key = `tts:${m.msgId ?? 'live'}`
+    if (nowPlaying?.key === key) { togglePauseResume(); return }
+    const plain = (m.text || '')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+      .replace(/[*_`#>|]/g, '')
+      .trim()
+    if (!plain) return
+    stopAudio()
+    try {
+      if (ttsAvailable) {
+        const data = await api('/api/assistant/voice/tts', {
+          method: 'POST',
+          body: { text: plain, lang, session_id: sessionId, message_id: m.msgId },
+        })
+        if (data?.audio_b64) { playSrc(key, `data:${data.mime || 'audio/mpeg'};base64,${data.audio_b64}`); return }
+      }
+    } catch { /* fall through to browser voice */ }
+    try {
+      const u = new SpeechSynthesisUtterance(plain)
+      u.lang = SPEECH_LANG[lang] || 'en-US'
+      u.onend = () => setNowPlaying((p) => (p?.key === key ? null : p))
+      setNowPlaying({ key, paused: false })
+      window.speechSynthesis.speak(u)
+    } catch { setNowPlaying(null) }
+  }
+
+  // Play / pause the user's own recording.
+  async function playMessageAudio(m: Msg) {
+    const key = `in:${m.msgId ?? m.audioUrl ?? ''}`
+    if (nowPlaying?.key === key) { togglePauseResume(); return }
+    try {
+      if (m.audioUrl) { playSrc(key, m.audioUrl); return }
+      if (sessionId && m.msgId && m.hasAudioIn) {
+        const data = await api(`/api/assistant/sessions/${sessionId}/messages/${m.msgId}/audio?kind=in`)
+        if (data?.audio_b64) playSrc(key, `data:${data.mime || 'audio/webm'};base64,${data.audio_b64}`)
+      }
+    } catch { /* ignore */ }
+  }
+
+  function isPlaying(key: string) { return nowPlaying?.key === key && !nowPlaying.paused }
+  function isActive(key: string) { return nowPlaying?.key === key }
+
+  async function refreshSessions() {
+    try { setSessions((await api('/api/assistant/sessions')) || []) } catch {}
+  }
+
+  function newChat() {
+    stopAudio()
+    setMsgs([{ role: 'bot', text: t(WELCOME_KEY) }])
+    setSessionId(null)
+    setAttachments([])
+    setShowHistory(false)
+  }
+
+  async function openSession(id: number) {
+    try {
+      const data = await api(`/api/assistant/sessions/${id}`)
+      const loaded: Msg[] = (data?.messages || []).map((m: any) => ({
+        role: m.role === 'user' ? 'user' : 'bot',
+        text: m.text,
+        intent: m.intent || undefined,
+        sources: Array.isArray(m.sources) && m.sources.length ? m.sources : undefined,
+        files: Array.isArray(m.files) && m.files.length ? m.files : undefined,
+        msgId: m.id,
+        voice: !!m.has_audio_in,
+        hasAudioIn: !!m.has_audio_in,
+      }))
+      setMsgs(loaded.length ? loaded : [{ role: 'bot', text: t(WELCOME_KEY) }])
+      setSessionId(id)
+      setShowHistory(false)
+    } catch { /* ignore */ }
+  }
+
+  async function renameSession(id: number, current: string) {
+    const title = window.prompt(t('aiRenamePrompt'), current)
+    if (title == null || !title.trim()) return
+    try { await api(`/api/assistant/sessions/${id}`, { method: 'PATCH', body: { title: title.trim() } }); refreshSessions() } catch {}
+  }
+
+  async function deleteSession(id: number) {
+    if (!window.confirm(t('aiDeleteConfirm'))) return
+    try {
+      await api(`/api/assistant/sessions/${id}`, { method: 'DELETE' })
+      if (id === sessionId) newChat()
+      refreshSessions()
+    } catch {}
+  }
+
   // Closing always returns to the docked FAB (never leaves the panel expanded
   // with the launcher hidden).
   function closePanel() {
+    stopAudio()
     setOpen(false)
     setFull(false)
+    setShowHistory(false)
   }
 
   function historyPayload(list: Msg[]) {
@@ -135,13 +442,16 @@ export default function AssistantWidget() {
     }
   }
 
-  async function ask(question: string) {
+  async function ask(question: string, voice?: { audioUrl: string; audioB64: string; mime: string }) {
     const q = question.trim()
     if (!q || sending) return
     setInput('')
     const list = msgs
     const sentFiles = attachments
-    setMsgs((m) => [...m, { role: 'user', text: q, files: sentFiles.map((a) => a.filename) }])
+    setMsgs((m) => [...m, {
+      role: 'user', text: q, files: sentFiles.map((a) => a.filename),
+      voice: !!voice, audioUrl: voice?.audioUrl,
+    }])
     setAttachments([])
     setSending(true)
     try {
@@ -154,6 +464,10 @@ export default function AssistantWidget() {
           dispute_id: disputeId,
           mode: 'auto',
           attachments: sentFiles.map((a) => ({ filename: a.filename, text: a.text })),
+          session_id: sessionId,
+          transcript: voice ? q : undefined,
+          audio_in_b64: voice?.audioB64,
+          audio_in_mime: voice?.mime,
         },
       })
       setMsgs((m) => [
@@ -163,8 +477,18 @@ export default function AssistantWidget() {
           text: String(data?.answer ?? '') || t('aiWidgetUnavailable'),
           intent: data?.intent as Intent,
           sources: Array.isArray(data?.sources) ? data.sources : undefined,
+          msgId: data?.message_id ?? undefined,
         },
       ])
+      if (data?.session_id) {
+        setSessionId(data.session_id)
+        refreshSessions()
+      }
+      // Auto-play the reply aloud (server TTS if configured, else browser voice).
+      if (autoplay) {
+        const answer = String(data?.answer ?? '')
+        if (answer) speak({ role: 'bot', text: answer, msgId: data?.message_id ?? undefined })
+      }
     } catch (e: any) {
       setMsgs((m) => [...m, { role: 'bot', text: e?.message || t('aiWidgetUnavailable') }])
     } finally {
@@ -212,26 +536,95 @@ export default function AssistantWidget() {
               </Stack>
             </Box>
           ) : null}
-          {/* Header: [expand]  avatar+title  [close] */}
+          {/* Header: [history][expand]  avatar+title  [new][close] */}
           <Stack
-            direction="row" alignItems="center" justifyContent="space-between" spacing={1}
+            direction="row" alignItems="center" justifyContent="space-between" spacing={0.5}
             sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}
           >
-            <Tooltip title={full ? t('aiCollapse') : t('aiExpand')} placement="right">
-              <IconButton size="small" onClick={() => setFull((v) => !v)} aria-label={full ? t('aiCollapse') : t('aiExpand')}>
-                {full ? <CloseFullscreenIcon fontSize="small" /> : <OpenInFullIcon fontSize="small" />}
-              </IconButton>
-            </Tooltip>
+            <Stack direction="row" alignItems="center">
+              <Tooltip title={t('aiHistory')} placement="bottom">
+                <IconButton size="small" onClick={() => setShowHistory((v) => !v)} aria-label={t('aiHistory')}>
+                  <HistoryIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={full ? t('aiCollapse') : t('aiExpand')} placement="bottom">
+                <IconButton size="small" onClick={() => setFull((v) => !v)} aria-label={full ? t('aiCollapse') : t('aiExpand')}>
+                  {full ? <CloseFullscreenIcon fontSize="small" /> : <OpenInFullIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+            </Stack>
             <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0, flex: 1, justifyContent: 'center' }}>
               <Avatar sx={{ bgcolor: 'primary.main', width: 30, height: 30 }}>
                 <SmartToyOutlinedIcon fontSize="small" />
               </Avatar>
               <Typography sx={{ fontWeight: 600 }} noWrap>{t('aiWidgetTitle')}</Typography>
             </Stack>
-            <IconButton size="small" onClick={closePanel} aria-label={t('aiWidgetClose')}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            <Stack direction="row" alignItems="center">
+              <Tooltip title={autoplay ? t('aiAutoplayOn') : t('aiAutoplayOff')} placement="bottom">
+                <IconButton
+                  size="small"
+                  onClick={() => { if (autoplay) stopAudio(); setAutoplay((v) => !v) }}
+                  aria-label={autoplay ? t('aiAutoplayOn') : t('aiAutoplayOff')}
+                  color={autoplay ? 'primary' : 'default'}
+                >
+                  {autoplay ? <VolumeUpOutlinedIcon fontSize="small" /> : <VolumeOffOutlinedIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={t('aiNewChat')} placement="bottom">
+                <IconButton size="small" onClick={newChat} aria-label={t('aiNewChat')}>
+                  <AddCommentOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <IconButton size="small" onClick={closePanel} aria-label={t('aiWidgetClose')}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Stack>
           </Stack>
+
+          {/* History sidebar (overlay drawer inside the panel) */}
+          {showHistory ? (
+            <Box sx={{ position: 'absolute', inset: 0, zIndex: 7, display: 'flex' }}>
+              <Box
+                sx={{
+                  width: 'min(82%, 300px)', height: '100%', bgcolor: 'background.paper',
+                  borderRight: 1, borderColor: 'divider', display: 'flex', flexDirection: 'column',
+                }}
+              >
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700 }} color="text.secondary">{t('aiHistory')}</Typography>
+                  <Button size="small" startIcon={<AddCommentOutlinedIcon />} onClick={newChat}>{t('aiNewChat')}</Button>
+                </Stack>
+                <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
+                  {sessions.length === 0 ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ p: 1, display: 'block' }}>{t('aiNoHistory')}</Typography>
+                  ) : sessions.map((s) => (
+                    <Stack
+                      key={s.id} direction="row" alignItems="center" spacing={0.5}
+                      sx={{
+                        borderRadius: 1, px: 1, py: 0.75, cursor: 'pointer',
+                        bgcolor: s.id === sessionId ? 'action.selected' : 'transparent',
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
+                      <Typography
+                        variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}
+                        onClick={() => openSession(s.id)} title={s.title}
+                      >
+                        {s.title}
+                      </Typography>
+                      <IconButton size="small" onClick={() => renameSession(s.id, s.title)} aria-label={t('aiRename')}>
+                        <DriveFileRenameOutlineIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => deleteSession(s.id)} aria-label={t('aiDelete')}>
+                        <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Stack>
+                  ))}
+                </Box>
+              </Box>
+              <Box sx={{ flex: 1 }} onClick={() => setShowHistory(false)} />
+            </Box>
+          ) : null}
 
           {/* Messages */}
           <Box
@@ -271,11 +664,36 @@ export default function AssistantWidget() {
                       {t('aiSources')}: {m.sources.join(', ')}
                     </Typography>
                   ) : null}
+                  {m.role === 'bot' && i > 0 ? (() => {
+                    const key = `tts:${m.msgId ?? 'live'}`
+                    const playing = isPlaying(key)
+                    return (
+                      <Tooltip title={playing ? t('aiPause') : t('aiSpeak')} placement="right">
+                        <IconButton size="small" onClick={() => speak(m)} aria-label={playing ? t('aiPause') : t('aiSpeak')} sx={{ mt: 0.25 }}>
+                          {playing ? <PauseIcon sx={{ fontSize: 18 }} /> : <VolumeUpOutlinedIcon sx={{ fontSize: 18 }} />}
+                        </IconButton>
+                      </Tooltip>
+                    )
+                  })() : null}
                   {m.role === 'user' && m.files && m.files.length ? (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
                       📎 {m.files.join(', ')}
                     </Typography>
                   ) : null}
+                  {m.role === 'user' && (m.audioUrl || m.hasAudioIn) ? (() => {
+                    const key = `in:${m.msgId ?? m.audioUrl ?? ''}`
+                    const playing = isPlaying(key)
+                    return (
+                      <Button
+                        size="small"
+                        startIcon={playing ? <PauseIcon /> : <PlayArrowIcon />}
+                        onClick={() => playMessageAudio(m)}
+                        sx={{ mt: 0.25, minWidth: 0, textTransform: 'none', py: 0 }}
+                      >
+                        {playing ? t('aiPauseRecording') : t('aiPlayRecording')}
+                      </Button>
+                    )
+                  })() : null}
                 </Box>
               ))}
               {sending ? (
@@ -293,11 +711,19 @@ export default function AssistantWidget() {
             </Typography>
           ) : null}
 
-          {/* Pending attachments + attach errors */}
-          {(attachments.length > 0 || attachErr) ? (
+          {/* Pending attachments + attach/voice errors */}
+          {(attachments.length > 0 || attachErr || voiceErr || recording) ? (
             <Box sx={{ px: 1.5, pt: 1 }}>
               {attachErr ? (
                 <Typography variant="caption" color="error" sx={{ display: 'block', mb: 0.5 }}>{attachErr}</Typography>
+              ) : null}
+              {voiceErr ? (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mb: 0.5 }}>{voiceErr}</Typography>
+              ) : null}
+              {recording ? (
+                <Typography variant="caption" color="error" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
+                  ● {t('aiRecordStop')}
+                </Typography>
               ) : null}
               <Stack direction="row" flexWrap="wrap" gap={0.75}>
                 {attachments.map((a, i) => (
@@ -326,13 +752,27 @@ export default function AssistantWidget() {
               <span>
                 <IconButton
                   onClick={() => fileRef.current?.click()}
-                  disabled={attaching || sending}
+                  disabled={attaching || sending || recording}
                   aria-label={t('aiAttach')}
                 >
                   {attaching ? <CircularProgress size={20} /> : <AttachFileIcon />}
                 </IconButton>
               </span>
             </Tooltip>
+            {voiceSupported ? (
+              <Tooltip title={recording ? t('aiRecordStop') : t('aiRecordStart')} placement="top">
+                <span>
+                  <IconButton
+                    onClick={toggleRecording}
+                    disabled={sending || transcribing}
+                    color={recording ? 'error' : 'default'}
+                    aria-label={recording ? t('aiRecordStop') : t('aiRecordStart')}
+                  >
+                    {transcribing ? <CircularProgress size={20} /> : recording ? <StopCircleIcon /> : <MicNoneIcon />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : null}
             <TextField
               size="small" fullWidth multiline minRows={1} maxRows={5}
               value={input} onChange={(e) => setInput(e.target.value)}

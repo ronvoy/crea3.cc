@@ -403,3 +403,34 @@ class KbIndexConfig(SQLModel, table=True):
     preset: str = Field(default="balanced")          # optimal|balanced|creative|custom
     params_json: str = Field(default="{}")           # JSON of tuned params
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+# ── Per-user chat history ────────────────────────────────────────────────────
+# Each user's assistant conversations, shown in a sidebar. Voice artifacts
+# (recorded audio + spoken answer) are attached per message in later steps.
+
+class ChatSession(SQLModel, table=True):
+    __tablename__ = "chat_session"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    title: str = Field(default="New chat")
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ChatMessage(SQLModel, table=True):
+    __tablename__ = "chat_message"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(foreign_key="chat_session.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    role: str = Field(default="user")                # user|bot
+    text: str = Field(default="")
+    intent: Optional[str] = Field(default=None)       # workflow|past_cases|legal_statutes
+    sources_json: str = Field(default="[]")           # JSON list[str] of KB source filenames
+    files_json: str = Field(default="[]")             # JSON list[str] of attached filenames
+    transcript: Optional[str] = Field(default=None)   # STT transcript when input was voice
+    audio_in_b64: Optional[str] = Field(default=None)   # base64 of the user's recorded audio
+    audio_in_mime: Optional[str] = Field(default=None)
+    audio_out_b64: Optional[str] = Field(default=None)  # base64 TTS audio of a bot answer
+    audio_mime: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow, index=True)

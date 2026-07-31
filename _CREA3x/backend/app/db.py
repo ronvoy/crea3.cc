@@ -62,6 +62,12 @@ def init_db() -> None:
             if disp_cols and "deadline_reminded" not in disp_cols:
                 conn.exec_driver_sql("ALTER TABLE dispute ADD COLUMN deadline_reminded BOOLEAN DEFAULT 0")
 
+            # ChatMessage voice columns (added after the table's first release)
+            cm_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(chat_message)").fetchall()}
+            for col in ("transcript", "audio_in_b64", "audio_in_mime", "audio_out_b64", "audio_mime"):
+                if cm_cols and col not in cm_cols:
+                    conn.exec_driver_sql(f"ALTER TABLE chat_message ADD COLUMN {col} TEXT")
+
             # DisputeAgent.claimed_entitlement_share (party's own claimed share)
             agent_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(disputeagent)").fetchall()}
             if agent_cols and "claimed_entitlement_share" not in agent_cols:

@@ -17,7 +17,7 @@ sees their OWN preferences/strategy in the context — never another party's.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -473,6 +473,12 @@ class AskIn(BaseModel):
     # Only meaningful for past_cases answers.
     format: str = Field(default="descriptive", pattern="^(descriptive|tabular)$")
     attachments: list[AttachmentIn] = Field(default_factory=list)
+    # Existing chat session to append to; None starts a new one (server returns its id).
+    session_id: int | None = Field(default=None)
+    # Optional STT transcript + recorded audio to store when input came from voice.
+    transcript: str | None = Field(default=None, max_length=8000)
+    audio_in_b64: str | None = Field(default=None)
+    audio_in_mime: str | None = Field(default=None, max_length=100)
 
 
 class AskOut(BaseModel):
@@ -482,6 +488,8 @@ class AskOut(BaseModel):
     provider: str
     grounded_on_dispute: int | None = None
     sources: list[str] = Field(default_factory=list)
+    session_id: int
+    message_id: int | None = None
 
 
 def _kb_grounding(session: Session, section: str, question: str) -> tuple[str, list[str]]:
@@ -774,6 +782,72 @@ async def assistant_attach(
     }
 
 
+@router.get("/voice/config")
+def voice_config(_user: User = Depends(get_current_user)):
+    """Tell the client whether server-side STT/TTS are available.
+
+    When stt=false the browser transcribes locally (Web Speech API).
+    """
+    from ..core import stt
+    try:
+        from ..core import tts  # added in Step H
+        tts_ok = tts.available()
+    except Exception:
+        tts_ok = False
+    return {"stt": stt.available(), "tts": tts_ok}
+
+
+@router.post("/voice/transcribe")
+async def voice_transcribe(
+    file: UploadFile = File(...),
+    lang: str | None = Form(default=None),
+    _user: User = Depends(get_current_user),
+):
+    """Transcribe a recorded audio clip to text via the server STT backend."""
+    from ..core import stt
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty audio.")
+    try:
+        text = stt.transcribe(data, file.content_type or "audio/webm", file.filename or "audio.webm", lang)
+    except stt.SttUnavailable:
+        raise HTTPException(status_code=503, detail="Server transcription is not configured.")
+    except stt.SttError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    return {"text": text}
+
+
+class TtsIn(BaseModel):
+    text: str = Field(min_length=1, max_length=6000)
+    lang: str | None = Field(default=None, max_length=8)
+    session_id: int | None = Field(default=None)
+    message_id: int | None = Field(default=None)
+
+
+@router.post("/voice/tts")
+def voice_tts(payload: TtsIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Synthesize speech for a bot answer; stores it on the message for replay."""
+    import base64
+    from ..core import tts
+    from ..models import ChatSession, ChatMessage
+    try:
+        audio, mime = tts.synthesize(payload.text, payload.lang)
+    except tts.TtsUnavailable:
+        raise HTTPException(status_code=503, detail="Server voice is not configured.")
+    except tts.TtsError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    b64 = base64.b64encode(audio).decode("ascii")
+    if payload.session_id and payload.message_id:
+        sess = session.get(ChatSession, payload.session_id)
+        msg = session.get(ChatMessage, payload.message_id)
+        if sess and sess.user_id == user.id and msg and msg.session_id == payload.session_id:
+            msg.audio_out_b64 = b64
+            msg.audio_mime = mime
+            session.add(msg)
+            session.commit()
+    return {"audio_b64": b64, "mime": mime}
+
+
 @router.post("/ask", response_model=AskOut)
 def assistant_ask(
     payload: AskIn,
@@ -782,10 +856,20 @@ def assistant_ask(
 ):
     """Single entry point for the unified chatbot: classify → route → answer."""
     from ..core.config import settings
+    from . import chat_history
 
     intent = payload.mode if payload.mode in INTENTS else classify_intent(payload.question, payload.history)
     system, grounded, sources = _system_for_intent(intent, payload, user, session)
     system += _attachments_block(payload.attachments)
+
+    # Persist the turn to the user's chat history (creating a session if needed).
+    sess = chat_history.get_or_create_session(session, user, payload.session_id, payload.question)
+    file_names = [a.filename for a in payload.attachments if (a.text or "").strip()]
+    chat_history.save_message(
+        session, sess, user, "user", payload.question,
+        files=file_names, transcript=payload.transcript,
+        audio_in_b64=payload.audio_in_b64, audio_in_mime=payload.audio_in_mime,
+    )
 
     try:
         result = llm.chat(
@@ -800,6 +884,10 @@ def assistant_ask(
     except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
+    bot_msg = chat_history.save_message(
+        session, sess, user, "bot", result.text, intent=intent, sources=sources,
+    )
+
     return AskOut(
         answer=result.text,
         model=result.model,
@@ -807,4 +895,6 @@ def assistant_ask(
         provider=result.provider,
         grounded_on_dispute=grounded,
         sources=sources,
+        session_id=sess.id,
+        message_id=bot_msg.id,
     )

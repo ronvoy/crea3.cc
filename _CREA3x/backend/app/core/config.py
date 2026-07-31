@@ -236,6 +236,51 @@ class Settings(BaseSettings):
     )
 
     # ----------------------------
+    # Speech-to-text (voice input). OpenRouter has NO audio API, so STT uses
+    # either a configurable OpenAI-compatible /audio/transcriptions endpoint
+    # (Groq free Whisper, OpenAI, or self-hosted) OR Gemini (GEMINI_API_KEY).
+    # When neither is set, the browser's Web Speech API is used client-side.
+    # ----------------------------
+    stt_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("STT_BASE_URL", "stt_base_url"),
+    )
+    stt_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("STT_API_KEY", "stt_api_key"),
+    )
+    stt_model: str = Field(
+        default="whisper-1",
+        validation_alias=AliasChoices("STT_MODEL", "stt_model"),
+    )
+
+    # ----------------------------
+    # Text-to-speech (spoken answers). Configurable OpenAI-compatible
+    # /audio/speech endpoint — works with a self-hosted Kokoro (Kokoro-FastAPI),
+    # OpenAI, or others. When unset, the browser's speechSynthesis is used.
+    # ----------------------------
+    tts_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("TTS_BASE_URL", "tts_base_url"),
+    )
+    tts_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("TTS_API_KEY", "tts_api_key"),
+    )
+    tts_model: str = Field(
+        default="kokoro",
+        validation_alias=AliasChoices("TTS_MODEL", "tts_model"),
+    )
+    tts_voice: str = Field(
+        default="af_bella",
+        validation_alias=AliasChoices("TTS_VOICE", "tts_voice"),
+    )
+    tts_format: str = Field(
+        default="mp3",
+        validation_alias=AliasChoices("TTS_FORMAT", "tts_format"),
+    )
+
+    # ----------------------------
     # External "Legal AI Assistant" (RAG service hosted elsewhere).
     # The frontend no longer hardcodes this URL; it is proxied by the backend.
     # ----------------------------

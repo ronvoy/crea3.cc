@@ -57,8 +57,14 @@ def chat(
     user_message: str,
     history: list[dict[str, str]] | None = None,
     model: str | None = None,
+    openrouter_model: str | None = None,
 ) -> ChatResult:
-    """Answer via Ollama, falling back to OpenRouter when Ollama is unavailable."""
+    """Answer via Ollama, falling back to OpenRouter when Ollama is unavailable.
+
+    `model` names the preferred Ollama model. `openrouter_model` optionally pins
+    the OpenRouter fallback to a specific model (e.g. the Legal assistant pins
+    Mistral); when None the fallback uses the configured OPENROUTER_MODEL list.
+    """
     try:
         text = ollama.chat(
             system=system, user_message=user_message, history=history, model=model
@@ -79,10 +85,11 @@ def chat(
         raise LLMError(str(e)) from e
 
     # `model` names an Ollama model (e.g. "llama3.2:3b"), which OpenRouter would
-    # reject — let OpenRouter use its own configured model instead.
+    # reject — let OpenRouter use `openrouter_model` (if pinned) or its own
+    # configured model list instead.
     try:
         text = openrouter.chat(
-            system=system, user_message=user_message, history=history, model=None
+            system=system, user_message=user_message, history=history, model=openrouter_model
         )
     except openrouter.OpenRouterUnavailable as e:
         logger.warning("OpenRouter fallback unavailable: %s", e)
@@ -90,7 +97,7 @@ def chat(
     except openrouter.OpenRouterError as e:
         logger.warning("OpenRouter fallback failed: %s", e)
         raise LLMError(str(e)) from e
-    return ChatResult(text=text, model=settings.openrouter_model, provider=OPENROUTER)
+    return ChatResult(text=text, model=(openrouter_model or settings.openrouter_model), provider=OPENROUTER)
 
 
 def list_models() -> ModelsInfo:

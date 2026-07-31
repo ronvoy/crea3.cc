@@ -29,7 +29,7 @@ from .api import (
     invitations,
     notifications,
     documents,
-    mediator_tools, support, auth, admin_panel,)
+    mediator_tools, support, auth, admin_panel, admin_kb,)
 
 app = FastAPI(title="CREA3 API", version="0.2.0")
 
@@ -55,6 +55,16 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # Seed the Knowledge Base 'workflow' section with the CREA3 workflow doc on
+    # first run (no-op if it already has documents). Never blocks startup.
+    try:
+        from .core import knowledge
+        from .db import engine
+        from sqlmodel import Session
+        with Session(engine) as _s:
+            knowledge.seed_workflow_doc(_s)
+    except Exception:
+        pass
 
 
 @app.get("/health")
@@ -78,6 +88,7 @@ app.include_router(assistant.router)     # local Ollama workflow assistant
 app.include_router(metrics.router)
 app.include_router(admin.router)
 app.include_router(admin_panel.router)  # /admin-dashboard: Users / Mail / Database
+app.include_router(admin_kb.router)     # /admin-dashboard: Knowledge Base (RAG)
 app.include_router(invitations.router)
 app.include_router(notifications.router)
 app.include_router(documents.router)

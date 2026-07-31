@@ -1,28 +1,68 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Tabs, Tab, Avatar,
+  Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip,
 } from '@mui/material'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import SendIcon from '@mui/icons-material/Send'
+import OpenInFullIcon from '@mui/icons-material/OpenInFull'
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useLocation, matchPath } from 'react-router-dom'
 import { api } from '../api/client'
-import { useI18n } from '../i18n'
+import { useI18n, type I18nKey } from '../i18n'
 
-type TabId = 'workflow' | 'legal'
-type Msg = { role: 'user' | 'bot'; text: string }
+type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
+type Msg = { role: 'user' | 'bot'; text: string; intent?: Intent; sources?: string[] }
+
+const INTENT_LABEL: Record<Intent, I18nKey> = {
+  workflow: 'aiIntentWorkflow',
+  past_cases: 'aiIntentPastCases',
+  legal_statutes: 'aiIntentLegalStatutes',
+}
+
+/** Render assistant text as Markdown (headings, lists, code, links, GFM tables). */
+function Markdown({ text }: { text: string }) {
+  return (
+    <Box
+      sx={{
+        fontSize: '0.875rem', lineHeight: 1.5,
+        '& > :first-of-type': { mt: 0 },
+        '& > :last-child': { mb: 0 },
+        '& p': { my: 0.75 },
+        '& ul, & ol': { pl: 2.5, my: 0.75 },
+        '& li': { mb: 0.25 },
+        '& h1, & h2, & h3, & h4': { fontSize: '1rem', fontWeight: 700, mt: 1, mb: 0.5 },
+        '& code': { bgcolor: 'action.hover', px: 0.5, borderRadius: 0.5, fontSize: '0.85em', fontFamily: 'monospace' },
+        '& pre': { bgcolor: 'action.hover', p: 1, borderRadius: 1, overflowX: 'auto', my: 0.75 },
+        '& pre code': { bgcolor: 'transparent', p: 0 },
+        '& a': { color: 'primary.main' },
+        '& blockquote': { borderLeft: 3, borderColor: 'divider', pl: 1, my: 0.75, color: 'text.secondary' },
+        '& table': { borderCollapse: 'collapse', display: 'block', overflowX: 'auto', my: 0.75, maxWidth: '100%' },
+        '& th, & td': { border: 1, borderColor: 'divider', px: 1, py: 0.5, textAlign: 'left', fontSize: '0.85em' },
+        '& th': { bgcolor: 'action.hover', fontWeight: 700 },
+        '& img': { maxWidth: '100%' },
+      }}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{ a: (props) => <a target="_blank" rel="noreferrer" {...props} /> }}
+      >
+        {text}
+      </ReactMarkdown>
+    </Box>
+  )
+}
 
 /**
  * Unified floating AI assistant for the authenticated app.
  *
- * A single robot-avatar FAB (bottom-right, on every logged-in page). Inside, a
- * tab switches between:
- *   - "Workflow" — helps the user operate the platform; when the current route
- *     is a dispute, the request is grounded on that dispute's live data
- *     (POST /api/assistant/disputes/{id}), otherwise the general FAQ
- *     (POST /api/assistant).
- *   - "Legal AI" — general legal Q&A. Wired to POST /api/assistant/legal in
- *     Step 3; until then it replies with a short "coming soon" note.
+ * A single robot-avatar FAB (bottom-right, every logged-in page). One chat: each
+ * question is classified server-side into an intent (workflow / past_cases /
+ * legal_statutes) and routed automatically — no tabs, no manual selector. A
+ * top-left button expands the panel to full screen. Requests go to
+ * POST /api/assistant/ask (primary LLM → Mistral). Answers render as Markdown.
  *
  * Voice (record → transcribe → speak) is added in Steps 4–5.
  */
@@ -31,9 +71,8 @@ export default function AssistantWidget() {
   const loc = useLocation()
 
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<TabId>('workflow')
-  const [wfMsgs, setWfMsgs] = useState<Msg[]>([{ role: 'bot', text: t('aiWorkflowWelcome') }])
-  const [lgMsgs, setLgMsgs] = useState<Msg[]>([{ role: 'bot', text: t('aiLegalWelcome') }])
+  const [full, setFull] = useState(false)
+  const [msgs, setMsgs] = useState<Msg[]>([{ role: 'bot', text: t('aiWelcome') }])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -46,14 +85,18 @@ export default function AssistantWidget() {
     return Number.isFinite(n) ? n : null
   }, [loc.pathname])
 
-  const msgs = tab === 'workflow' ? wfMsgs : lgMsgs
-
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-  }, [wfMsgs, lgMsgs, open, tab])
+  }, [msgs, open, full])
+
+  // Closing always returns to the docked FAB (never leaves the panel expanded
+  // with the launcher hidden).
+  function closePanel() {
+    setOpen(false)
+    setFull(false)
+  }
 
   function historyPayload(list: Msg[]) {
-    // Last few turns, excluding the very first canned greeting.
     return list.slice(1).slice(-8).map((m) => ({
       role: m.role === 'user' ? 'user' : 'assistant',
       content: m.text,
@@ -64,31 +107,42 @@ export default function AssistantWidget() {
     const q = question.trim()
     if (!q || sending) return
     setInput('')
-
-    const activeTab = tab
-    const list = activeTab === 'workflow' ? wfMsgs : lgMsgs
-    const setList = activeTab === 'workflow' ? setWfMsgs : setLgMsgs
-
-    setList((m) => [...m, { role: 'user', text: q }])
+    const list = msgs
+    setMsgs((m) => [...m, { role: 'user', text: q }])
     setSending(true)
     try {
-      if (activeTab === 'legal') {
-        // Placeholder until Step 3 wires POST /api/assistant/legal.
-        setList((m) => [...m, { role: 'bot', text: t('aiLegalComingSoon') }])
-      } else {
-        const path = disputeId ? `/api/assistant/disputes/${disputeId}` : '/api/assistant'
-        const data = await api(path, {
-          method: 'POST',
-          body: { question: q, history: historyPayload(list), lang },
-        })
-        setList((m) => [...m, { role: 'bot', text: String(data?.answer ?? '') || t('aiWidgetUnavailable') }])
-      }
+      const data = await api('/api/assistant/ask', {
+        method: 'POST',
+        body: {
+          question: q,
+          history: historyPayload(list),
+          lang,
+          dispute_id: disputeId,
+          mode: 'auto',
+        },
+      })
+      setMsgs((m) => [
+        ...m,
+        {
+          role: 'bot',
+          text: String(data?.answer ?? '') || t('aiWidgetUnavailable'),
+          intent: data?.intent as Intent,
+          sources: Array.isArray(data?.sources) ? data.sources : undefined,
+        },
+      ])
     } catch (e: any) {
-      setList((m) => [...m, { role: 'bot', text: e?.message || t('aiWidgetUnavailable') }])
+      setMsgs((m) => [...m, { role: 'bot', text: e?.message || t('aiWidgetUnavailable') }])
     } finally {
       setSending(false)
     }
   }
+
+  // Panel geometry: docked card vs. full-screen overlay.
+  const panelSx = full
+    ? { position: 'fixed' as const, inset: 0, width: '100vw', height: '100dvh', borderRadius: 0, mb: 0 }
+    : { mb: 1.5, width: 'min(94vw, 24rem)', height: 'auto', borderRadius: 3 }
+
+  const showLegalDisclaimer = msgs.some((m) => m.intent === 'legal_statutes' || m.intent === 'past_cases')
 
   return (
     <Box
@@ -101,59 +155,63 @@ export default function AssistantWidget() {
       {open ? (
         <Paper
           elevation={8}
-          sx={{
-            mb: 1.5, width: 'min(94vw, 24rem)', borderRadius: 3, overflow: 'hidden',
-            display: 'flex', flexDirection: 'column',
-          }}
+          sx={{ ...panelSx, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
         >
-          {/* Header */}
+          {/* Header: [expand]  avatar+title  [close] */}
           <Stack
-            direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}
+            direction="row" alignItems="center" justifyContent="space-between" spacing={1}
             sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}
           >
-            <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0 }}>
-              <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
+            <Tooltip title={full ? t('aiCollapse') : t('aiExpand')} placement="right">
+              <IconButton size="small" onClick={() => setFull((v) => !v)} aria-label={full ? t('aiCollapse') : t('aiExpand')}>
+                {full ? <CloseFullscreenIcon fontSize="small" /> : <OpenInFullIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0, flex: 1, justifyContent: 'center' }}>
+              <Avatar sx={{ bgcolor: 'primary.main', width: 30, height: 30 }}>
                 <SmartToyOutlinedIcon fontSize="small" />
               </Avatar>
               <Typography sx={{ fontWeight: 600 }} noWrap>{t('aiWidgetTitle')}</Typography>
             </Stack>
-            <IconButton size="small" onClick={() => setOpen(false)} aria-label={t('aiWidgetClose')}>
+            <IconButton size="small" onClick={closePanel} aria-label={t('aiWidgetClose')}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Stack>
 
-          {/* Tabs */}
-          <Tabs
-            value={tab}
-            onChange={(_e, v) => setTab(v)}
-            variant="fullWidth"
-            sx={{ minHeight: 40, borderBottom: 1, borderColor: 'divider', '& .MuiTab-root': { minHeight: 40, textTransform: 'none' } }}
-          >
-            <Tab value="workflow" label={t('aiTabWorkflow')} />
-            <Tab value="legal" label={t('aiTabLegal')} />
-          </Tabs>
-
           {/* Messages */}
           <Box
             ref={scrollRef}
-            sx={{ height: 300, overflowY: 'auto', p: 1.5, bgcolor: 'background.default' }}
+            sx={{ flex: full ? 1 : 'unset', height: full ? 'auto' : 300, overflowY: 'auto', p: 1.5, bgcolor: 'background.default' }}
             role="log" aria-live="polite"
           >
             <Stack spacing={1}>
               {msgs.map((m, i) => (
-                <Box key={i} sx={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <Box key={i} sx={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  {m.role === 'bot' && m.intent ? (
+                    <Chip
+                      size="small" variant="outlined" label={t(INTENT_LABEL[m.intent])}
+                      sx={{ mb: 0.5, height: 20, fontSize: 11 }}
+                    />
+                  ) : null}
                   <Paper
                     variant={m.role === 'user' ? 'elevation' : 'outlined'}
                     elevation={m.role === 'user' ? 2 : 0}
                     sx={{
-                      maxWidth: '85%', px: 1.5, py: 1, borderRadius: 2,
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                      maxWidth: full ? '46rem' : '85%', px: 1.5, py: 1, borderRadius: 2,
+                      wordBreak: 'break-word',
                       bgcolor: m.role === 'user' ? 'primary.main' : 'background.paper',
                       color: m.role === 'user' ? 'primary.contrastText' : 'text.primary',
                     }}
                   >
-                    <Typography variant="body2">{m.text}</Typography>
+                    {m.role === 'bot'
+                      ? <Markdown text={m.text} />
+                      : <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{m.text}</Typography>}
                   </Paper>
+                  {m.role === 'bot' && m.sources && m.sources.length ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, maxWidth: full ? '46rem' : '85%' }}>
+                      {t('aiSources')}: {m.sources.join(', ')}
+                    </Typography>
+                  ) : null}
                 </Box>
               ))}
               {sending ? (
@@ -162,8 +220,7 @@ export default function AssistantWidget() {
             </Stack>
           </Box>
 
-          {/* Legal disclaimer */}
-          {tab === 'legal' ? (
+          {showLegalDisclaimer ? (
             <Typography
               variant="caption" color="text.secondary"
               sx={{ px: 1.5, py: 0.75, borderTop: 1, borderColor: 'divider', bgcolor: 'action.hover' }}
@@ -189,11 +246,13 @@ export default function AssistantWidget() {
         </Paper>
       ) : null}
 
-      <Tooltip title={t('aiWidgetOpen')} placement="left">
-        <Fab color="primary" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={t('aiWidgetOpen')}>
-          <SmartToyOutlinedIcon />
-        </Fab>
-      </Tooltip>
+      {!open ? (
+        <Tooltip title={t('aiWidgetOpen')} placement="left">
+          <Fab color="primary" onClick={() => setOpen(true)} aria-expanded={open} aria-label={t('aiWidgetOpen')}>
+            <SmartToyOutlinedIcon />
+          </Fab>
+        </Tooltip>
+      ) : null}
     </Box>
   )
 }

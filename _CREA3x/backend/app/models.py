@@ -357,3 +357,49 @@ class MediatorNote(SQLModel, table=True):
     author_name: str = Field(default="")
     body: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
+
+
+# ── Knowledge Base (RAG) ─────────────────────────────────────────────────────
+# Admin-uploaded documents, split into chunks, used to ground the chatbot.
+# Three sections: "workflow" (CREA3 process), "past_cases" (past dispute cases),
+# "legal_statutes" (country law). Retrieval prefers embeddings (FAISS) and
+# degrades to BM25 when embeddings are unavailable.
+
+KB_SECTIONS = ("workflow", "past_cases", "legal_statutes")
+
+
+class KbDocument(SQLModel, table=True):
+    """A single uploaded knowledge-base document (original text is kept)."""
+    __tablename__ = "kb_document"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    section: str = Field(index=True)                 # one of KB_SECTIONS
+    filename: str = Field(default="")
+    content_type: str = Field(default="text/plain")
+    size: int = Field(default=0)                      # bytes of the original upload
+    text: str = Field(default="")                     # extracted plain text
+    chunk_count: int = Field(default=0)
+    indexed: bool = Field(default=False, index=True)  # embeddings computed?
+    seeded: bool = Field(default=False)               # auto-generated (e.g. workflow doc)
+    uploaded_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class KbChunk(SQLModel, table=True):
+    """A chunk of a KbDocument, with an optional stored embedding (JSON floats)."""
+    __tablename__ = "kb_chunk"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    doc_id: int = Field(foreign_key="kb_document.id", index=True)
+    section: str = Field(index=True)
+    ordinal: int = Field(default=0)
+    text: str = Field(default="")
+    embedding_json: Optional[str] = Field(default=None)  # JSON list[float] or None
+
+
+class KbIndexConfig(SQLModel, table=True):
+    """Per-section retrieval configuration chosen by the admin."""
+    __tablename__ = "kb_index_config"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    section: str = Field(index=True, unique=True)
+    engine: str = Field(default="faiss")             # faiss|bm25|hybrid
+    preset: str = Field(default="balanced")          # optimal|balanced|creative|custom
+    params_json: str = Field(default="{}")           # JSON of tuned params
+    updated_at: datetime = Field(default_factory=utcnow)

@@ -122,16 +122,21 @@ class Settings(BaseSettings):
     # ----------------------------
     # Workflow assistant (locally hosted via Ollama)
     # ----------------------------
-    # Base URL of the Ollama server.
+    # Base URL of the PRIMARY LLM endpoint (Ollama-native `/api/chat`). This is
+    # the address of your Ollama server OR any custom Ollama-compatible endpoint;
+    # set it once in .env. Every assistant request goes here first and only falls
+    # back to OpenRouter (Mistral) when this endpoint is empty/unreachable/errors.
+    # `PRIMARY_LLM_URL` is the preferred name; `OLLAMA_BASE_URL` is kept as an alias.
     ollama_base_url: str = Field(
         default="http://localhost:11434",
-        validation_alias=AliasChoices("OLLAMA_BASE_URL", "ollama_base_url"),
+        validation_alias=AliasChoices("PRIMARY_LLM_URL", "OLLAMA_BASE_URL", "ollama_base_url"),
     )
-    # The model to use. Change this single value to swap models, e.g.
-    #   OLLAMA_MODEL=llama3.2:3b  /  qwen2.5:3b  /  phi3:mini  /  gemma2:2b
+    # The model to use on the primary endpoint. Change this single value to swap
+    # models, e.g. OLLAMA_MODEL=llama3.2:3b / qwen2.5:3b / phi3:mini / gemma2:2b.
+    # `PRIMARY_LLM_MODEL` is accepted as an alias.
     ollama_model: str = Field(
         default="llama3.2:3b",
-        validation_alias=AliasChoices("OLLAMA_MODEL", "ollama_model"),
+        validation_alias=AliasChoices("PRIMARY_LLM_MODEL", "OLLAMA_MODEL", "ollama_model"),
     )
     ollama_timeout_seconds: float = Field(
         default=60.0,
@@ -173,6 +178,61 @@ class Settings(BaseSettings):
     openrouter_app_name: str = Field(
         default="CREA3",
         validation_alias=AliasChoices("OPENROUTER_APP_NAME", "openrouter_app_name"),
+    )
+    # Knowledge-Base embeddings model, requested THROUGH OpenRouter using the same
+    # OPENROUTER_API_KEY (OpenAI-compatible POST /embeddings). If OpenRouter does
+    # not serve embeddings for this key/model, retrieval falls back to BM25.
+    # You can also point EMBEDDINGS_BASE_URL / EMBEDDINGS_API_KEY at any other
+    # OpenAI-compatible embeddings provider; both default to the OpenRouter values.
+    embeddings_model: str = Field(
+        default="openai/text-embedding-3-small",
+        validation_alias=AliasChoices("OPENROUTER_EMBED_MODEL", "EMBEDDINGS_MODEL", "embeddings_model"),
+    )
+    embeddings_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMBEDDINGS_BASE_URL", "embeddings_base_url"),
+    )
+    embeddings_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMBEDDINGS_API_KEY", "embeddings_api_key"),
+    )
+
+    # Legal AI Assistant fallback model. The Legal tab tries Ollama first (like the
+    # Workflow assistant) and, when Ollama is unreachable, falls back to OpenRouter
+    # PINNED to Mistral (instead of the Workflow assistant's rotating free list).
+    legal_openrouter_model: str = Field(
+        default="mistralai/mistral-7b-instruct:free",
+        validation_alias=AliasChoices("LEGAL_OPENROUTER_MODEL", "legal_openrouter_model"),
+    )
+
+    # ----------------------------
+    # Google Gemini — used for Knowledge-Base embeddings (RAG) and, later, voice
+    # transcription (STT) and speech synthesis (TTS). Leave GEMINI_API_KEY empty
+    # to disable: KB retrieval then falls back to BM25 and voice stays off.
+    # ----------------------------
+    gemini_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("GEMINI_API_KEY", "gemini_api_key"),
+    )
+    gemini_base_url: str = Field(
+        default="https://generativelanguage.googleapis.com/v1beta",
+        validation_alias=AliasChoices("GEMINI_BASE_URL", "gemini_base_url"),
+    )
+    gemini_stt_model: str = Field(
+        default="gemini-2.5-flash",
+        validation_alias=AliasChoices("GEMINI_STT_MODEL", "gemini_stt_model"),
+    )
+    gemini_tts_model: str = Field(
+        default="gemini-2.5-flash-preview-tts",
+        validation_alias=AliasChoices("GEMINI_TTS_MODEL", "gemini_tts_model"),
+    )
+    gemini_tts_voice: str = Field(
+        default="Kore",
+        validation_alias=AliasChoices("GEMINI_TTS_VOICE", "gemini_tts_voice"),
+    )
+    gemini_timeout_seconds: float = Field(
+        default=45.0,
+        validation_alias=AliasChoices("GEMINI_TIMEOUT_SECONDS", "gemini_timeout_seconds"),
     )
 
     # ----------------------------

@@ -32,7 +32,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 export default function AdminDashboardPage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<"users" | "mail" | "database">("users");
+  const [tab, setTab] = useState<"users" | "mail" | "database" | "knowledge">("users");
   const [theme, setTheme] = useState<Theme>((localStorage.getItem("admin_theme") as Theme) || "dark");
   const [refreshTick, setRefreshTick] = useState(0);
   const c = palette(theme);
@@ -51,8 +51,8 @@ export default function AdminDashboardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {(["users", "mail", "database"] as const).map((tt) => (
-            <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt[0].toUpperCase() + tt.slice(1)}</button>
+          {(["users", "mail", "database", "knowledge"] as const).map((tt) => (
+            <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt === "knowledge" ? "Knowledge Base" : tt[0].toUpperCase() + tt.slice(1)}</button>
           ))}
           <button onClick={() => setRefreshTick((n) => n + 1)} title="Refresh current tab" style={{ ...tb(false), background: c.accent, color: "#fff", borderColor: c.accent }}>⟳ Refresh</button>
           <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} title="Toggle theme" style={tb(false)}>{theme === "dark" ? "☀ Light" : "🌙 Dark"}</button>
@@ -63,6 +63,7 @@ export default function AdminDashboardPage() {
         {tab === "users" && <UsersTab c={c} refreshTick={refreshTick} />}
         {tab === "mail" && <MailTab c={c} refreshTick={refreshTick} />}
         {tab === "database" && <DatabaseTab c={c} refreshTick={refreshTick} />}
+        {tab === "knowledge" && <KnowledgeBaseTab c={c} refreshTick={refreshTick} />}
       </main>
     </div>
   );
@@ -589,5 +590,193 @@ function DatabaseTab({ c, refreshTick }: { c: C; refreshTick: number }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── KNOWLEDGE BASE ───────────────────────────────────────────────────────────
+async function adminUpload(path: string, form: FormData): Promise<any> {
+  // Multipart: do NOT set Content-Type (the browser adds the boundary).
+  const res = await fetch(path, { method: "POST", body: form, headers: { Authorization: `Bearer ${adminToken() ?? ""}` } });
+  const txt = await res.text();
+  const data = txt ? JSON.parse(txt) : null;
+  if (!res.ok) throw new Error((data && data.detail) || `Request failed (${res.status})`);
+  return data;
+}
+
+const KB_SECTIONS: Array<{ id: string; title: string; hint: string }> = [
+  { id: "workflow", title: "Workflow", hint: "CREA3 process & how-to docs (RAG source for platform questions)." },
+  { id: "past_cases", title: "Past Legal Dispute Cases", hint: "Precedents / resolved-case write-ups (masked at query time)." },
+  { id: "legal_statutes", title: "Legal Statutes", hint: "Country law & statutes the assistant can cite." },
+];
+const KB_ACCEPT = ".pdf,.docx,.txt,.md,.json,.odt,.csv,text/*,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text";
+
+function KnowledgeBaseTab({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const s = S(c);
+  const [status, setStatus] = useState<any>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  async function loadStatus() {
+    try { setStatus(await adminApi("/api/admin/kb/status")); setErr(null); }
+    catch (e: any) { setErr(e.message); }
+  }
+  useEffect(() => { loadStatus(); /* eslint-disable-next-line */ }, [refreshTick]);
+
+  return (
+    <div>
+      {err && <div style={s.err}>{err}</div>}
+      {note && <div style={{ ...s.err, color: c.ok, borderColor: c.ok }}>{note}</div>}
+      <div style={{ ...s.card, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ fontSize: 13, color: c.muted }}>
+          Upload documents the chatbot can ground its answers on. Semantic (FAISS) indexing is{" "}
+          <strong style={{ color: status?.embeddings_available ? c.ok : c.danger }}>
+            {status?.embeddings_available ? "available (OpenRouter embeddings)" : "unavailable — using BM25 keyword search"}
+          </strong>.
+        </div>
+        <button style={s.ghost} onClick={loadStatus}>⟳ Refresh status</button>
+      </div>
+      {KB_SECTIONS.map((sec) => (
+        <KbSection key={sec.id} c={c} sec={sec} stat={status?.sections?.[sec.id]} onChanged={loadStatus} setNote={setNote} setErr={setErr} />
+      ))}
+    </div>
+  );
+}
+
+function KbSection({ c, sec, stat, onChanged, setNote, setErr }:
+  { c: C; sec: { id: string; title: string; hint: string }; stat: any; onChanged: () => void; setNote: (v: string | null) => void; setErr: (v: string | null) => void }) {
+  const s = S(c);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [docs, setDocs] = useState<any[]>([]);
+  const [cfg, setCfg] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    try {
+      const [d, cf] = await Promise.all([
+        adminApi(`/api/admin/kb/documents?section=${sec.id}`),
+        adminApi(`/api/admin/kb/config?section=${sec.id}`),
+      ]);
+      setDocs(d); setCfg(cf);
+    } catch (e: any) { setErr(e.message); }
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [sec.id, stat?.documents]);
+
+  async function onUpload(files: FileList | null) {
+    if (!files || !files.length) return;
+    setBusy(true); setErr(null); setNote(null);
+    try {
+      const form = new FormData();
+      form.append("section", sec.id);
+      Array.from(files).forEach((f) => form.append("files", f));
+      const r = await adminUpload("/api/admin/kb/upload", form);
+      setNote(`Uploaded ${r.uploaded} document(s) to ${sec.title}.`);
+      if (fileRef.current) fileRef.current.value = "";
+      await load(); onChanged();
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+
+  async function saveCfg(next: Partial<{ engine: string; preset: string; params: any }>) {
+    if (!cfg) return;
+    setBusy(true); setErr(null);
+    try {
+      const body = { section: sec.id, engine: next.engine ?? cfg.engine, preset: next.preset ?? cfg.preset, params: next.params ?? cfg.params };
+      const r = await adminApi("/api/admin/kb/config", { method: "POST", body: JSON.stringify(body) });
+      setCfg({ ...cfg, ...r });
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+
+  async function reindex() {
+    setBusy(true); setErr(null); setNote(null);
+    try { const r = await adminApi(`/api/admin/kb/reindex?section=${sec.id}`, { method: "POST" }); setNote(`Reindexed ${sec.title}: ${r.chunks_embedded} chunk(s) embedded.`); await load(); onChanged(); }
+    catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+
+  async function del(id: number) {
+    if (!confirm("Delete this document from the knowledge base?")) return;
+    setBusy(true); setErr(null);
+    try { await adminApi(`/api/admin/kb/documents/${id}`, { method: "DELETE" }); await load(); onChanged(); }
+    catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+
+  const params = cfg?.params ?? {};
+  const setParam = (k: string, v: number) => saveCfg({ params: { ...params, [k]: v } });
+
+  return (
+    <div style={s.card}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{sec.title}</div>
+          <div style={{ fontSize: 12, color: c.faint, marginTop: 2 }}>{sec.hint}</div>
+        </div>
+        <div style={{ fontSize: 12, color: c.muted }}>
+          {stat ? `${stat.documents} docs · ${stat.chunks} chunks · ${stat.indexed ? "indexed" : "not indexed"}` : "—"}
+        </div>
+      </div>
+
+      {/* Controls: engine / preset / params */}
+      {cfg && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 12, paddingTop: 12, borderTop: `1px solid ${c.border}` }}>
+          <label style={{ fontSize: 12, color: c.muted }}>Engine</label>
+          <select style={s.input} value={cfg.engine} onChange={(e) => saveCfg({ engine: e.target.value })}>
+            {(cfg.engines || ["faiss", "bm25", "hybrid"]).map((en: string) => <option key={en} value={en}>{en.toUpperCase()}</option>)}
+          </select>
+          <label style={{ fontSize: 12, color: c.muted }}>Preset</label>
+          <select style={s.input} value={cfg.preset} onChange={(e) => saveCfg({ preset: e.target.value, params: undefined })}>
+            {["optimal", "balanced", "creative", "custom"].map((p) => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
+          </select>
+          <NumField c={c} label="top_k" value={params.top_k} onSet={(v) => setParam("top_k", v)} step={1} />
+          <NumField c={c} label="min_score" value={params.min_score} onSet={(v) => setParam("min_score", v)} step={0.05} />
+          <NumField c={c} label="temp" value={params.temperature} onSet={(v) => setParam("temperature", v)} step={0.05} />
+          <NumField c={c} label="chunk" value={params.chunk_size} onSet={(v) => setParam("chunk_size", v)} step={100} />
+          <NumField c={c} label="overlap" value={params.chunk_overlap} onSet={(v) => setParam("chunk_overlap", v)} step={25} />
+          <button style={s.ghost} disabled={busy} onClick={reindex}>Reindex</button>
+        </div>
+      )}
+
+      {/* Upload */}
+      <div style={{ marginTop: 12 }}>
+        <input ref={fileRef} type="file" multiple accept={KB_ACCEPT} onChange={(e) => onUpload(e.target.files)} style={{ fontSize: 13, color: c.text }} />
+        {busy && <span style={{ marginLeft: 8, fontSize: 12, color: c.muted }}>working…</span>}
+      </div>
+
+      {/* Documents */}
+      <div style={{ marginTop: 12, overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+          <thead><tr>
+            <th style={s.th}>File</th><th style={s.th}>Type</th><th style={s.th}>Size</th><th style={s.th}>Chunks</th><th style={s.th}>Indexed</th><th style={s.th}></th>
+          </tr></thead>
+          <tbody>
+            {docs.length === 0 ? (
+              <tr><td style={{ ...s.td, color: c.faint }} colSpan={6}>No documents yet.</td></tr>
+            ) : docs.map((d) => (
+              <tr key={d.id}>
+                <td style={s.td}>{d.filename}{d.seeded ? <span style={{ color: c.faint }}> (seeded)</span> : null}</td>
+                <td style={s.td}>{(d.content_type || "").split("/").pop()}</td>
+                <td style={s.td}>{(d.size / 1024).toFixed(1)} KB</td>
+                <td style={s.td}>{d.chunk_count}</td>
+                <td style={{ ...s.td, color: d.indexed ? c.ok : c.faint }}>{d.indexed ? "✓" : "—"}</td>
+                <td style={s.td}><button style={{ ...s.ghost, color: c.danger }} onClick={() => del(d.id)}>Delete</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function NumField({ c, label, value, onSet, step }: { c: C; label: string; value: any; onSet: (v: number) => void; step: number }) {
+  const s = S(c);
+  const [v, setV] = useState<string>(value ?? "");
+  useEffect(() => { setV(value ?? ""); }, [value]);
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <label style={{ fontSize: 12, color: c.muted }}>{label}</label>
+      <input
+        style={{ ...s.input, width: 72 }} type="number" step={step} value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => { const n = Number(v); if (!Number.isNaN(n) && n !== Number(value)) onSet(n); }}
+      />
+    </span>
   );
 }

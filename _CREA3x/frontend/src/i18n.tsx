@@ -554,6 +554,8 @@ const strings = {
     aiExpand: 'Expand to full screen',
     aiCollapse: 'Exit full screen',
     aiSources: 'Sources',
+    aiTableView: 'Table view',
+    aiTableViewHint: 'Show similar past cases as a table',
     aiWidgetUnavailable: 'The assistant is currently unavailable. Please try again shortly.',
     aiWidgetDisclaimer: 'AI can make mistakes. This does not replace professional legal advice.',
     aiRecordStart: 'Record a voice question',

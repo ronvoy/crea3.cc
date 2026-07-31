@@ -23,7 +23,7 @@ from sqlmodel import Session, select
 
 from .deps import get_current_user
 from ..db import get_session
-from ..models import Dispute, DisputeAgent, Good, Preference, Strategy, User
+from ..models import Dispute, DisputeAgent, Good, Preference, Strategy, User, MediationSlot, Report
 from ..core import llm
 from ..core.authz import require_access, get_participant, participant_is_mediator
 
@@ -486,6 +486,111 @@ def _kb_grounding(session: Session, section: str, question: str) -> tuple[str, l
     return context, sources
 
 
+import re as _re
+
+
+def _tok(*parts: str) -> set[str]:
+    return set(_re.findall(r"[a-z0-9]{3,}", " ".join(p for p in parts if p).lower()))
+
+
+def _dispute_keywords(session: Session, d: Dispute) -> set[str]:
+    goods = session.exec(select(Good).where(Good.dispute_id == d.id)).all()
+    return _tok(d.title or "", d.method or "", *[g.name for g in goods])
+
+
+def _mask_case_facts(session: Session, d: Dispute, label: str) -> str:
+    """Structural, PII-FREE facts about one past dispute (GDPR-safe).
+
+    Deliberately excludes names, emails, free-text titles and good names — only
+    counts, roles, numeric shares, method, procedure and outcome are included, so
+    no personal data of any party can reach the model.
+    """
+    agents = session.exec(select(DisputeAgent).where(DisputeAgent.dispute_id == d.id)).all()
+    goods = session.exec(select(Good).where(Good.dispute_id == d.id)).all()
+    slots = session.exec(select(MediationSlot).where(MediationSlot.dispute_id == d.id)).all()
+    report = session.exec(select(Report).where(Report.dispute_id == d.id)).first()
+
+    non_med = [a for a in agents if (a.role_in_dispute or "agent").lower() != "mediator"]
+    mediators = len(agents) - len(non_med)
+    shares = ", ".join(f"{round(float(a.entitlement_share or 0.0), 2)}" for a in non_med)
+    total_value = sum(float(g.estimated_value or 0.0) for g in goods)
+    # Coarsen the total value to a range to avoid a precise identifying figure.
+    bucket = max(1000, round(total_value / 1000) * 1000) if total_value else 0
+    indivisible = sum(1 for g in goods if g.indivisible)
+    confirmed_slots = sum(1 for s in slots if s.confirmed)
+
+    lines = [
+        f"{label}:",
+        f"  - Parties: {len(non_med)} party/parties" + (f" + {mediators} mediator(s)" if mediators else ""),
+        f"  - Entitlement shares: {shares or 'n/a'}",
+        f"  - Assets: {len(goods)} good(s) ({indivisible} indivisible), total value ~{bucket:,}",
+        f"  - Resolution method: {d.method}",
+        f"  - Procedure: reached stage '{d.status}'"
+        + (f", {len(slots)} mediation session(s) ({confirmed_slots} confirmed)" if slots else ", no mediation sessions"),
+        f"  - Outcome: {'final report generated' if report else 'no final report'}",
+    ]
+    return "\n".join(lines)
+
+
+def _past_cases_context(session: Session, user: User, question: str, limit: int = 5) -> tuple[str, list[str]]:
+    """Anonymized, GDPR-masked context of resolved disputes similar to the user's.
+
+    Similarity is matched on the user's OWN disputes (never disclosed); only
+    masked structural facts of the matched cases are returned. Also folds in the
+    admin 'past_cases' Knowledge Base section.
+    """
+    # The asking user's own disputes (owner or participant) — used only for matching.
+    own = session.exec(select(Dispute).where(Dispute.created_by_id == user.id)).all()
+    part_ids = {
+        a.dispute_id for a in session.exec(
+            select(DisputeAgent).where(DisputeAgent.user_id == user.id)
+        ).all()
+    }
+    own_ids = {d.id for d in own} | part_ids
+    my_keywords: set[str] = set()
+    for d in own:
+        my_keywords |= _dispute_keywords(session, d)
+
+    # Candidate pool: RESOLVED disputes belonging to others.
+    resolved = session.exec(
+        select(Dispute).where(Dispute.status.in_(("accepted", "finalized")))
+    ).all()
+    candidates = [d for d in resolved if d.id not in own_ids]
+
+    if my_keywords:
+        scored = sorted(
+            candidates,
+            key=lambda d: len(_dispute_keywords(session, d) & my_keywords),
+            reverse=True,
+        )
+        top = [d for d in scored if _dispute_keywords(session, d) & my_keywords][:limit]
+        if not top:
+            top = scored[:limit]
+    else:
+        top = sorted(candidates, key=lambda d: d.created_at or _now_dt(), reverse=True)[:limit]
+
+    parts: list[str] = []
+    if top:
+        parts.append(
+            "Anonymized internal CREA3 cases similar to the user's situation "
+            "(personal data removed — refer to parties generically):\n"
+            + "\n\n".join(_mask_case_facts(session, d, f"Case {chr(65 + i)}") for i, d in enumerate(top))
+        )
+
+    kb_ctx, sources = _kb_grounding(session, "past_cases", question)
+    if kb_ctx:
+        parts.append(kb_ctx)
+
+    if not parts:
+        return "", []
+    return "\n\n" + "\n\n".join(parts), sources
+
+
+def _now_dt():
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc)
+
+
 def _system_for_intent(
     intent: str,
     payload: AskIn,
@@ -506,13 +611,21 @@ def _system_for_intent(
         system += ctx
     elif intent == "past_cases":
         system = PAST_CASES_GUIDE
-        if payload.format == "tabular":
-            system += (
-                "\n\nWhen presenting cases, format them as a compact Markdown TABLE "
-                "with columns: Parties | Context | Procedure | Hearing | Outcome."
-            )
+        system += (
+            "\n\nBy default present each relevant case as a short descriptive "
+            "paragraph. If the user explicitly asks for a table / tabular form, OR a "
+            "side-by-side comparison would clearly be easier to read, use a compact "
+            "Markdown TABLE with columns: Parties | Context | Procedure | Hearing | "
+            "Outcome."
+        )
+        ctx, sources = _past_cases_context(session, user, payload.question)
+        if ctx:
+            system += ctx
         else:
-            system += "\n\nPresent each relevant case as a short descriptive paragraph."
+            system += (
+                "\n\nNo similar internal cases were found. Answer from general "
+                "knowledge and say that no comparable CREA3 cases are on record yet."
+            )
     else:  # workflow
         system = PLATFORM_GUIDE
         ctx, sources = _kb_grounding(session, "workflow", payload.question)
@@ -528,6 +641,12 @@ def _system_for_intent(
             except HTTPException:
                 # No access / not found — answer generally rather than leaking.
                 pass
+    system += (
+        "\n\nFormat your answer in clean, readable Markdown (short paragraphs, "
+        "**bold**, bullet lists, code blocks where relevant). Use a Markdown table "
+        "ONLY when the user asks for one, or when the information is genuinely "
+        "clearer as a table."
+    )
     return system + _lang_instruction(payload.lang), grounded, sources
 
 

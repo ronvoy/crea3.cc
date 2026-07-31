@@ -197,8 +197,12 @@ export default function AssistantWidget() {
                     variant={m.role === 'user' ? 'elevation' : 'outlined'}
                     elevation={m.role === 'user' ? 2 : 0}
                     sx={{
-                      maxWidth: full ? '46rem' : '85%', px: 1.5, py: 1, borderRadius: 2,
-                      wordBreak: 'break-word',
+                      // Bot answers use most of the width for comfortable reading;
+                      // user messages stay a bit narrower. Responsive in both the
+                      // docked popup and the full-screen view.
+                      maxWidth: '100%',
+                      width: m.role === 'bot' ? (full ? 'min(100%, 60rem)' : '92%') : 'auto',
+                      px: 1.5, py: 1, borderRadius: 2, wordBreak: 'break-word',
                       bgcolor: m.role === 'user' ? 'primary.main' : 'background.paper',
                       color: m.role === 'user' ? 'primary.contrastText' : 'text.primary',
                     }}
@@ -208,7 +212,7 @@ export default function AssistantWidget() {
                       : <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{m.text}</Typography>}
                   </Paper>
                   {m.role === 'bot' && m.sources && m.sources.length ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, maxWidth: full ? '46rem' : '85%' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, maxWidth: full ? 'min(100%, 60rem)' : '92%' }}>
                       {t('aiSources')}: {m.sources.join(', ')}
                     </Typography>
                   ) : null}
@@ -229,14 +233,19 @@ export default function AssistantWidget() {
             </Typography>
           ) : null}
 
-          {/* Input */}
+          {/* Input: multiline, grows downward up to 5 rows then scrolls. */}
           <Stack
-            component="form" direction="row" spacing={1} alignItems="center"
+            component="form" direction="row" spacing={1} alignItems="flex-end"
             sx={{ p: 1.5, borderTop: 1, borderColor: 'divider' }}
             onSubmit={(e) => { e.preventDefault(); ask(input) }}
           >
             <TextField
-              size="small" fullWidth value={input} onChange={(e) => setInput(e.target.value)}
+              size="small" fullWidth multiline minRows={1} maxRows={5}
+              value={input} onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter sends; Shift+Enter inserts a newline.
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(input) }
+              }}
               placeholder={t('aiWidgetPlaceholder')} aria-label={t('aiWidgetPlaceholder')}
             />
             <IconButton type="submit" color="primary" disabled={sending || !input.trim()} aria-label={t('aiWidgetSend')}>

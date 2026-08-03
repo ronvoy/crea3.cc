@@ -22,7 +22,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useLocation, matchPath } from 'react-router-dom'
-import { api } from '../api/client'
+import { api, API_BASE, getAccessToken } from '../api/client'
 import { useI18n, type I18nKey } from '../i18n'
 
 type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
@@ -442,22 +442,45 @@ export default function AssistantWidget() {
     }
   }
 
+  // Patch the streaming bot message (always the last message during a send).
+  function patchLastBot(patch: Partial<Msg>) {
+    setMsgs((m) => {
+      if (!m.length) return m
+      const idx = m.length - 1
+      if (m[idx].role !== 'bot') return m
+      const copy = [...m]
+      copy[idx] = { ...copy[idx], ...patch }
+      return copy
+    })
+  }
+
   async function ask(question: string, voice?: { audioUrl: string; audioB64: string; mime: string }) {
     const q = question.trim()
     if (!q || sending) return
     setInput('')
     const list = msgs
     const sentFiles = attachments
-    setMsgs((m) => [...m, {
-      role: 'user', text: q, files: sentFiles.map((a) => a.filename),
-      voice: !!voice, audioUrl: voice?.audioUrl,
-    }])
+    stopAudio()
+    // Append the user turn AND an empty bot bubble we'll stream into.
+    setMsgs((m) => [
+      ...m,
+      { role: 'user', text: q, files: sentFiles.map((a) => a.filename), voice: !!voice, audioUrl: voice?.audioUrl },
+      { role: 'bot', text: '' },
+    ])
     setAttachments([])
     setSending(true)
+
+    let acc = ''
+    let msgId: number | undefined
+    let newSessionId: number | undefined
+    let streamErr: string | null = null
     try {
-      const data = await api('/api/assistant/ask', {
+      const token = getAccessToken()
+      const res = await fetch(`${API_BASE}/api/assistant/ask/stream`, {
         method: 'POST',
-        body: {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
           question: q,
           history: historyPayload(list),
           lang,
@@ -468,29 +491,49 @@ export default function AssistantWidget() {
           transcript: voice ? q : undefined,
           audio_in_b64: voice?.audioB64,
           audio_in_mime: voice?.mime,
-        },
+        }),
       })
-      setMsgs((m) => [
-        ...m,
-        {
-          role: 'bot',
-          text: String(data?.answer ?? '') || t('aiWidgetUnavailable'),
-          intent: data?.intent as Intent,
-          sources: Array.isArray(data?.sources) ? data.sources : undefined,
-          msgId: data?.message_id ?? undefined,
-        },
-      ])
-      if (data?.session_id) {
-        setSessionId(data.session_id)
-        refreshSessions()
+      if (res.status === 401) { try { localStorage.removeItem('access_token') } catch {} }
+      if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || ''
+        for (const ev of events) {
+          const dataLine = ev.split('\n').find((l) => l.startsWith('data:'))
+          if (!dataLine) continue
+          let obj: any
+          try { obj = JSON.parse(dataLine.slice(5).trim()) } catch { continue }
+          if (obj.type === 'meta') {
+            newSessionId = obj.session_id
+            patchLastBot({
+              intent: obj.intent as Intent,
+              sources: Array.isArray(obj.sources) && obj.sources.length ? obj.sources : undefined,
+            })
+          } else if (obj.type === 'token') {
+            acc += obj.text
+            patchLastBot({ text: acc })
+          } else if (obj.type === 'done') {
+            msgId = obj.message_id ?? undefined
+            patchLastBot({ msgId })
+          } else if (obj.type === 'error') {
+            streamErr = obj.detail
+          }
+        }
       }
-      // Auto-play the reply aloud (server TTS if configured, else browser voice).
-      if (autoplay) {
-        const answer = String(data?.answer ?? '')
-        if (answer) speak({ role: 'bot', text: answer, msgId: data?.message_id ?? undefined })
-      }
+      if (!acc && streamErr) patchLastBot({ text: streamErr })
+      else if (!acc) patchLastBot({ text: t('aiWidgetUnavailable') })
+      if (newSessionId) { setSessionId(newSessionId); refreshSessions() }
+      if (autoplay && acc) speak({ role: 'bot', text: acc, msgId })
     } catch (e: any) {
-      setMsgs((m) => [...m, { role: 'bot', text: e?.message || t('aiWidgetUnavailable') }])
+      patchLastBot({ text: e?.message || t('aiWidgetUnavailable') })
     } finally {
       setSending(false)
     }

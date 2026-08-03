@@ -15,7 +15,8 @@ OPENROUTER_TIMEOUT_SECONDS below the proxy's own timeout and prefer a model with
 
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, Iterator
 
 import httpx
 
@@ -143,6 +144,8 @@ def chat(
             "stream": False,
             # Low temperature: this is a factual how-to assistant, not creative.
             "temperature": 0.2,
+            # Cap output so a long reply can't overrun the tunnel/proxy window.
+            "max_tokens": settings.assistant_max_tokens,
         }
         try:
             with httpx.Client(timeout=settings.openrouter_timeout_seconds) as client:
@@ -201,3 +204,77 @@ def chat(
     ):
         raise OpenRouterError(f"No OpenRouter model could answer. Tried: {tried}.{detail}")
     raise OpenRouterUnavailable(f"No OpenRouter model is available right now. Tried: {tried}.{detail}")
+
+
+def chat_stream(
+    *,
+    system: str,
+    user_message: str,
+    history: list[dict[str, str]] | None = None,
+    model: str | None = None,
+) -> Iterator[str]:
+    """Stream an OpenRouter reply as incremental text chunks.
+
+    Tries each candidate model; the first one that returns HTTP 200 is streamed
+    (soft errors 402/404/429 skip to the next). Raises before yielding any text
+    if none can serve, so a caller can fail over cleanly.
+    """
+    base, key = _require_config()
+    models = _model_candidates(model)
+
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    for turn in (history or []):
+        role = turn.get("role")
+        content = turn.get("content")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_message})
+
+    last_error: Exception | None = None
+    with httpx.Client(timeout=settings.openrouter_timeout_seconds) as client:
+        for chosen in models:
+            payload = {
+                "model": chosen, "messages": messages, "stream": True,
+                "temperature": 0.2, "max_tokens": settings.assistant_max_tokens,
+            }
+            try:
+                with client.stream("POST", f"{base}/chat/completions", json=payload, headers=_headers(key)) as r:
+                    if r.status_code in (401, 403):
+                        raise OpenRouterError("OpenRouter rejected the API key (check OPENROUTER_API_KEY).")
+                    if r.status_code in (402, 404):
+                        last_error = OpenRouterError(f"'{chosen}' is not available for free.")
+                        continue
+                    if r.status_code == 429:
+                        last_error = OpenRouterUnavailable(f"'{chosen}' is rate-limited upstream.")
+                        continue
+                    if r.status_code >= 400:
+                        last_error = OpenRouterError(f"'{chosen}' returned {r.status_code}.")
+                        continue
+                    got = False
+                    for line in r.iter_lines():
+                        if not line or not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if data == "[DONE]":
+                            break
+                        try:
+                            obj = json.loads(data)
+                            delta = ((obj.get("choices") or [{}])[0].get("delta") or {}).get("content")
+                        except ValueError:
+                            continue
+                        if delta:
+                            got = True
+                            yield delta
+                    if got:
+                        return
+                    last_error = OpenRouterError(f"'{chosen}' streamed an empty response.")
+                    continue
+            except httpx.TimeoutException:
+                last_error = OpenRouterUnavailable(f"'{chosen}' did not start in time.")
+                continue
+            except httpx.RequestError as e:
+                raise OpenRouterUnavailable(f"OpenRouter unreachable: {type(e).__name__}") from e
+
+    if isinstance(last_error, OpenRouterError) and not isinstance(last_error, OpenRouterUnavailable):
+        raise OpenRouterError(f"No OpenRouter model could stream. ({last_error})")
+    raise OpenRouterUnavailable(f"No OpenRouter model is available. ({last_error})")

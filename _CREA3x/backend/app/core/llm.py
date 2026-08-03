@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Iterator
 
 from . import ollama, openrouter
 from .config import settings
@@ -98,6 +99,59 @@ def chat(
         logger.warning("OpenRouter fallback failed: %s", e)
         raise LLMError(str(e)) from e
     return ChatResult(text=text, model=(openrouter_model or settings.openrouter_model), provider=OPENROUTER)
+
+
+def chat_stream(
+    *,
+    system: str,
+    user_message: str,
+    history: list[dict[str, str]] | None = None,
+    model: str | None = None,
+    openrouter_model: str | None = None,
+    meta: dict | None = None,
+) -> Iterator[str]:
+    """Stream a reply, Ollama first then OpenRouter (Mistral-pinned) fallback.
+
+    Yields incremental text chunks. `meta` (if given) is populated with the
+    provider/model that actually served the stream. Raises LLMUnavailable/LLMError
+    only before any text is yielded (once streaming starts we commit to it).
+    """
+    meta = meta if meta is not None else {}
+
+    # 1) Try Ollama. Connection/availability errors surface on the first chunk.
+    try:
+        gen = ollama.chat_stream(system=system, user_message=user_message, history=history, model=model)
+        first = next(gen)
+        meta["provider"] = OLLAMA
+        meta["model"] = (model or settings.ollama_model)
+        yield first
+        yield from gen
+        return
+    except ollama.OllamaUnavailable as unavailable:
+        if not openrouter.is_configured():
+            raise LLMUnavailable(str(unavailable)) from unavailable
+        logger.info("Ollama unavailable (%s) — streaming from OpenRouter", unavailable)
+    except ollama.OllamaError as e:
+        if not openrouter.is_configured():
+            raise LLMError(str(e)) from e
+        logger.info("Ollama error (%s) — streaming from OpenRouter", e)
+    except StopIteration:
+        pass  # Ollama produced nothing; fall through to OpenRouter.
+
+    # 2) OpenRouter fallback (pinned to `openrouter_model` when given).
+    try:
+        gen = openrouter.chat_stream(system=system, user_message=user_message, history=history, model=openrouter_model)
+        first = next(gen)
+        meta["provider"] = OPENROUTER
+        meta["model"] = (openrouter_model or settings.openrouter_model)
+        yield first
+        yield from gen
+    except StopIteration:
+        return
+    except openrouter.OpenRouterUnavailable as e:
+        raise LLMUnavailable(f"The assistant is unavailable: {e}") from e
+    except openrouter.OpenRouterError as e:
+        raise LLMError(str(e)) from e
 
 
 def list_models() -> ModelsInfo:

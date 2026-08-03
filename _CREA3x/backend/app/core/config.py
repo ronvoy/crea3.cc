@@ -142,6 +142,13 @@ class Settings(BaseSettings):
         default=60.0,
         validation_alias=AliasChoices("OLLAMA_TIMEOUT_SECONDS", "ollama_timeout_seconds"),
     )
+    # Max tokens an answer may generate. Bounds generation time so a long reply
+    # can't overrun a tunnel/proxy response window (which shows up as a 502).
+    # Applies to both the primary (Ollama) and the OpenRouter fallback.
+    assistant_max_tokens: int = Field(
+        default=700,
+        validation_alias=AliasChoices("ASSISTANT_MAX_TOKENS", "assistant_max_tokens"),
+    )
 
     # ----------------------------
     # OpenRouter — hosted FALLBACK for the workflow assistant.

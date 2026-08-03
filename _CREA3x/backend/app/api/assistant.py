@@ -17,7 +17,10 @@ sees their OWN preferences/strategy in the context — never another party's.
 
 from __future__ import annotations
 
+import json as _json
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -425,24 +428,28 @@ def _heuristic_intent(question: str) -> str:
 
 
 def classify_intent(question: str, history: list[AssistantTurn] | None = None) -> str:
-    """Route a question to one of INTENTS via a cheap LLM call (primary→Mistral).
+    """Route a question to one of INTENTS.
 
-    Falls back to a keyword heuristic if the label can't be parsed or no provider
-    is reachable, so classification never hard-fails.
+    Uses ONLY the local primary model (Ollama) with a short timeout — classifying
+    is a tiny one-word task, so this stays fast and NEVER adds a slow hosted
+    round-trip. Behind a tunnel, a second slow call (classify + answer) blows the
+    proxy's response timeout and returns 502; keeping this bounded avoids that.
+    Falls back to a keyword heuristic when the primary is unavailable or slow, so
+    classification never hard-fails and never delays the answer.
     """
-    from ..core.config import settings
+    from ..core import ollama
     try:
-        result = llm.chat(
+        text = ollama.chat(
             system=_CLASSIFY_SYSTEM,
             user_message=question,
-            history=_history_payload(history or []),
-            openrouter_model=settings.legal_openrouter_model,
+            history=None,          # the latest message is enough to route
+            timeout=12.0,          # bound it; heuristic covers the rest
         )
-        label = (result.text or "").strip().lower()
+        label = (text or "").strip().lower()
         for intent in INTENTS:
             if intent in label:
                 return intent
-    except (llm.LLMUnavailable, llm.LLMError):
+    except ollama.OllamaError:
         pass
     return _heuristic_intent(question)
 
@@ -669,7 +676,7 @@ def _system_for_intent(
             except HTTPException:
                 pass
         ctx, sources = _past_cases_context(
-            session, user, payload.question, current_dispute_id=payload.dispute_id
+            session, user, payload.question, current_dispute_id=payload.dispute_id, limit=3
         )
         if ctx:
             system += ctx
@@ -897,4 +904,88 @@ def assistant_ask(
         sources=sources,
         session_id=sess.id,
         message_id=bot_msg.id,
+    )
+
+
+def _sse(obj: dict) -> str:
+    return f"data: {_json.dumps(obj)}\n\n"
+
+
+@router.post("/ask/stream")
+def assistant_ask_stream(
+    payload: AskIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Streaming variant of /ask (Server-Sent Events).
+
+    Emits a `meta` event immediately (fast first byte — this is what keeps a
+    proxy/tunnel from timing out), then `token` events as the answer generates,
+    then a final `done` event. The turn is persisted to chat history just like
+    /ask. All the pre-work (classify, RAG, save user message) runs synchronously
+    before streaming so the DB session is still valid; the bot message is saved
+    from a fresh session inside the generator.
+    """
+    from ..core.config import settings
+    from ..db import engine
+    from ..models import ChatSession as _ChatSession
+    from . import chat_history
+
+    intent = payload.mode if payload.mode in INTENTS else classify_intent(payload.question, payload.history)
+    system, grounded, sources = _system_for_intent(intent, payload, user, session)
+    system += _attachments_block(payload.attachments)
+
+    sess = chat_history.get_or_create_session(session, user, payload.session_id, payload.question)
+    session_id = sess.id
+    file_names = [a.filename for a in payload.attachments if (a.text or "").strip()]
+    chat_history.save_message(
+        session, sess, user, "user", payload.question,
+        files=file_names, transcript=payload.transcript,
+        audio_in_b64=payload.audio_in_b64, audio_in_mime=payload.audio_in_mime,
+    )
+
+    hist = _history_payload(payload.history)
+    question = payload.question
+    req_model = payload.model
+
+    def event_stream():
+        yield _sse({"type": "meta", "intent": intent, "sources": sources,
+                    "session_id": session_id, "grounded_on_dispute": grounded})
+        parts: list[str] = []
+        meta: dict = {}
+        err: str | None = None
+        try:
+            for chunk in llm.chat_stream(
+                system=system, user_message=question, history=hist,
+                model=req_model, openrouter_model=settings.legal_openrouter_model, meta=meta,
+            ):
+                parts.append(chunk)
+                yield _sse({"type": "token", "text": chunk})
+        except llm.LLMUnavailable as e:
+            err = str(e)
+        except llm.LLMError as e:
+            err = str(e)
+        except Exception:
+            err = "The assistant hit an unexpected error."
+
+        text = "".join(parts).strip()
+        msg_id = None
+        if text:
+            try:
+                with Session(engine) as s:
+                    cs = s.get(_ChatSession, session_id)
+                    if cs:
+                        m = chat_history.save_message(s, cs, user, "bot", text, intent=intent, sources=sources)
+                        msg_id = m.id
+            except Exception:
+                pass
+        if err and not text:
+            yield _sse({"type": "error", "detail": err})
+        yield _sse({"type": "done", "message_id": msg_id,
+                    "provider": meta.get("provider"), "model": meta.get("model")})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )

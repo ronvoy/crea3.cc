@@ -59,8 +59,11 @@ def embed(texts: list[str]) -> list[list[float]] | None:
 
     url = f"{_base()}/embeddings"
     payload = {"model": (settings.embeddings_model or "").strip(), "input": texts}
+    # Keep short: if embeddings are slow/unsupported, degrade to BM25 fast rather
+    # than compounding latency behind a tunnel (which would time out to 502).
+    timeout = min(float(settings.openrouter_timeout_seconds or 15), 15.0)
     try:
-        with httpx.Client(timeout=settings.openrouter_timeout_seconds) as client:
+        with httpx.Client(timeout=timeout) as client:
             r = client.post(url, json=payload, headers=_headers())
         if r.status_code >= 400:
             logger.warning("Embeddings endpoint returned %s: %s", r.status_code, r.text[:160])

@@ -142,35 +142,33 @@ export default function Dashboard() {
           subtitle={t('dashboardSubtitle')}
           right={<Button variant="text" color="inherit" onClick={load} disabled={loading}>{loading ? t('refreshing') : t('refresh')}</Button>}
         />
-        <Box sx={{ p: 2.5, display: 'grid', gap: 3, gridTemplateColumns: { md: '1fr 1fr' } }}>
-          <Stack spacing={1}>
-            <Typography variant="body2" color="text.secondary">
-              Signed in as <b>{user?.username}</b>
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2" color="text.secondary">Role:</Typography>
-              <Chip label={user?.role ?? 'user'} size="small" variant="outlined" />
-            </Stack>
-            {err ? <Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert> : null}
-          </Stack>
-
-          <Stack spacing={1.25}>
+        <Box sx={{ p: 2.5 }}>
+          <Stack spacing={1.25} sx={{ width: '100%' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Create New Dispute</Typography>
             <Typography variant="caption" color="text.secondary">
               Only dispute owners/admins generate proposals and finalize reports.
             </Typography>
-            <TextField
-              size="small"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={t('dashboardCreatePlaceholder')}
-              fullWidth
-            />
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Button variant="contained" startIcon={<AddIcon />} onClick={create} disabled={!title.trim()}>
-                Create
-              </Button>
-              <HelpTip text={t('helpCreateDispute')} />
+            {err ? <Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert> : null}
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <TextField
+                size="small"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t('dashboardCreatePlaceholder')}
+                fullWidth
+                sx={{ flex: 1 }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) { e.preventDefault(); create() } }}
+              />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button variant="contained" startIcon={<AddIcon />} onClick={create} disabled={!title.trim()}>
+                  Create
+                </Button>
+                <HelpTip text={t('helpCreateDispute')} />
+              </Stack>
             </Stack>
           </Stack>
         </Box>

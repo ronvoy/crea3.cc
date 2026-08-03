@@ -949,24 +949,53 @@ def assistant_ask_stream(
     req_model = payload.model
 
     def event_stream():
+        import queue
+        import threading
+
         yield _sse({"type": "meta", "intent": intent, "sources": sources,
                     "session_id": session_id, "grounded_on_dispute": grounded})
-        parts: list[str] = []
+
+        # Produce tokens in a worker thread and pull them with a timeout, so we can
+        # emit SSE heartbeats during gaps (slow time-to-first-token, pauses between
+        # tokens). A proxy/tunnel that drops idle connections after a few seconds
+        # would otherwise cut a long reply mid-stream ("network error").
+        q: "queue.Queue" = queue.Queue()
+        SENTINEL = object()
         meta: dict = {}
         err: str | None = None
-        try:
-            for chunk in llm.chat_stream(
-                system=system, user_message=question, history=hist,
-                model=req_model, openrouter_model=settings.legal_openrouter_model, meta=meta,
-            ):
-                parts.append(chunk)
-                yield _sse({"type": "token", "text": chunk})
-        except llm.LLMUnavailable as e:
-            err = str(e)
-        except llm.LLMError as e:
-            err = str(e)
-        except Exception:
-            err = "The assistant hit an unexpected error."
+
+        def produce():
+            try:
+                for chunk in llm.chat_stream(
+                    system=system, user_message=question, history=hist,
+                    model=req_model, openrouter_model=settings.legal_openrouter_model, meta=meta,
+                ):
+                    q.put(("token", chunk))
+            except llm.LLMUnavailable as e:
+                q.put(("error", str(e)))
+            except llm.LLMError as e:
+                q.put(("error", str(e)))
+            except Exception:
+                q.put(("error", "The assistant hit an unexpected error."))
+            finally:
+                q.put((SENTINEL, None))
+
+        threading.Thread(target=produce, daemon=True).start()
+
+        parts: list[str] = []
+        while True:
+            try:
+                kind, val = q.get(timeout=3.0)
+            except queue.Empty:
+                yield ": keep-alive\n\n"   # SSE comment — ignored by the client
+                continue
+            if kind is SENTINEL:
+                break
+            if kind == "token":
+                parts.append(val)
+                yield _sse({"type": "token", "text": val})
+            elif kind == "error":
+                err = val
 
         text = "".join(parts).strip()
         msg_id = None

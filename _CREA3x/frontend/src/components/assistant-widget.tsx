@@ -153,9 +153,23 @@ export default function AssistantWidget() {
   // Load the user's saved chats + voice capability when the panel opens.
   useEffect(() => {
     if (!open) return
+    // Opening the assistant closes the accessibility panel (mutually exclusive).
+    window.dispatchEvent(new Event('crea3-close-a11y'))
     api('/api/assistant/sessions').then((rows) => setSessions(rows || [])).catch(() => {})
     api('/api/assistant/voice/config').then((c) => { setSttAvailable(!!c?.stt); setTtsAvailable(!!c?.tts) }).catch(() => {})
   }, [open])
+
+  // External open/close (Launch button on the dispute page) + mutual exclusion.
+  useEffect(() => {
+    const onOpen = () => setOpen(true)
+    const onClose = () => { setOpen(false); setFull(false); setShowHistory(false) }
+    window.addEventListener('crea3-open-assistant', onOpen)
+    window.addEventListener('crea3-close-assistant', onClose)
+    return () => {
+      window.removeEventListener('crea3-open-assistant', onOpen)
+      window.removeEventListener('crea3-close-assistant', onClose)
+    }
+  }, [])
 
   const speechSupported = typeof window !== 'undefined' &&
     ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
@@ -528,12 +542,22 @@ export default function AssistantWidget() {
           }
         }
       }
-      if (!acc && streamErr) patchLastBot({ text: streamErr })
-      else if (!acc) patchLastBot({ text: t('aiWidgetUnavailable') })
+      // Keep whatever text arrived; only show an error if nothing streamed.
+      if (streamErr) {
+        if (acc) patchLastBot({ text: `${acc}\n\n_${t('aiInterrupted')}_` })
+        else patchLastBot({ text: streamErr })
+      } else if (!acc) {
+        patchLastBot({ text: t('aiWidgetUnavailable') })
+      }
       if (newSessionId) { setSessionId(newSessionId); refreshSessions() }
-      if (autoplay && acc) speak({ role: 'bot', text: acc, msgId })
+      // Auto-play the spoken reply ONLY when the question was asked by voice.
+      // Text questions get a manual 🔊 button instead.
+      if (autoplay && acc && !!voice) speak({ role: 'bot', text: acc, msgId })
     } catch (e: any) {
-      patchLastBot({ text: e?.message || t('aiWidgetUnavailable') })
+      // Connection dropped mid-stream: preserve the partial answer rather than
+      // wiping it with a bare "network error".
+      if (acc) patchLastBot({ text: `${acc}\n\n_${t('aiInterrupted')}_` })
+      else patchLastBot({ text: e?.message || t('aiWidgetUnavailable') })
     } finally {
       setSending(false)
     }
@@ -741,6 +765,19 @@ export default function AssistantWidget() {
               ))}
               {sending ? (
                 <Typography variant="caption" color="text.secondary">{t('aiWidgetSending')}</Typography>
+              ) : null}
+              {/* Template questions on a fresh chat */}
+              {!sending && msgs.length <= 1 ? (
+                <Box sx={{ mt: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    {t('aiTplHint')}
+                  </Typography>
+                  <Stack direction="row" flexWrap="wrap" gap={0.75}>
+                    {[t('aiTpl1'), t('aiTpl2'), t('aiTpl3'), t('aiTpl4')].map((q) => (
+                      <Chip key={q} label={q} size="small" variant="outlined" clickable onClick={() => ask(q)} />
+                    ))}
+                  </Stack>
+                </Box>
               ) : null}
             </Stack>
           </Box>

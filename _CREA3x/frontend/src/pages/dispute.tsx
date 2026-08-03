@@ -772,8 +772,18 @@ export default function DisputeDetail() {
           title={dispute ? dispute.title : t('dispute')}
           subtitle={dispute ? `ID ${shortId(dispute.id)} · ${t('overviewMethod')}: ${methodLabel}` : ''}
           right={
-            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            <div className="flex min-w-0 flex-col items-end gap-3">
               {dispute ? <DisputeStatusBadge status={dispute.status} theme="light" /> : null}
+              {dispute && dispute.status !== 'abandoned' && dispute.status !== 'finalized' ? (
+                <Button
+                  variant="danger"
+                  onClick={abandonDispute}
+                  className="mt-1"
+                  style={{ fontSize: 12, padding: '3px 12px', minWidth: 0, lineHeight: 1.5 }}
+                >
+                  {t('abandonButton')}
+                </Button>
+              ) : null}
             </div>
           }
         />
@@ -797,32 +807,24 @@ export default function DisputeDetail() {
             </div>
           ) : null}
 
-          {/* ✅ TOP SUMMARY — NO TRAFFIC LIGHTS */}
-          <div className="mt-4 grid gap-2 md:grid-cols-4">
-            <SummaryCard title="Participants" value={`${joinedCount} joined · ${pendingCount} pending · ${declinedCount} declined`} />
+          {/* ✅ TOP SUMMARY — compact, content-sized; Participants (widest) last */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <SummaryCard title={t('overviewStatus')} value={dispute?.status || '—'} />
+            <SummaryCard title={t('overviewMethod')} value={methodLabel} />
             <SummaryCard title="Goods" value={`${goods.length} goods`} />
             <SummaryCard title="Preferences" value={`${readyCount} ready`} />
             <SummaryCard title="Proposals" value={proposals.length > 0 ? 'available' : 'not yet'} />
+            <SummaryCard title="Participants" value={`${joinedCount} joined · ${pendingCount} pending · ${declinedCount} declined`} />
           </div>
 
-          {/* Closed banner OR abandon control */}
+          {/* Closed banner (abandon control moved to the header, top-right) */}
           {dispute && (dispute.status === 'abandoned' || dispute.status === 'finalized') ? (
             <div className={`mt-3 rounded-2xl border p-3 text-sm ${dispute.status === 'abandoned' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
               {dispute.status === 'abandoned'
                 ? t('abandonedBanner')
                 : t('finalizedBanner')}
             </div>
-          ) : (
-            <div className="mt-3 flex justify-end">
-              <Button
-                variant="ghost"
-                className="text-rose-700 border border-rose-200 hover:bg-rose-50"
-                onClick={abandonDispute}
-              >
-                {t('abandonButton')}
-              </Button>
-            </div>
-          )}
+          ) : null}
 
           {/* Tabs — the five workflow phases end at Mediation; the Dispute Room
               is shown separately because it is independent and always available. */}
@@ -1370,56 +1372,23 @@ export default function DisputeDetail() {
               </div>
             ) : null}
 
-            {/* Overview + guide */}
-            <div className="grid gap-4 lg:grid-cols-2 items-start">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">{t('overviewTitle')}</div>
-                <div className="text-sm text-slate-600 mt-1">{t('overviewSubtitle')}</div>
-
-                <div className="mt-3 grid gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-600">{t('overviewStatus')}</span>
-                    <span className="font-medium text-slate-900">{dispute?.status || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-600">{t('overviewMethod')}</span>
-                    <span className="font-medium text-slate-900">{methodLabel}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-600">{t('overviewAgents')}</span>
-                    <span className="font-medium text-slate-900">{agents.length}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-600">{t('overviewGoods')}</span>
-                    <span className="font-medium text-slate-900">{goods.length}</span>
-                  </div>
-                </div>
+            {/* Help & assistant */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm font-semibold text-slate-900">{t('helpSupportTitle')}</div>
+              <div className="text-sm text-slate-600 mt-1">{t('helpSupportSubtitle')}</div>
+              <div className="mt-2 text-sm text-slate-700">
+                <span className="font-semibold">{t('helpSupportEmailLabel')}:</span> support@crea3.eu
               </div>
+              <div className="mt-1 text-sm text-slate-700">{t('helpSupportFaqHint')}</div>
+              <div className="mt-1 text-xs text-slate-600">{t('helpSupportKeyboardHint')}</div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="font-semibold text-slate-900">{t('assistantGuideTitle')}</div>
-                <div className="text-sm text-slate-600 mt-1">{t('assistantGuideSavedNote')}</div>
-
-                <ul className="mt-3 list-disc pl-5 text-sm text-slate-700 space-y-1">
-                  <li>{t('assistantGuideDef')}</li>
-                  <li>{t('assistantGuideNext')}</li>
-                  <li>{t('assistantGuideHowTo')}</li>
-                  <li>{t('assistantGuideExplain')}</li>
-                </ul>
-
-                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-sm font-semibold text-slate-900">{t('helpSupportTitle')}</div>
-                  <div className="text-sm text-slate-600 mt-1">{t('helpSupportSubtitle')}</div>
-                  <div className="mt-2 text-sm text-slate-700">
-                    <span className="font-semibold">{t('helpSupportEmailLabel')}:</span> support@crea3.eu
-                  </div>
-                  <div className="mt-1 text-sm text-slate-700">{t('helpSupportFaqHint')}</div>
-                  <div className="mt-1 text-xs text-slate-600">{t('helpSupportKeyboardHint')}</div>
-
-                  <Button className="mt-3" variant="ghost" onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}>
-                    {t('openAccessibilitySettings')}
-                  </Button>
-                </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}>
+                  {t('openAccessibilitySettings')}
+                </Button>
+                <Button variant="outline" onClick={() => window.dispatchEvent(new Event('crea3-open-assistant'))}>
+                  {t('launchLegalAssistant')}
+                </Button>
               </div>
             </div>
 
@@ -1432,9 +1401,9 @@ export default function DisputeDetail() {
 
 function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-sm font-semibold text-slate-900">{title}</div>
-      <div className="text-sm text-slate-600 mt-0.5">{value}</div>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight">{title}</div>
+      <div className="text-xs text-slate-800 mt-0.5 whitespace-nowrap leading-tight">{value}</div>
     </div>
   )
 }

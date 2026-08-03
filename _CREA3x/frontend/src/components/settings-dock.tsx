@@ -70,11 +70,24 @@ export default function SettingsDock() {
   }, [lang])
 
   // Allow other UI (e.g., Sidebar) to open Settings via a custom event.
+  // The assistant chatbot and these dock panels are mutually exclusive: when the
+  // chatbot opens it fires 'crea3-close-a11y' to close BOTH the settings drawer
+  // and the accessibility panel.
   useEffect(() => {
-    const handler = () => setOpen(true)
-    window.addEventListener('crea3-open-settings', handler as any)
-    return () => window.removeEventListener('crea3-open-settings', handler as any)
+    const openSettings = () => setOpen(true)
+    const closeDockPanels = () => { setOpen(false); setA11yOpen(false) }
+    window.addEventListener('crea3-open-settings', openSettings as any)
+    window.addEventListener('crea3-close-a11y', closeDockPanels as any)
+    return () => {
+      window.removeEventListener('crea3-open-settings', openSettings as any)
+      window.removeEventListener('crea3-close-a11y', closeDockPanels as any)
+    }
   }, [])
+
+  // Opening EITHER dock panel closes the assistant chatbot.
+  useEffect(() => {
+    if (open || a11yOpen) window.dispatchEvent(new Event('crea3-close-assistant'))
+  }, [open, a11yOpen])
 
   // Not on the admin console (it has its own theme control).
   if (location.pathname.startsWith('/admin')) return null

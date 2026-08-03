@@ -8,6 +8,12 @@ import ReconciliationPanel from '../components/reconciliation-panel'
 import DocumentsPanel from '../components/documents'
 import DisputeStatusBadge from '../components/dispute-status-badge'
 import { addRecentDispute, removeRecentDispute } from '../utils/recent'
+import { Pie } from 'react-chartjs-2'
+import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartLegend } from 'chart.js'
+
+ChartJS.register(ArcElement, ChartTooltip, ChartLegend)
+
+const CHART_PALETTE = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2', '#dc2626', '#65a30d', '#ea580c', '#4f46e5']
 
 type Dispute = {
   id: number
@@ -1399,6 +1405,87 @@ export default function DisputeDetail() {
   )
 }
 
+// Two interactive pie charts (Chart.js): value received by each party, and the
+// asset pool by value. Same data feeds the generated PDF (server-side reportlab).
+function AllocationCharts({ allocations, money, t }: {
+  allocations: any[]
+  money: (n: number) => string
+  t: (k: any) => string
+}) {
+  const { agentItems, assetItems } = useMemo(() => {
+    const perAgent: Record<string, number> = {}
+    const assets: Array<{ name: string; value: number }> = []
+    for (const a of allocations || []) {
+      const val = Number(a.estimated_value || 0)
+      if (val > 0) assets.push({ name: a.good_name || '—', value: val })
+      if (val <= 0) continue
+      const frby = a.fraction_by_name
+      if (a.divisible && frby && Object.keys(frby).length) {
+        for (const [name, frac] of Object.entries<any>(frby)) {
+          const share = val * Number(frac)
+          if (share > 0) perAgent[name] = (perAgent[name] || 0) + share
+        }
+      } else {
+        const name = a.assigned_agent_name || 'Unassigned'
+        perAgent[name] = (perAgent[name] || 0) + val
+      }
+    }
+    const agentItems = Object.entries(perAgent).map(([name, value]) => ({ name, value })).filter((x) => x.value > 0)
+    return { agentItems, assetItems: assets }
+  }, [allocations])
+
+  if (!agentItems.length && !assetItems.length) return null
+
+  const makeData = (items: Array<{ name: string; value: number }>) => ({
+    labels: items.map((i) => i.name),
+    datasets: [{
+      data: items.map((i) => i.value),
+      backgroundColor: items.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
+      borderColor: '#ffffff',
+      borderWidth: 2,
+    }],
+  })
+  const makeOptions = (items: Array<{ name: string; value: number }>) => {
+    const total = items.reduce((s, i) => s + i.value, 0) || 1
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' as const, labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx: any) => {
+              const v = Number(ctx.parsed || 0)
+              const pct = Math.round((v / total) * 100)
+              return `${ctx.label}: ${money(v)} (${pct}%)`
+            },
+          },
+        },
+      },
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <div className="text-sm font-semibold text-slate-900 mb-2">{t('statsTitle')}</div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="text-xs font-medium text-slate-600 mb-2">{t('statsAgentsTitle')}</div>
+          <div style={{ height: 260 }}>
+            {agentItems.length ? <Pie data={makeData(agentItems)} options={makeOptions(agentItems)} /> : <div className="text-xs text-slate-400">—</div>}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <div className="text-xs font-medium text-slate-600 mb-2">{t('statsAssetsTitle')}</div>
+          <div style={{ height: 260 }}>
+            {assetItems.length ? <Pie data={makeData(assetItems)} options={makeOptions(assetItems)} /> : <div className="text-xs text-slate-400">—</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
@@ -1624,6 +1711,9 @@ function AllocationView({ proposal, t, agents }: { proposal: any; t: (k: any) =>
           </table>
         </div>
       </details>
+
+      {/* Division statistics — two interactive pie charts */}
+      <AllocationCharts allocations={allocations} money={money} t={t} />
     </div>
   )
 }

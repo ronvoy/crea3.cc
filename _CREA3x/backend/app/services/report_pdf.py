@@ -177,6 +177,59 @@ def _pie(value_share: dict[str, float], names: dict[int, str]) -> Drawing:
     return d
 
 
+def _donut_agents(allocations: list[dict[str, Any]]) -> Drawing:
+    """Donut chart of how the total asset value divides across the parties.
+
+    Mirrors the frontend 'Value received by each party' pie: each divisible split
+    is apportioned by its fraction; indivisible items go wholly to the assignee.
+    """
+    d = Drawing(460, 240)
+    per_agent: dict[str, float] = {}
+    for al in allocations:
+        val = float(al.get("estimated_value") or 0.0)
+        if val <= 0:
+            continue
+        frby = al.get("fraction_by_name")
+        if al.get("divisible") and frby:
+            for nm, frac in frby.items():
+                share = val * float(frac or 0)
+                if share > 0:
+                    per_agent[str(nm)] = per_agent.get(str(nm), 0.0) + share
+        else:
+            nm = str(al.get("assigned_agent_name") or "Unassigned")
+            per_agent[nm] = per_agent.get(nm, 0.0) + val
+    items = [(nm, v) for nm, v in per_agent.items() if v > 0]
+    if not items:
+        return d
+    total = sum(v for _, v in items) or 1.0
+    pie = Pie()
+    pie.x, pie.y, pie.width, pie.height = 30, 30, 170, 170
+    pie.data = [v for _, v in items]
+    pie.labels = [f"{round(v/total*100)}%" for _, v in items]
+    pie.slices.strokeWidth = 1.0
+    pie.slices.strokeColor = colors.white
+    pie.slices.fontName, pie.slices.fontSize = "Helvetica", 7
+    try:
+        pie.innerRadiusFraction = 0.55
+    except Exception:
+        pass
+    for i in range(len(items)):
+        pie.slices[i].fillColor = SERIES[i % len(SERIES)]
+    d.add(pie)
+    lg = Legend()
+    lg.x, lg.y = 220, 190
+    lg.dx = lg.dy = 7
+    lg.fontName, lg.fontSize = "Helvetica", 8
+    lg.boxAnchor = "nw"
+    lg.columnMaximum = 10
+    lg.colorNamePairs = [
+        (SERIES[i % len(SERIES)], f"{nm[:22]}  €{v:,.0f}")
+        for i, (nm, v) in enumerate(items)
+    ]
+    d.add(lg)
+    return d
+
+
 def _bar_valuations(per_good_vals: list[dict[str, Any]], names: dict[int, str], agent_ids: list[int]) -> Drawing:
     """Grouped bars: each good's valuation by each party (the divergence)."""
     d = Drawing(500, 210)
@@ -611,6 +664,15 @@ def build_report_pdf(
     story.append(Paragraph(
         f"Total estimated value of the disputed assets: <b>{_money(total_alloc)}</b> across "
         f"{len([a for a in allocations if float(a.get('estimated_value') or 0)>0])} asset(s).", st["small"]))
+
+    # Second pie: how the total value divides across the parties (matches the app).
+    story.append(Spacer(1, 18))
+    story.append(Paragraph("Value received by each party", st["h2"]))
+    story.append(Paragraph(
+        "The share of the total asset value that each party receives from the allocation, "
+        "with the amount per party.", st["small"]))
+    story.append(Spacer(1, 10))
+    story.append(_donut_agents(allocations))
 
     story.append(PageBreak())
 

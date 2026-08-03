@@ -1394,16 +1394,6 @@ export default function DisputeDetail() {
                     <span className="font-medium text-slate-900">{goods.length}</span>
                   </div>
                 </div>
-
-                <div className="mt-4 border-t border-slate-200 pt-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('overviewQuickActions')}</div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <Button variant="outline" className="justify-start" onClick={() => setTab('agents')}>{t('tabAgents')}</Button>
-                    <Button variant="outline" className="justify-start" onClick={() => setTab('goods')}>{t('tabGoods')}</Button>
-                    <Button variant="outline" className="justify-start" onClick={() => setTab('prefs')}>{t('tabPreferences')}</Button>
-                    <Button variant="outline" className="justify-start" onClick={() => setTab('proposals')}>{t('tabProposals')}</Button>
-                  </div>
-                </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

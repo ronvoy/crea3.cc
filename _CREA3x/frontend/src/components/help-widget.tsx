@@ -123,9 +123,8 @@ export default function HelpWidget() {
       ) : null}
 
       <Tooltip title={t('helpWidgetTitle')} placement="left">
-        <Fab variant="extended" color="primary" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-          <ChatBubbleOutlineIcon sx={{ mr: 1 }} />
-          {t('helpWidgetOpen')}
+        <Fab color="primary" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={t('helpWidgetOpen')}>
+          <ChatBubbleOutlineIcon />
         </Fab>
       </Tooltip>
     </Box>

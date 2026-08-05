@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   Drawer,
@@ -16,6 +16,7 @@ import {
   InputLabel,
 } from '@mui/material'
 import AccessibilityNewOutlinedIcon from '@mui/icons-material/AccessibilityNewOutlined'
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
@@ -65,6 +66,48 @@ export default function SettingsDock() {
   const [open, setOpen] = useState(false)
   const [a11yOpen, setA11yOpen] = useState(false)
 
+  // Draggable rail: stays pinned to the right edge, moves only vertically.
+  // Default position is ~30% down from the top; the last position is remembered.
+  const paperRef = useRef<HTMLDivElement | null>(null)
+  const dragRef = useRef<{ active: boolean; offset: number; latest: number }>({ active: false, offset: 0, latest: 0 })
+  const [dockTop, setDockTop] = useState<number>(() => {
+    const saved = Number(typeof localStorage !== 'undefined' ? localStorage.getItem('crea3-dock-top') : '')
+    if (Number.isFinite(saved) && saved > 0) return saved
+    return Math.round((typeof window !== 'undefined' ? window.innerHeight : 800) * 0.3)
+  })
+
+  function clampTop(y: number) {
+    const h = paperRef.current?.offsetHeight ?? 160
+    const max = (typeof window !== 'undefined' ? window.innerHeight : 800) - h - 8
+    return Math.max(8, Math.min(Math.max(8, max), y))
+  }
+  function onDragStart(e: React.PointerEvent) {
+    dragRef.current.active = true
+    dragRef.current.offset = e.clientY - dockTop
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId) } catch {}
+    e.preventDefault()
+  }
+  function onDragMove(e: React.PointerEvent) {
+    if (!dragRef.current.active) return
+    const next = clampTop(e.clientY - dragRef.current.offset)
+    dragRef.current.latest = next
+    setDockTop(next)
+  }
+  function onDragEnd(e: React.PointerEvent) {
+    if (!dragRef.current.active) return
+    dragRef.current.active = false
+    try { localStorage.setItem('crea3-dock-top', String(dragRef.current.latest || dockTop)) } catch {}
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId) } catch {}
+  }
+
+  // Keep it on-screen when the window is resized.
+  useEffect(() => {
+    const onResize = () => setDockTop((y) => clampTop(y))
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const currentLabel = useMemo(() => {
     return LANG_OPTIONS.find((o) => o.code === lang)?.label || lang.toUpperCase()
   }, [lang])
@@ -94,14 +137,14 @@ export default function SettingsDock() {
 
   return (
     <>
-      {/* Quick-access rail: settings + light/dark only */}
+      {/* Quick-access rail: draggable vertically along the right edge */}
       <Paper
+        ref={paperRef}
         elevation={3}
         sx={{
           position: 'fixed',
           right: 12,
-          top: '50%',
-          transform: 'translateY(-50%)',
+          top: dockTop,
           zIndex: (th) => th.zIndex.drawer + 2,
           p: 0.5,
           borderRadius: 4,
@@ -110,6 +153,23 @@ export default function SettingsDock() {
           gap: 0.5,
         }}
       >
+        {/* Drag handle — grab here to move the rail up/down */}
+        <Box
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+          role="separator"
+          aria-label="Drag to move"
+          title="Drag to move"
+          sx={{
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            cursor: 'grab', '&:active': { cursor: 'grabbing' },
+            color: 'text.disabled', touchAction: 'none', py: 0.25,
+          }}
+        >
+          <DragIndicatorIcon fontSize="small" />
+        </Box>
         <Tooltip title="Accessibility" placement="left">
           <IconButton aria-label="Open accessibility panel" onClick={() => setA11yOpen(true)}>
             <AccessibilityNewOutlinedIcon />

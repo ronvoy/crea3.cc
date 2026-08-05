@@ -13,14 +13,14 @@ import { useAuth } from '../store/auth'
 function LogoMark() {
   const [failed, setFailed] = useState(false)
   const inner = failed ? (
-    <div className="flex h-24 w-24 items-center justify-center rounded-2xl border border-white/40 bg-white/80 text-2xl font-bold text-slate-900 shadow-lg shadow-sky-500/20">
+    <div className="flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded-2xl border border-white/40 bg-white/80 text-2xl font-bold text-slate-900 shadow-lg shadow-sky-500/20">
       C3
     </div>
   ) : (
     <img
       src="/crea3.logo.png"
       alt="CREA3 logo"
-      className="h-24 w-24 rounded-2xl border border-white/40 bg-white/80 object-contain p-1 shadow-lg shadow-sky-500/20 ring-1 ring-white/30"
+      className="h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border border-white/40 bg-white/80 object-contain p-1 shadow-lg shadow-sky-500/20 ring-1 ring-white/30"
       onError={() => setFailed(true)}
     />
   )
@@ -50,7 +50,7 @@ export default function Landing() {
   )
 
   return (
-    <div className="grid min-h-screen gap-6 bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <div className="grid min-h-screen min-w-0 gap-6 overflow-x-hidden bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
       {/* HERO */}
       <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/40 shadow-2xl backdrop-blur">
         <NetworkBackground fixed={false} />
@@ -75,9 +75,9 @@ export default function Landing() {
             </nav>
           </div>
 
-          <div className="mt-8 grid items-center gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="max-w-xl">
-              <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">{t('landingHeroTitle')}</h1>
+          <div className="mt-8 grid min-w-0 items-center gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div className="min-w-0 max-w-xl">
+              <h1 className="text-3xl font-semibold tracking-tight break-words sm:text-4xl md:text-5xl">{t('landingHeroTitle')}</h1>
               <p className="mt-4 text-lg text-white/80">{t('landingHeroBody')}</p>
               <p className="mt-3 text-sm leading-relaxed text-white/55">{t('landingHeroLead')}</p>
 
@@ -100,7 +100,7 @@ export default function Landing() {
               </div>
 
               {metrics && (metrics.visits > 0 || metrics.registered_users > 0) ? (
-                <div className="mt-8 flex flex-wrap gap-8">
+                <div className="mt-8 flex flex-wrap gap-x-6 gap-y-4 sm:gap-8">
                   <Stat value={metrics.registered_users} label={t('landingStatUsers')} />
                   <Stat value={metrics.disputes ?? 0} label={t('landingStatDisputes')} />
                   <Stat value={metrics.visits} label={t('landingStatVisits')} />
@@ -116,7 +116,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-3 md:p-4">
+            <div className="min-w-0 rounded-3xl border border-white/15 bg-white/5 p-3 md:p-4">
               <WorkflowCarousel />
             </div>
           </div>

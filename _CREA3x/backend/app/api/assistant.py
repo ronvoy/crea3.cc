@@ -1018,3 +1018,119 @@ def assistant_ask_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )
+
+
+# ==========================================================================
+# "What if …" — scenario analysis for a party facing a proposed allocation.
+# Given the dispute data + the current allocation/statistics (sent by the
+# client) + masked similar past cases, the assistant walks through what happens
+# if the party AGREES, DISAGREES, or DIFFERS. Streamed (SSE) like /ask/stream.
+# ==========================================================================
+
+WHATIF_GUIDE = """\
+You are the CREA3 assistant helping ONE party understand the consequences of a
+decision on the allocation proposed in their dispute. Analyze the single chosen
+scenario clearly and practically.
+
+Structure your answer with short **headed sections** and bullet points, covering:
+1. **What happens next** — the immediate step in the CREA3 workflow for this choice.
+2. **Likely outcome** — how it affects THIS party's value received and fairness
+   relative to their entitlement.
+3. **Risks & benefits** — the trade-offs of the choice.
+4. **Similar past cases** — how comparable, anonymized CREA3 cases below typically
+   resolved (refer to parties as "Party A/B"; never reveal any personal data).
+
+Be concise and concrete. This is general guidance, not legal advice.
+"""
+
+_SCENARIO_QUESTION = {
+    "agree": "Analyze the scenario where I AGREE to and ACCEPT the proposed allocation.",
+    "disagree": "Analyze the scenario where I DISAGREE and DECLINE/REJECT the proposed allocation.",
+    "differ": "Analyze the scenario where I neither fully accept nor reject, but propose a "
+              "DIFFERENT position or entitlement (I DIFFER) on the proposed allocation.",
+}
+
+
+class WhatIfIn(BaseModel):
+    dispute_id: int
+    scenario: str = Field(pattern="^(agree|disagree|differ)$")
+    # Allocation + statistics summary assembled by the client (the party's own data).
+    context: str = Field(default="", max_length=8000)
+    lang: str | None = Field(default=None, max_length=8)
+
+
+@router.post("/what-if")
+def assistant_what_if(
+    payload: WhatIfIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Stream an analysis of one accept/decline/differ scenario for a dispute."""
+    from ..core.config import settings
+
+    # Access control (raises 403/404 if the caller may not see this dispute).
+    require_access(session, payload.dispute_id, user)
+
+    system = WHATIF_GUIDE
+    try:
+        system += "\n\nThe user's current dispute (their own data):\n\n" + _dispute_context_block(
+            session, payload.dispute_id, user
+        )
+    except HTTPException:
+        pass
+    if payload.context.strip():
+        system += ("\n\nCurrent proposed allocation and division statistics (the party's own "
+                   "data):\n\n" + payload.context.strip()[:8000])
+    pc, _src = _past_cases_context(session, user, "similar dispute resolution outcome",
+                                   current_dispute_id=payload.dispute_id, limit=3)
+    if pc:
+        system += pc
+    system += CURRENCY_RULE + _lang_instruction(payload.lang)
+
+    question = _SCENARIO_QUESTION.get(payload.scenario, _SCENARIO_QUESTION["agree"])
+
+    def event_stream():
+        import queue
+        import threading
+
+        yield _sse({"type": "meta", "scenario": payload.scenario})
+        q: "queue.Queue" = queue.Queue()
+        SENTINEL = object()
+
+        def produce():
+            try:
+                for chunk in llm.chat_stream(
+                    system=system, user_message=question, history=None,
+                    openrouter_model=settings.legal_openrouter_model,
+                ):
+                    q.put(("token", chunk))
+            except (llm.LLMUnavailable, llm.LLMError) as e:
+                q.put(("error", str(e)))
+            except Exception:
+                q.put(("error", "The assistant hit an unexpected error."))
+            finally:
+                q.put((SENTINEL, None))
+
+        threading.Thread(target=produce, daemon=True).start()
+        got = False
+        while True:
+            try:
+                kind, val = q.get(timeout=3.0)
+            except queue.Empty:
+                yield ": keep-alive\n\n"
+                continue
+            if kind is SENTINEL:
+                break
+            if kind == "token":
+                got = True
+                yield _sse({"type": "token", "text": val})
+            elif kind == "error":
+                if not got:
+                    yield _sse({"type": "error", "detail": val})
+        yield _sse({"type": "done"})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+    )

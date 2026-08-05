@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, apiBlob, API_BASE } from '../api/client'
+import { api, apiBlob, API_BASE, getAccessToken } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 import { Card, CardHeader, Button, Input, Select, ErrorBox, Pill, HelpTip } from '../components/ui'
@@ -10,6 +10,8 @@ import DisputeStatusBadge from '../components/dispute-status-badge'
 import { addRecentDispute, removeRecentDispute } from '../utils/recent'
 import { Pie } from 'react-chartjs-2'
 import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartLegend } from 'chart.js'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend)
 
@@ -84,7 +86,7 @@ export default function DisputeDetail() {
   const disputeId = Number(id)
   const nav = useNavigate()
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
 
   const [dispute, setDispute] = useState<Dispute | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -1306,7 +1308,7 @@ export default function DisputeDetail() {
                         <div className="mt-4 text-xs text-slate-500">{t('mediatorViewOnlyProposal')}</div>
                       )}
 
-                      <AllocationView proposal={latestProposal} t={t} agents={agents} />
+                      <AllocationView proposal={latestProposal} t={t} agents={agents} disputeId={disputeId} lang={lang} />
                     </div>
                   ) : (
                     <div className="text-sm text-slate-600">{t('noProposalsYet')}</div>
@@ -1486,6 +1488,120 @@ function AllocationCharts({ allocations, money, t }: {
   )
 }
 
+// Assemble a compact allocation + statistics summary (the party's own data) to
+// send to the "What if …" analysis on the backend.
+function buildWhatIfContext(allocations: any[], money: (n: number) => string): string {
+  const lines: string[] = ['Proposed allocation (who receives what):']
+  const perAgent: Record<string, number> = {}
+  const assets: Array<{ name: string; value: number }> = []
+  for (const a of allocations || []) {
+    const val = Number(a.estimated_value || 0)
+    const frby = a.fraction_by_name
+    if (a.divisible && frby && Object.keys(frby).length > 1) {
+      const parts = Object.entries<any>(frby).map(([n, f]) => `${n} ${Math.round(Number(f) * 100)}%`).join(', ')
+      lines.push(`- ${a.good_name}: split ${parts} (value ${money(val)})`)
+      for (const [n, f] of Object.entries<any>(frby)) { const s = val * Number(f); if (s > 0) perAgent[n] = (perAgent[n] || 0) + s }
+    } else {
+      const who = a.assigned_agent_name || 'Unassigned'
+      lines.push(`- ${a.good_name} → ${who} (value ${money(val)})`)
+      if (val > 0) perAgent[who] = (perAgent[who] || 0) + val
+    }
+    if (val > 0) assets.push({ name: a.good_name || '—', value: val })
+  }
+  const agentTotal = Object.values(perAgent).reduce((s, v) => s + v, 0) || 1
+  lines.push('', 'Value received by each party:')
+  for (const [name, v] of Object.entries(perAgent)) lines.push(`- ${name}: ${money(v)} (${Math.round((v / agentTotal) * 100)}%)`)
+  const assetTotal = assets.reduce((s, a) => s + a.value, 0) || 1
+  lines.push('', 'Assets by value:')
+  for (const a of assets) lines.push(`- ${a.name}: ${money(a.value)} (${Math.round((a.value / assetTotal) * 100)}%)`)
+  return lines.join('\n')
+}
+
+// "What if …" — streams an AI analysis of each accept/decline/differ scenario,
+// grounded on the dispute data, the allocation/statistics, and masked past cases.
+function WhatIfSection({ disputeId, allocations, money, t, lang }: {
+  disputeId: number
+  allocations: any[]
+  money: (n: number) => string
+  t: (k: any) => string
+  lang: string
+}) {
+  const [active, setActive] = useState<'agree' | 'disagree' | 'differ' | null>(null)
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const context = useMemo(() => buildWhatIfContext(allocations, money), [allocations])
+
+  if (!allocations || !allocations.length) return null
+
+  async function run(scenario: 'agree' | 'disagree' | 'differ') {
+    setActive(scenario); setText(''); setErr(null); setBusy(true)
+    let acc = ''
+    try {
+      const token = getAccessToken()
+      const res = await fetch(`${API_BASE}/api/assistant/what-if`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ dispute_id: disputeId, scenario, context, lang }),
+      })
+      if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || ''
+        for (const ev of events) {
+          const dataLine = ev.split('\n').find((l) => l.startsWith('data:'))
+          if (!dataLine) continue
+          let o: any
+          try { o = JSON.parse(dataLine.slice(5).trim()) } catch { continue }
+          if (o.type === 'token') { acc += o.text; setText(acc) }
+          else if (o.type === 'error') { setErr(o.detail) }
+        }
+      }
+      if (!acc && !err) setErr(t('aiWidgetUnavailable'))
+    } catch (e: any) {
+      if (acc) setText(`${acc}\n\n_(interrupted)_`)
+      else setErr(e?.message || 'network error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const btn = (sc: 'agree' | 'disagree' | 'differ', label: string) => (
+    <Button variant={active === sc ? 'primary' : 'outline'} onClick={() => run(sc)} disabled={busy}>{label}</Button>
+  )
+
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="text-sm font-semibold text-slate-900">{t('whatIfTitle')}</div>
+      <div className="text-sm text-slate-600 mt-1">{t('whatIfSubtitle')}</div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {btn('agree', t('whatIfAgree'))}
+        {btn('disagree', t('whatIfDisagree'))}
+        {btn('differ', t('whatIfDiffer'))}
+      </div>
+      {active ? (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800">
+          {err ? <div className="text-rose-700">{err}</div> : null}
+          {busy && !text ? <div className="text-slate-500">{t('whatIfThinking')}</div> : null}
+          {text ? (
+            <div className="whatif-md space-y-2 leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
@@ -1598,7 +1714,7 @@ function ProposalDecision({
 
 // Professional, human-readable view of an allocation proposal: who receives what
 // (with divisible splits), each party's own valuation, and the cash settlement.
-function AllocationView({ proposal, t, agents }: { proposal: any; t: (k: any) => string; agents?: { id: number; name: string }[] }) {
+function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: any; t: (k: any) => string; agents?: { id: number; name: string }[]; disputeId?: number; lang?: string }) {
   const out = proposal?.outputs || {}
   const allocations: any[] = out.allocations || []
   const comp: Record<string, number> = out.compensation_by_agent || {}
@@ -1714,6 +1830,11 @@ function AllocationView({ proposal, t, agents }: { proposal: any; t: (k: any) =>
 
       {/* Division statistics — two interactive pie charts */}
       <AllocationCharts allocations={allocations} money={money} t={t} />
+
+      {/* What if … — AI scenario analysis (agree / disagree / differ) */}
+      {disputeId ? (
+        <WhatIfSection disputeId={disputeId} allocations={allocations} money={money} t={t} lang={lang || 'en'} />
+      ) : null}
     </div>
   )
 }

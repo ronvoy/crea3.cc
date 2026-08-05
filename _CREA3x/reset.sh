@@ -70,6 +70,9 @@ echo "── 1/4  Stopping standalone containers ──────────�
 docker rm -f "$BACKEND_NAME" "$FRONTEND_DEV_NAME" 2>/dev/null || true
 
 echo "── 2/4  Tearing down compose (containers + named volumes) ────────────────"
+# The compose file references an EXTERNAL network named "api"; older Docker
+# refuses to run any compose command when it's missing. Create it if absent.
+docker network create api >/dev/null 2>&1 || true
 # --volumes removes the compose-managed named volumes declared in the file
 # (keycloak_db + backend data/reports/uploads). --rmi local drops built images.
 DOWN_ARGS=(down --volumes --remove-orphans)

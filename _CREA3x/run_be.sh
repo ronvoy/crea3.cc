@@ -25,6 +25,13 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+# ── Ensure the external 'api' network exists ──────────────────────────────────
+# docker-compose.yml declares an EXTERNAL network named "api" (ollama_net) so the
+# backend can join a pre-existing Ollama network on the server. On machines where
+# that network doesn't exist yet (older Docker refuses to start ANY service when
+# an external network is missing), create it. Harmless if it already exists.
+docker network create api >/dev/null 2>&1 || true
+
 # ── Ensure infra (Keycloak / Postgres / Mailpit) is up ────────────────────────
 if [[ -z "$(docker compose -f "$ROOT_DIR/docker-compose.yml" ps -q --status running keycloak 2>/dev/null)" ]]; then
   echo "Infra not running — starting db / keycloak / mailpit…"

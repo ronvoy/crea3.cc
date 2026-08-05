@@ -1051,86 +1051,201 @@ _SCENARIO_QUESTION = {
 }
 
 
-class WhatIfIn(BaseModel):
+class WhatIfGenerateIn(BaseModel):
     dispute_id: int
     scenario: str = Field(pattern="^(agree|disagree|differ)$")
     # Allocation + statistics summary assembled by the client (the party's own data).
     context: str = Field(default="", max_length=8000)
+    # Only for 'differ': the user's custom scenario text.
+    custom_question: str | None = Field(default=None, max_length=1000)
     lang: str | None = Field(default=None, max_length=8)
+    force: bool = Field(default=False)
 
 
-@router.post("/what-if")
-def assistant_what_if(
-    payload: WhatIfIn,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Stream an analysis of one accept/decline/differ scenario for a dispute."""
-    from ..core.config import settings
-
-    # Access control (raises 403/404 if the caller may not see this dispute).
-    require_access(session, payload.dispute_id, user)
-
+def _build_what_if_system(session: Session, dispute_id: int, user: User, context: str, lang: str | None) -> str:
     system = WHATIF_GUIDE
     try:
         system += "\n\nThe user's current dispute (their own data):\n\n" + _dispute_context_block(
-            session, payload.dispute_id, user
+            session, dispute_id, user
         )
     except HTTPException:
         pass
-    if payload.context.strip():
+    if (context or "").strip():
         system += ("\n\nCurrent proposed allocation and division statistics (the party's own "
-                   "data):\n\n" + payload.context.strip()[:8000])
+                   "data):\n\n" + context.strip()[:8000])
     pc, _src = _past_cases_context(session, user, "similar dispute resolution outcome",
-                                   current_dispute_id=payload.dispute_id, limit=3)
+                                   current_dispute_id=dispute_id, limit=3)
     if pc:
         system += pc
-    system += CURRENCY_RULE + _lang_instruction(payload.lang)
+    system += CURRENCY_RULE + _lang_instruction(lang)
+    return system
 
-    question = _SCENARIO_QUESTION.get(payload.scenario, _SCENARIO_QUESTION["agree"])
 
-    def event_stream():
-        import queue
-        import threading
+def _run_what_if(row_id: int, dispute_id: int, user_id: int, context: str, question: str, lang: str | None):
+    """Background worker: generate the full analysis and store it (no streaming).
 
-        yield _sse({"type": "meta", "scenario": payload.scenario})
-        q: "queue.Queue" = queue.Queue()
-        SENTINEL = object()
+    Runs in a thread so the HTTP request returns instantly — the model call can
+    take longer than a proxy/tunnel would keep an idle request open.
+    """
+    from ..core.config import settings
+    from ..db import engine
+    from ..models import WhatIfAnalysis
+    try:
+        with Session(engine) as s:
+            user = s.get(User, user_id)
+            system = _build_what_if_system(s, dispute_id, user, context, lang)
+            # Background task (not tunnel-bound): allow a full-length analysis so it
+            # is never truncated mid-way by the short chat cap.
+            result = llm.chat(system=system, user_message=question,
+                              openrouter_model=settings.legal_openrouter_model, max_tokens=2000)
+            row = s.get(WhatIfAnalysis, row_id)
+            if row:
+                row.answer = result.text
+                row.status = "done"
+                row.updated_at = _now_dt()
+                s.add(row)
+                s.commit()
+    except Exception as e:
+        try:
+            from ..db import engine as _eng
+            from ..models import WhatIfAnalysis as _WIA
+            with Session(_eng) as s:
+                row = s.get(_WIA, row_id)
+                if row:
+                    row.status = "error"
+                    row.answer = f"Could not generate this scenario: {e}"[:600]
+                    row.updated_at = _now_dt()
+                    s.add(row)
+                    s.commit()
+        except Exception:
+            pass
 
-        def produce():
-            try:
-                for chunk in llm.chat_stream(
-                    system=system, user_message=question, history=None,
-                    openrouter_model=settings.legal_openrouter_model,
-                ):
-                    q.put(("token", chunk))
-            except (llm.LLMUnavailable, llm.LLMError) as e:
-                q.put(("error", str(e)))
-            except Exception:
-                q.put(("error", "The assistant hit an unexpected error."))
-            finally:
-                q.put((SENTINEL, None))
 
-        threading.Thread(target=produce, daemon=True).start()
-        got = False
-        while True:
-            try:
-                kind, val = q.get(timeout=3.0)
-            except queue.Empty:
-                yield ": keep-alive\n\n"
-                continue
-            if kind is SENTINEL:
-                break
-            if kind == "token":
-                got = True
-                yield _sse({"type": "token", "text": val})
-            elif kind == "error":
-                if not got:
-                    yield _sse({"type": "error", "detail": val})
-        yield _sse({"type": "done"})
+def _what_if_out(r) -> dict:
+    return {"id": r.id, "scenario": r.scenario, "title": r.title, "question": r.question,
+            "answer": r.answer, "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else ""}
 
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
-    )
+
+@router.post("/what-if/generate")
+def what_if_generate(
+    payload: WhatIfGenerateIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Kick off background generation of one scenario and store it. Returns fast."""
+    import threading
+    from ..models import WhatIfAnalysis
+
+    require_access(session, payload.dispute_id, user)
+
+    if payload.scenario in ("agree", "disagree"):
+        existing = session.exec(
+            select(WhatIfAnalysis).where(
+                WhatIfAnalysis.dispute_id == payload.dispute_id,
+                WhatIfAnalysis.user_id == user.id,
+                WhatIfAnalysis.scenario == payload.scenario,
+            )
+        ).first()
+        if existing and existing.status == "done" and not payload.force:
+            return {"id": existing.id, "status": "done"}
+        row = existing or WhatIfAnalysis(dispute_id=payload.dispute_id, user_id=user.id, scenario=payload.scenario)
+        row.title = "If you agree" if payload.scenario == "agree" else "If you disagree"
+        row.question = _SCENARIO_QUESTION[payload.scenario]
+        row.answer = ""
+        row.status = "generating"
+        row.updated_at = _now_dt()
+    else:  # differ
+        custom = (payload.custom_question or "").strip()
+        if not custom:
+            raise HTTPException(status_code=400, detail="Describe the scenario you want to explore.")
+        row = WhatIfAnalysis(
+            dispute_id=payload.dispute_id, user_id=user.id, scenario="differ",
+            title=custom[:200],
+            question=("Analyze the scenario where I propose this DIFFERENT position on the proposed "
+                      f"allocation: \"{custom[:800]}\". Explain what happens next, the likely outcome, "
+                      "the risks and benefits, and how similar past cases resolved."),
+            answer="", status="generating",
+        )
+
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    threading.Thread(
+        target=_run_what_if,
+        args=(row.id, payload.dispute_id, user.id, payload.context, row.question, payload.lang),
+        daemon=True,
+    ).start()
+    return {"id": row.id, "status": "generating"}
+
+
+@router.get("/what-if/list")
+def what_if_list(
+    dispute_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Return this user's stored scenarios for the dispute (agree/disagree + differ history)."""
+    from ..models import WhatIfAnalysis
+    require_access(session, dispute_id, user)
+    rows = session.exec(
+        select(WhatIfAnalysis).where(
+            WhatIfAnalysis.dispute_id == dispute_id,
+            WhatIfAnalysis.user_id == user.id,
+        ).order_by(WhatIfAnalysis.created_at.desc())
+    ).all()
+    agree = next((r for r in rows if r.scenario == "agree"), None)
+    disagree = next((r for r in rows if r.scenario == "disagree"), None)
+    differ = [r for r in rows if r.scenario == "differ"]
+    return {
+        "agree": _what_if_out(agree) if agree else None,
+        "disagree": _what_if_out(disagree) if disagree else None,
+        "differ": [_what_if_out(r) for r in differ],
+    }
+
+
+class WhatIfRegenIn(BaseModel):
+    id: int
+    context: str = Field(default="", max_length=8000)
+    lang: str | None = Field(default=None, max_length=8)
+
+
+@router.post("/what-if/regenerate")
+def what_if_regenerate(
+    payload: WhatIfRegenIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Re-run a stored scenario with the CURRENT parameters and overwrite it."""
+    import threading
+    from ..models import WhatIfAnalysis
+    row = session.get(WhatIfAnalysis, payload.id)
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Not found.")
+    require_access(session, row.dispute_id, user)
+    row.status = "generating"
+    row.answer = ""
+    row.updated_at = _now_dt()
+    session.add(row)
+    session.commit()
+    threading.Thread(
+        target=_run_what_if,
+        args=(row.id, row.dispute_id, user.id, payload.context, row.question, payload.lang),
+        daemon=True,
+    ).start()
+    return {"id": row.id, "status": "generating"}
+
+
+@router.delete("/what-if/{row_id}")
+def what_if_delete(
+    row_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    from ..models import WhatIfAnalysis
+    row = session.get(WhatIfAnalysis, row_id)
+    if not row or row.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Not found.")
+    session.delete(row)
+    session.commit()
+    return {"ok": True}

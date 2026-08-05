@@ -114,6 +114,7 @@ def chat(
     user_message: str,
     history: list[dict[str, str]] | None = None,
     model: str | None = None,
+    max_tokens: int | None = None,
 ) -> str:
     """Send a chat request to OpenRouter and return the assistant's text.
 
@@ -145,7 +146,7 @@ def chat(
             # Low temperature: this is a factual how-to assistant, not creative.
             "temperature": 0.2,
             # Cap output so a long reply can't overrun the tunnel/proxy window.
-            "max_tokens": settings.assistant_max_tokens,
+            "max_tokens": (max_tokens or settings.assistant_max_tokens),
         }
         try:
             with httpx.Client(timeout=settings.openrouter_timeout_seconds) as client:

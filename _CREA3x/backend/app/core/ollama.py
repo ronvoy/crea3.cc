@@ -68,6 +68,7 @@ def chat(
     history: list[dict[str, str]] | None = None,
     model: str | None = None,
     timeout: float | None = None,
+    max_tokens: int | None = None,
 ) -> str:
     """Send a chat request to Ollama and return the assistant's text.
 
@@ -76,6 +77,8 @@ def chat(
     `history` is an optional list of {"role": "user"|"assistant", "content": str}.
     `timeout` overrides settings.ollama_timeout_seconds for this call (used to
     keep quick tasks like intent classification from blowing a proxy timeout).
+    `max_tokens` overrides settings.assistant_max_tokens (background tasks like
+    'What if' want a full-length answer, not the short chat cap).
     """
     chosen = (model or settings.ollama_model).strip()
 
@@ -93,7 +96,7 @@ def chat(
         "stream": False,
         # Low temperature: this is a factual how-to assistant, not creative.
         # num_predict caps the output so a long answer can't overrun a proxy window.
-        "options": {"temperature": 0.2, "num_predict": settings.assistant_max_tokens},
+        "options": {"temperature": 0.2, "num_predict": (max_tokens or settings.assistant_max_tokens)},
     }
 
     try:

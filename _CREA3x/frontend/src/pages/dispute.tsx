@@ -1517,8 +1517,19 @@ function buildWhatIfContext(allocations: any[], money: (n: number) => string): s
   return lines.join('\n')
 }
 
-// "What if …" — streams an AI analysis of each accept/decline/differ scenario,
-// grounded on the dispute data, the allocation/statistics, and masked past cases.
+// "What if …" — agree/disagree are pre-generated in the background and stored per
+// dispute; 'differ' lets the user type a custom scenario. Results are fetched from
+// the DB (polling while generating), so nothing streams live and freezes.
+function WhatIfAnswer({ row, t }: { row: any; t: (k: any) => string }) {
+  if (!row || row.status === 'generating') return <div className="text-slate-500 text-sm">{t('whatIfThinking')}</div>
+  if (row.status === 'error') return <div className="text-rose-700 text-sm">{row.answer || 'Error'}</div>
+  return (
+    <div className="whatif-md space-y-2 leading-relaxed text-sm text-slate-800">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{row.answer || '—'}</ReactMarkdown>
+    </div>
+  )
+}
+
 function WhatIfSection({ disputeId, allocations, money, t, lang }: {
   disputeId: number
   allocations: any[]
@@ -1526,78 +1537,159 @@ function WhatIfSection({ disputeId, allocations, money, t, lang }: {
   t: (k: any) => string
   lang: string
 }) {
-  const [active, setActive] = useState<'agree' | 'disagree' | 'differ' | null>(null)
-  const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [data, setData] = useState<{ agree: any; disagree: any; differ: any[] }>({ agree: null, disagree: null, differ: [] })
+  const [view, setView] = useState<'agree' | 'disagree' | null>(null)
+  const [differText, setDifferText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const context = useMemo(() => buildWhatIfContext(allocations, money), [allocations])
+  const startedRef = React.useRef(false)
 
-  if (!allocations || !allocations.length) return null
-
-  async function run(scenario: 'agree' | 'disagree' | 'differ') {
-    setActive(scenario); setText(''); setErr(null); setBusy(true)
-    let acc = ''
+  async function loadList() {
     try {
-      const token = getAccessToken()
-      const res = await fetch(`${API_BASE}/api/assistant/what-if`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ dispute_id: disputeId, scenario, context, lang }),
-      })
-      if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`)
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const events = buffer.split('\n\n')
-        buffer = events.pop() || ''
-        for (const ev of events) {
-          const dataLine = ev.split('\n').find((l) => l.startsWith('data:'))
-          if (!dataLine) continue
-          let o: any
-          try { o = JSON.parse(dataLine.slice(5).trim()) } catch { continue }
-          if (o.type === 'token') { acc += o.text; setText(acc) }
-          else if (o.type === 'error') { setErr(o.detail) }
-        }
-      }
-      if (!acc && !err) setErr(t('aiWidgetUnavailable'))
-    } catch (e: any) {
-      if (acc) setText(`${acc}\n\n_(interrupted)_`)
-      else setErr(e?.message || 'network error')
-    } finally {
-      setBusy(false)
-    }
+      const d = await api(`/api/assistant/what-if/list?dispute_id=${disputeId}`)
+      setData({ agree: d?.agree ?? null, disagree: d?.disagree ?? null, differ: d?.differ ?? [] })
+      return d
+    } catch { return null }
   }
 
-  const btn = (sc: 'agree' | 'disagree' | 'differ', label: string) => (
-    <Button variant={active === sc ? 'primary' : 'outline'} onClick={() => run(sc)} disabled={busy}>{label}</Button>
-  )
+  async function generate(scenario: 'agree' | 'disagree' | 'differ', custom?: string) {
+    try {
+      await api('/api/assistant/what-if/generate', {
+        method: 'POST',
+        body: { dispute_id: disputeId, scenario, context, custom_question: custom, lang },
+      })
+    } catch (e: any) { setErr(e?.message || 'Could not start the analysis.') }
+  }
+
+  // On first mount: load stored results, and pre-generate agree/disagree if absent.
+  useEffect(() => {
+    if (!allocations?.length || startedRef.current) return
+    startedRef.current = true
+    ;(async () => {
+      const d = await loadList()
+      if (d && !d.agree) await generate('agree')
+      if (d && !d.disagree) await generate('disagree')
+      if (d && (!d.agree || !d.disagree)) loadList()
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disputeId, allocations?.length])
+
+  // Poll while anything is still generating.
+  useEffect(() => {
+    const generating = data.agree?.status === 'generating'
+      || data.disagree?.status === 'generating'
+      || (data.differ || []).some((r: any) => r.status === 'generating')
+    if (!generating) return
+    const id = setInterval(loadList, 3000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
+  async function submitDiffer() {
+    const q = differText.trim()
+    if (!q || submitting) return
+    setSubmitting(true); setErr(null)
+    await generate('differ', q)
+    setDifferText('')
+    await loadList()
+    setSubmitting(false)
+  }
+
+  async function del(id: number) {
+    try { await api(`/api/assistant/what-if/${id}`, { method: 'DELETE' }); loadList() } catch { /* ignore */ }
+  }
+
+  // Re-run a stored scenario with the CURRENT parameters and overwrite it.
+  async function regenerate(id: number) {
+    setErr(null)
+    try { await api('/api/assistant/what-if/regenerate', { method: 'POST', body: { id, context, lang } }); await loadList() }
+    catch (e: any) { setErr(e?.message || 'Could not reevaluate.') }
+  }
+  async function reevaluate(scenario: 'agree' | 'disagree') {
+    const row = scenario === 'agree' ? data.agree : data.disagree
+    if (row?.id) await regenerate(row.id)
+    else { await generate(scenario); await loadList() }
+  }
+
+  if (!allocations || !allocations.length) return null
 
   return (
     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <div className="text-sm font-semibold text-slate-900">{t('whatIfTitle')}</div>
       <div className="text-sm text-slate-600 mt-1">{t('whatIfSubtitle')}</div>
+      {err ? <div className="mt-2 text-sm text-rose-700">{err}</div> : null}
+
+      {/* Pre-generated agree / disagree */}
       <div className="mt-3 flex flex-wrap gap-2">
-        {btn('agree', t('whatIfAgree'))}
-        {btn('disagree', t('whatIfDisagree'))}
-        {btn('differ', t('whatIfDiffer'))}
+        <Button variant={view === 'agree' ? 'primary' : 'outline'} onClick={() => setView('agree')}>
+          {t('whatIfAgree')}{data.agree?.status === 'generating' ? ' …' : ''}
+        </Button>
+        <Button variant={view === 'disagree' ? 'primary' : 'outline'} onClick={() => setView('disagree')}>
+          {t('whatIfDisagree')}{data.disagree?.status === 'generating' ? ' …' : ''}
+        </Button>
       </div>
-      {active ? (
-        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-800">
-          {err ? <div className="text-rose-700">{err}</div> : null}
-          {busy && !text ? <div className="text-slate-500">{t('whatIfThinking')}</div> : null}
-          {text ? (
-            <div className="whatif-md space-y-2 leading-relaxed">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
-            </div>
-          ) : null}
+      {view ? (
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="flex justify-end">
+            <button
+              className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+              onClick={() => reevaluate(view)}
+              disabled={(view === 'agree' ? data.agree : data.disagree)?.status === 'generating'}
+            >
+              ⟳ {t('whatIfReeval')}
+            </button>
+          </div>
+          <WhatIfAnswer row={view === 'agree' ? data.agree : data.disagree} t={t} />
         </div>
       ) : null}
+
+      {/* Differ — custom scenario + history */}
+      <div className="mt-4">
+        <div className="text-sm font-medium text-slate-800">{t('whatIfDiffer')}</div>
+        <div className="text-xs text-slate-500 mt-0.5 mb-2">{t('whatIfDifferHint')}</div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <textarea
+            value={differText}
+            onChange={(e) => setDifferText(e.target.value)}
+            placeholder={t('whatIfDifferPlaceholder')}
+            rows={2}
+            className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+          />
+          <div>
+            <Button onClick={submitDiffer} disabled={submitting || !differText.trim()}>
+              {submitting ? '…' : t('whatIfAnalyze')}
+            </Button>
+          </div>
+        </div>
+
+        {(data.differ || []).length ? (
+          <div className="mt-3 space-y-2">
+            {data.differ.map((row: any) => (
+              <details key={row.id} className="rounded-xl border border-slate-200 bg-white">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-slate-700">
+                  {row.title}{row.status === 'generating' ? ` — ${t('whatIfThinking')}` : ''}
+                </summary>
+                <div className="px-3 pb-3">
+                  <WhatIfAnswer row={row} t={t} />
+                  <div className="mt-2 flex gap-3">
+                    <button
+                      className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                      onClick={() => regenerate(row.id)}
+                      disabled={row.status === 'generating'}
+                    >
+                      ⟳ {t('whatIfReeval')}
+                    </button>
+                    <button className="text-xs text-rose-600 hover:underline" onClick={() => del(row.id)}>
+                      {t('whatIfDelete')}
+                    </button>
+                  </div>
+                </div>
+              </details>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

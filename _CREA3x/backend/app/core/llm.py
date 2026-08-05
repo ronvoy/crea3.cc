@@ -59,6 +59,7 @@ def chat(
     history: list[dict[str, str]] | None = None,
     model: str | None = None,
     openrouter_model: str | None = None,
+    max_tokens: int | None = None,
 ) -> ChatResult:
     """Answer via Ollama, falling back to OpenRouter when Ollama is unavailable.
 
@@ -68,7 +69,7 @@ def chat(
     """
     try:
         text = ollama.chat(
-            system=system, user_message=user_message, history=history, model=model
+            system=system, user_message=user_message, history=history, model=model, max_tokens=max_tokens
         )
         return ChatResult(text=text, model=(model or settings.ollama_model), provider=OLLAMA)
     except ollama.OllamaUnavailable as unavailable:
@@ -90,7 +91,7 @@ def chat(
     # configured model list instead.
     try:
         text = openrouter.chat(
-            system=system, user_message=user_message, history=history, model=openrouter_model
+            system=system, user_message=user_message, history=history, model=openrouter_model, max_tokens=max_tokens
         )
     except openrouter.OpenRouterUnavailable as e:
         logger.warning("OpenRouter fallback unavailable: %s", e)

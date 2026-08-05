@@ -434,3 +434,23 @@ class ChatMessage(SQLModel, table=True):
     audio_out_b64: Optional[str] = Field(default=None)  # base64 TTS audio of a bot answer
     audio_mime: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class WhatIfAnalysis(SQLModel, table=True):
+    """A stored 'What if …' scenario analysis for a dispute (per user).
+
+    agree/disagree are pre-generated once and reused; 'differ' rows are the
+    user's custom scenarios, kept as a history. Generation runs in the
+    background, so `status` moves generating -> done|error.
+    """
+    __tablename__ = "what_if_analysis"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    dispute_id: int = Field(foreign_key="dispute.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    scenario: str = Field(default="agree", index=True)  # agree|disagree|differ
+    title: str = Field(default="")                       # button label or custom scenario text
+    question: str = Field(default="")                    # the prompt sent to the model
+    answer: str = Field(default="")
+    status: str = Field(default="generating", index=True)  # generating|done|error
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow)

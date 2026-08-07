@@ -471,12 +471,7 @@ function WorkflowCarousel() {
       }}
       aria-label="Workflow carousel"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold">{t('landingWorkflowHeading')}</div>
-        <div className="hidden text-xs text-white/60 sm:block">{t('landingWorkflowHint')}</div>
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/10">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10">
         <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${active * 100}%)` }}>
           {slides.map((s, i) => (
             <div key={s.id} className="w-full shrink-0">

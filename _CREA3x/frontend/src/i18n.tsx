@@ -14,6 +14,9 @@ const LS_LANG = 'crea3_lang'
 
 const strings = {
   en: {
+    settingsSupportTitle: 'Support',
+    settingsSupportHelp: 'Use the Help page for procedural guidance.',
+    settingsSupportAssistant: 'In a dispute, the assistant can answer questions and guide you through steps.',
     reconcileOptionalNote: 'This step is optional — a proposal can be generated without completing it.',
     notifyPrefsTitle: 'Email notifications',
     notifyPrefsHint: 'Choose which emails you receive. In-app notifications are unaffected.',
@@ -679,6 +682,9 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    settingsSupportTitle: 'Supporto',
+    settingsSupportHelp: 'Usa la pagina Aiuto per una guida sulle procedure.',
+    settingsSupportAssistant: 'In una controversia, l\'assistente può rispondere alle domande e guidarti nei passaggi.',
     reconcileOptionalNote: 'Questo passaggio è facoltativo — la proposta può essere generata senza completarlo.',
     notifyPrefsTitle: 'Notifiche email',
     notifyPrefsHint: 'Scegli quali email ricevere. Le notifiche in-app non sono interessate.',
@@ -1269,6 +1275,9 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    settingsSupportTitle: 'Podpora',
+    settingsSupportHelp: 'Za pomoč pri postopkih uporabite stran Pomoč.',
+    settingsSupportAssistant: 'V sporu lahko pomočnik odgovori na vprašanja in vas vodi skozi korake.',
     reconcileOptionalNote: 'Ta korak je neobvezen — predlog je mogoče ustvariti brez njega.',
     notifyPrefsTitle: 'E-poštna obvestila',
     notifyPrefsHint: 'Izberite, katera e-poštna sporočila prejemate. Obvestila v aplikaciji niso prizadeta.',
@@ -1859,6 +1868,9 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    settingsSupportTitle: 'Tugi',
+    settingsSupportHelp: 'Protseduuride juhiste jaoks kasutage abilehte.',
+    settingsSupportAssistant: 'Vaidluses saab assistent vastata küsimustele ja juhatada teid sammudes.',
     reconcileOptionalNote: 'See samm on valikuline — ettepaneku saab koostada ka ilma selleta.',
     notifyPrefsTitle: 'E-posti teavitused',
     notifyPrefsHint: 'Valige, milliseid e-kirju saate. Rakendusesisesed teavitused ei muutu.',
@@ -2449,6 +2461,9 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    settingsSupportTitle: 'Assistance',
+    settingsSupportHelp: 'Utilisez la page d\'aide pour des conseils sur les procédures.',
+    settingsSupportAssistant: 'Dans un litige, l\'assistant peut répondre aux questions et vous guider à travers les étapes.',
     reconcileOptionalNote: 'Cette étape est facultative — une proposition peut être générée sans la compléter.',
     notifyPrefsTitle: 'Notifications par e-mail',
     notifyPrefsHint: 'Choisissez les e-mails que vous recevez. Les notifications dans l\'application ne sont pas affectées.',
@@ -3039,6 +3054,9 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    settingsSupportTitle: 'Pagalba',
+    settingsSupportHelp: 'Procedūrų nurodymų ieškokite pagalbos puslapyje.',
+    settingsSupportAssistant: 'Ginče asistentas gali atsakyti į klausimus ir padėti atlikti veiksmus.',
     reconcileOptionalNote: 'Šis žingsnis neprivalomas — pasiūlymą galima sugeneruoti jo neatlikus.',
     notifyPrefsTitle: 'El. pašto pranešimai',
     notifyPrefsHint: 'Pasirinkite, kuriuos el. laiškus gauti. Programėlės pranešimai nepaveikiami.',
@@ -3629,6 +3647,9 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    settingsSupportTitle: 'Podrška',
+    settingsSupportHelp: 'Za upute o postupcima upotrijebite stranicu Pomoć.',
+    settingsSupportAssistant: 'U sporu asistent može odgovoriti na pitanja i voditi vas kroz korake.',
     reconcileOptionalNote: 'Ovaj je korak neobavezan — prijedlog se može generirati bez njega.',
     notifyPrefsTitle: 'E-mail obavijesti',
     notifyPrefsHint: 'Odaberite koje e-mailove primate. Obavijesti u aplikaciji nisu pogođene.',
@@ -4223,6 +4244,9 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    settingsSupportTitle: 'Ondersteuning',
+    settingsSupportHelp: 'Gebruik de Help-pagina voor procedurele begeleiding.',
+    settingsSupportAssistant: 'In een geschil kan de assistent vragen beantwoorden en u door de stappen leiden.',
     navMyDisputes: 'Mijn geschillen',
     navMediators: 'Bemiddelaars',
     navFaqs: 'FAQ',

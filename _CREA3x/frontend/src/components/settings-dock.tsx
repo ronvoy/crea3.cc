@@ -311,14 +311,14 @@ export default function SettingsDock() {
 
             {/* Support */}
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
-              Support
+              {t('settingsSupportTitle')}
             </Typography>
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mt: 1.5 }}>
               <Typography variant="body2" color="text.secondary">
-                • Use the Help page for procedural guidance.
+                • {t('settingsSupportHelp')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                • In a dispute, the assistant can answer questions and guide you through steps.
+                • {t('settingsSupportAssistant')}
               </Typography>
             </Paper>
           </Box>

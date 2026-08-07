@@ -34,15 +34,15 @@ function nextDown(v: 100 | 112 | 125 | 150) {
   return v === 150 ? 125 : v === 125 ? 112 : v === 112 ? 100 : 100
 }
 
-const LANG_OPTIONS: Array<{ code: Lang; label: string }> = [
-  { code: 'en', label: 'English' },
-  { code: 'it', label: 'Italiano' },
-  { code: 'sl', label: 'Slovenščina' },
-  { code: 'et', label: 'Eesti' },
-  { code: 'be', label: 'Belgium (French)' },
-  { code: 'nl', label: 'Belgium (Dutch)' },
-  { code: 'lt', label: 'Lietuvių' },
-  { code: 'hr', label: 'Hrvatski' },
+const LANG_OPTIONS: Array<{ code: Lang; label: string; flag: string }> = [
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+  { code: 'sl', label: 'Slovenščina', flag: '🇸🇮' },
+  { code: 'et', label: 'Eesti', flag: '🇪🇪' },
+  { code: 'be', label: 'Belgium (French)', flag: '🇧🇪' },
+  { code: 'nl', label: 'Belgium (Dutch)', flag: '🇧🇪' },
+  { code: 'lt', label: 'Lietuvių', flag: '🇱🇹' },
+  { code: 'hr', label: 'Hrvatski', flag: '🇭🇷' },
 ]
 
 // Floating "Settings" rail (right edge). The OUTSIDE rail keeps only the settings
@@ -246,6 +246,37 @@ export default function SettingsDock() {
           </Stack>
 
           <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
+            {/* Language (with country flags) — kept at the top */}
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+              {t('language')}
+            </Typography>
+            <FormControl fullWidth size="small" sx={{ mt: 1.5 }}>
+              <InputLabel id="langSelectLabel">{t('language')}</InputLabel>
+              <Select
+                labelId="langSelectLabel"
+                id="langSelect"
+                label={t('language')}
+                value={lang}
+                onChange={(e) => setLang(e.target.value as Lang)}
+                renderValue={(val) => {
+                  const o = LANG_OPTIONS.find((x) => x.code === val)
+                  return o ? `${o.flag}  ${o.label}` : String(val)
+                }}
+              >
+                {LANG_OPTIONS.map((o) => (
+                  <MenuItem key={o.code} value={o.code}>
+                    <Box component="span" sx={{ mr: 1 }}>{o.flag}</Box>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
+              Language can be changed without losing your session.
+            </Typography>
+
+            <Divider sx={{ my: 2.5 }} />
+
             {/* Accessibility */}
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
               {t('accessibility')}
@@ -295,32 +326,6 @@ export default function SettingsDock() {
                 </Box>
               </Paper>
             </Stack>
-
-            <Divider sx={{ my: 2.5 }} />
-
-            {/* Language */}
-            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
-              {t('language')}
-            </Typography>
-            <FormControl fullWidth size="small" sx={{ mt: 1.5 }}>
-              <InputLabel id="langSelectLabel">{t('language')}</InputLabel>
-              <Select
-                labelId="langSelectLabel"
-                id="langSelect"
-                label={t('language')}
-                value={lang}
-                onChange={(e) => setLang(e.target.value as Lang)}
-              >
-                {LANG_OPTIONS.map((o) => (
-                  <MenuItem key={o.code} value={o.code}>
-                    {o.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
-              Language can be changed without losing your session.
-            </Typography>
 
             <Divider sx={{ my: 2.5 }} />
 

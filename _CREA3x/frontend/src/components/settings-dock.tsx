@@ -207,13 +207,45 @@ export default function SettingsDock() {
             sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}
           >
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
-              Accessibility
+              {t('accessibility')}
             </Typography>
             <IconButton aria-label={t('close')} onClick={() => setA11yOpen(false)}>
               <CloseIcon />
             </IconButton>
           </Stack>
-          <Box sx={{ p: 2, overflow: 'auto', flex: 1 }} />
+          <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
+            {/* Font size — moved here from the settings panel */}
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography sx={{ fontWeight: 600 }}>{t('fontSize')}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Stored on this device
+                  </Typography>
+                </Box>
+              </Stack>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
+                <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>
+                  <TextDecreaseOutlinedIcon />
+                </IconButton>
+                <Typography sx={{ flex: 1, textAlign: 'center' }}>{fontScale}%</Typography>
+                <IconButton aria-label={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>
+                  <TextIncreaseOutlinedIcon />
+                </IconButton>
+              </Stack>
+              <Box sx={{ textAlign: 'right', mt: 1 }}>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    reset()
+                    announce('Settings reset')
+                  }}
+                >
+                  {t('reset')}
+                </Button>
+              </Box>
+            </Paper>
+          </Box>
         </Box>
       </Drawer>
 
@@ -274,58 +306,6 @@ export default function SettingsDock() {
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
               Language can be changed without losing your session.
             </Typography>
-
-            <Divider sx={{ my: 2.5 }} />
-
-            {/* Accessibility */}
-            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
-              {t('accessibility')}
-            </Typography>
-            <Stack spacing={1.5} sx={{ mt: 1 }}>
-              <ToggleRow
-                title="Light mode"
-                desc="White background"
-                checked={lightMode}
-                onChange={() => setLightMode(!lightMode)}
-              />
-              <ToggleRow
-                title={t('reduceMotion')}
-                desc="Disables animated backgrounds"
-                checked={reduceMotion}
-                onChange={() => setReduceMotion(!reduceMotion)}
-              />
-
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography sx={{ fontWeight: 600 }}>{t('fontSize')}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Stored on this device
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
-                  <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>
-                    <TextDecreaseOutlinedIcon />
-                  </IconButton>
-                  <Typography sx={{ flex: 1, textAlign: 'center' }}>{fontScale}%</Typography>
-                  <IconButton aria-label={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>
-                    <TextIncreaseOutlinedIcon />
-                  </IconButton>
-                </Stack>
-                <Box sx={{ textAlign: 'right', mt: 1 }}>
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      reset()
-                      announce('Settings reset')
-                    }}
-                  >
-                    {t('reset')}
-                  </Button>
-                </Box>
-              </Paper>
-            </Stack>
 
             <Divider sx={{ my: 2.5 }} />
 

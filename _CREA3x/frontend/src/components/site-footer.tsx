@@ -4,14 +4,10 @@ import { useI18n } from '../i18n'
 
 const website = import.meta.env.VITE_PROJECT_WEBSITE || ''
 
-// Two project contacts (overridable via .env; sensible sample defaults otherwise).
+// Project coordinator contact (overridable via .env).
 const contact1 = {
-  name: import.meta.env.VITE_PROJECT_CONTACT1_NAME || 'Dr. Elena Conti',
-  email: import.meta.env.VITE_PROJECT_CONTACT1_EMAIL || 'elena.conti@crea3.eu',
-}
-const contact2 = {
-  name: import.meta.env.VITE_PROJECT_CONTACT2_NAME || 'Dr. Marco De Luca',
-  email: import.meta.env.VITE_PROJECT_CONTACT2_EMAIL || 'marco.deluca@crea3.eu',
+  name: import.meta.env.VITE_PROJECT_CONTACT1_NAME || 'Alberto Moccardi',
+  email: import.meta.env.VITE_PROJECT_CONTACT1_EMAIL || 'alberto@crea3.cc',
 }
 
 function Contact({ name, email, role }: { name: string; email: string; role: string }) {
@@ -38,7 +34,6 @@ export default function SiteFooter({ compact = false }: { compact?: boolean }) {
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('footerProjectContact')}</Typography>
               <Contact name={contact1.name} email={contact1.email} role={t('footerCoordinatorRole')} />
-              <Contact name={contact2.name} email={contact2.email} role={t('footerTechRole')} />
               {website ? (
                 <Typography variant="body2" sx={{ mt: 1.5 }}>
                   <MuiLink href={website} target="_blank" rel="noreferrer" underline="hover" color="text.secondary">

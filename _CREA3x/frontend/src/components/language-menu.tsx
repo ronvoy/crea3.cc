@@ -28,7 +28,8 @@ export default function LanguageMenu() {
     { code: 'it', label: 'Italiano' },
     { code: 'sl', label: 'Slovenščina' },
     { code: 'et', label: 'Eesti' },
-    { code: 'be', label: 'Français (Belgique)' },
+    { code: 'be', label: 'Belgium (French)' },
+    { code: 'nl', label: 'Belgium (Dutch)' },
     { code: 'lt', label: 'Lietuvių' },
     { code: 'hr', label: 'Hrvatski' },
   ]

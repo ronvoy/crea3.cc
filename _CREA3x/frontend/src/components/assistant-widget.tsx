@@ -37,11 +37,11 @@ const WELCOME_KEY = 'aiWelcome' as const
 
 // UI language code → BCP-47 tag for browser SpeechRecognition / STT hint.
 const SPEECH_LANG: Record<string, string> = {
-  en: 'en-US', it: 'it-IT', sl: 'sl-SI', et: 'et-EE', be: 'fr-BE', lt: 'lt-LT', hr: 'hr-HR',
+  en: 'en-US', it: 'it-IT', sl: 'sl-SI', et: 'et-EE', be: 'fr-BE', nl: 'nl-BE', lt: 'lt-LT', hr: 'hr-HR',
 }
 // UI language code → ISO-639-1 for server Whisper (`be` is French-Belgium → fr).
 const STT_LANG: Record<string, string> = {
-  en: 'en', it: 'it', sl: 'sl', et: 'et', be: 'fr', lt: 'lt', hr: 'hr',
+  en: 'en', it: 'it', sl: 'sl', et: 'et', be: 'fr', nl: 'nl', lt: 'lt', hr: 'hr',
 }
 
 function blobToBase64(blob: Blob): Promise<string> {

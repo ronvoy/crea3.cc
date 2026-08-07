@@ -2,7 +2,7 @@ import React, { createContext, useContext, useMemo, useState } from 'react'
 
 // Supported UI languages (minimal strings used across navigation, settings and chat).
 // NOTE: "be" represents French (Belgium) in this app.
-export type Lang = 'en' | 'it' | 'sl' | 'et' | 'be' | 'lt' | 'hr'
+export type Lang = 'en' | 'it' | 'sl' | 'et' | 'be' | 'lt' | 'hr' | 'nl'
 
 type I18nState = {
   lang: Lang
@@ -4218,6 +4218,90 @@ const strings = {
     reconcileWaitingAll: 'En attente que toutes les parties répondent à chaque élément.',
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
+
+  // Belgium (Dutch). Core surfaces translated; any missing key falls back to
+  // English automatically (see the t() accessor). Expanded further in the
+  // full i18n coverage pass.
+  nl: {
+    navMyDisputes: 'Mijn geschillen',
+    navMediators: 'Bemiddelaars',
+    navFaqs: 'FAQ',
+    navScope: 'Projectomvang',
+    navPartners: 'Partners',
+    navAccount: 'Account',
+    navOtherResources: 'Andere bronnen',
+    navLegalAi: 'Juridische AI-assistent',
+    send: 'Verzenden',
+    refresh: 'Vernieuwen',
+    refreshing: 'Vernieuwen…',
+    close: 'Sluiten',
+    reset: 'Herstellen',
+    settings: 'Instellingen',
+    language: 'Taal',
+    accessibility: 'Toegankelijkheid',
+    reduceMotion: 'Beweging verminderen',
+    fontSize: 'Tekengrootte',
+    openSettings: 'Instellingen openen',
+    decreaseFont: 'Tekst verkleinen',
+    increaseFont: 'Tekst vergroten',
+    dashboardTitle: 'Mijn geschillen',
+    dashboardSubtitle: 'Beheer uw geschillen en start een nieuwe zaak.',
+    dashboardCreatePlaceholder: 'Titel van het geschil',
+    dashboardManageCardTitle: 'Bestaande geschillen beheren',
+    dashboardManageCardSubtitle: 'Bekijk, hervat of archiveer uw geschillen.',
+    dashboardManageExisting: 'Bestaande beheren',
+    footerProjectContact: 'Projectcontact',
+    footerCoordinatorRole: 'Projectcoördinator',
+    footerTechRole: 'Technisch contact',
+    footerPartners: 'Partners',
+    footerPartnersNote: 'Consortium van universiteiten en organisaties',
+    footerRights: 'CREA3 — Alle rechten voorbehouden.',
+    landingKicker: 'EU-platform voor geschillenbeslechting',
+    landingHeroTitle: 'Los civiele geschillen eerlijk en transparant op',
+    landingHeroBody: 'CREA3 helpt families en partijen om bezittingen te verdelen via een gestructureerde, transparante onderhandeling.',
+    landingHeroLead: 'Een door de EU medegefinancierd platform voor bemiddeling en eerlijke verdeling in zes rechtsgebieden.',
+    landingCtaCreateAccount: 'Account aanmaken',
+    landingCtaGoHome: 'Naar het platform',
+    landingSignIn: 'Aanmelden',
+    landingHowItWorks: 'Hoe het werkt',
+    landingNavWorkflow: 'Werkstroom',
+    landingNavPartners: 'Partners',
+    landingNavScope: 'Omvang',
+    landingNavHelp: 'Hulp',
+    landingBadgeEu: 'Door de EU medegefinancierd',
+    landingBadgeOpenSource: 'Opensource',
+    landingBadgeLangs: 'Meertalig',
+    landingFeaturesKicker: 'Mogelijkheden',
+    landingFeaturesTitle: 'Alles wat u nodig hebt om een geschil op te lossen',
+    landingFeaturesBody: 'Van het uitnodigen van partijen tot het definitieve rapport — beheerd op één plek.',
+    landingPartnersKicker: 'Partners',
+    landingPartnersTitle: 'Een Europees consortium',
+    landingPartnersBody: 'Universiteiten en organisaties die samenwerken aan eerlijke geschillenbeslechting.',
+    landingSeeAllPartners: 'Alle partners bekijken',
+    landingReadyTitle: 'Klaar om te beginnen?',
+    landingReadyBody: 'Maak een account aan en start uw eerste geschil.',
+    landingStatUsers: 'Gebruikers',
+    landingStatDisputes: 'Geschillen',
+    landingStatVisits: 'Bezoeken',
+    landingStatPartners: 'Partners',
+    landingValParties: 'Voor partijen',
+    landingValPartiesBody: 'Dien voorkeuren in en bekijk eerlijke voorstellen.',
+    landingValMediators: 'Voor bemiddelaars',
+    landingValMediatorsBody: 'Begeleid partijen naar een akkoord.',
+    landingValGovernance: 'Governance',
+    landingValGovernanceBody: 'Transparant, controleerbaar en AVG-conform.',
+    aiWidgetTitle: 'AI-assistent',
+    aiWidgetOpen: 'AI-assistent',
+    aiWelcome: 'Hallo! Stel me een vraag over het CREA3-platform, uw geschil, vergelijkbare zaken of de wet — ik bepaal automatisch waar uw vraag over gaat.',
+    aiWidgetPlaceholder: 'Typ uw vraag…',
+    aiWidgetSend: 'Verzenden',
+    aiWidgetClose: 'Assistent sluiten',
+    valuationDetailsTitle: 'Waarderingsdetails',
+    whatIfTitle: 'Wat als …',
+    whatIfAgree: 'Als u akkoord gaat',
+    whatIfDisagree: 'Als u niet akkoord gaat',
+    whatIfDiffer: 'Als u afwijkt',
+  },
 } as const
 
 export type I18nKey = keyof typeof strings['en']
@@ -4227,7 +4311,7 @@ const Ctx = createContext<I18nState | null>(null)
 function detectDefault(): Lang {
   try {
     const saved = localStorage.getItem(LS_LANG) as Lang | null
-    if (saved === 'en' || saved === 'it' || saved === 'sl' || saved === 'et' || saved === 'be' || saved === 'lt' || saved === 'hr') return saved
+    if (saved === 'en' || saved === 'it' || saved === 'sl' || saved === 'et' || saved === 'be' || saved === 'lt' || saved === 'hr' || saved === 'nl') return saved
   } catch {}
   try {
     const n = navigator.language?.toLowerCase() || ''
@@ -4236,8 +4320,8 @@ function detectDefault(): Lang {
     if (n.startsWith('et')) return 'et'
     if (n.startsWith('lt')) return 'lt'
     if (n.startsWith('hr')) return 'hr'
-    // Belgium (French/Dutch) – fallback
-    if (n.startsWith('fr') || n.startsWith('nl')) return 'be'
+    if (n.startsWith('nl')) return 'nl'   // Belgium (Dutch)
+    if (n.startsWith('fr')) return 'be'   // Belgium (French)
   } catch {}
   return 'en'
 }
@@ -4258,6 +4342,8 @@ function toHtmlLang(l: Lang) {
       return 'hr'
     case 'be':
       return 'fr-BE'
+    case 'nl':
+      return 'nl-BE'
     default:
       return 'en'
   }

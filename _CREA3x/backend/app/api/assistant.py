@@ -112,6 +112,7 @@ _LANG_NAMES = {
     "sl": "Slovenian",
     "et": "Estonian",
     "be": "French (Belgium)",
+    "nl": "Dutch (Belgium)",
     "lt": "Lithuanian",
     "hr": "Croatian",
 }

@@ -161,8 +161,8 @@ export default function SettingsDock() {
           onPointerUp={onDragEnd}
           onPointerCancel={onDragEnd}
           role="separator"
-          aria-label="Drag to move"
-          title="Drag to move"
+          aria-label={t('dockDrag')}
+          title={t('dockDrag')}
           sx={{
             display: 'flex', justifyContent: 'center', alignItems: 'center',
             cursor: 'grab', '&:active': { cursor: 'grabbing' },
@@ -171,8 +171,8 @@ export default function SettingsDock() {
         >
           <DragIndicatorIcon fontSize="small" />
         </Box>
-        <Tooltip title="Accessibility" placement="left">
-          <IconButton aria-label="Open accessibility panel" onClick={() => setA11yOpen(true)}>
+        <Tooltip title={t('accessibility')} placement="left">
+          <IconButton aria-label={t('dockOpenA11y')} onClick={() => setA11yOpen(true)}>
             <AccessibilityNewOutlinedIcon />
           </IconButton>
         </Tooltip>
@@ -220,7 +220,7 @@ export default function SettingsDock() {
                 <Box>
                   <Typography sx={{ fontWeight: 600 }}>{t('fontSize')}</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Stored on this device
+                    {t('dockStoredNote')}
                   </Typography>
                 </Box>
               </Stack>
@@ -238,7 +238,7 @@ export default function SettingsDock() {
                   size="small"
                   onClick={() => {
                     reset()
-                    announce('Settings reset')
+                    announce(t('dockSettingsReset'))
                   }}
                 >
                   {t('reset')}
@@ -304,7 +304,7 @@ export default function SettingsDock() {
               </Select>
             </FormControl>
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
-              Language can be changed without losing your session.
+              {t('dockLangNote')}
             </Typography>
 
             <Divider sx={{ my: 2.5 }} />

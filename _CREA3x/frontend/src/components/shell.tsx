@@ -118,7 +118,7 @@ export default function Shell() {
       </AppBar>
 
       {/* ── Navigation drawer (permanent on desktop, temporary on mobile) ────── */}
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }} aria-label="Navigation">
+      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }} aria-label={t('ariaNav')}>
         <Drawer
           variant={isDesktop ? 'permanent' : 'temporary'}
           open={isDesktop ? true : mobileOpen}

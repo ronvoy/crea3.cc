@@ -144,9 +144,9 @@ export default function Dashboard() {
         />
         <Box sx={{ p: 2.5 }}>
           <Stack spacing={1.25} sx={{ width: '100%' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Create New Dispute</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('dashboardCreateTitle')}</Typography>
             <Typography variant="caption" color="text.secondary">
-              Only dispute owners/admins generate proposals and finalize reports.
+              {t('dashboardCreateHint')}
             </Typography>
             {err ? <Alert severity="error" sx={{ borderRadius: 2 }}>{err}</Alert> : null}
             <Stack
@@ -165,7 +165,7 @@ export default function Dashboard() {
               />
               <Stack direction="row" spacing={1} alignItems="center">
                 <Button variant="contained" startIcon={<AddIcon />} onClick={create} disabled={!title.trim()}>
-                  Create
+                  {t('dashboardCreateBtn')}
                 </Button>
                 <HelpTip text={t('helpCreateDispute')} />
               </Stack>
@@ -178,8 +178,8 @@ export default function Dashboard() {
       {hasInvites ? (
         <Card>
           <CardHeader
-            title="Inviti in attesa"
-            subtitle="Accetta o rifiuta le dispute a cui sei stato invitato (puoi lasciare un commento)."
+            title={t('dashInviteTitle')}
+            subtitle={t('dashInviteSubtitle')}
           />
           <Stack spacing={1.5} sx={{ p: 2.5 }}>
             {invites.map(inv => (
@@ -195,13 +195,13 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1}>
-                    <Button variant="contained" onClick={() => respondInvite(inv.dispute_id, true)}>Accetta</Button>
-                    <Button variant="text" color="inherit" onClick={() => respondInvite(inv.dispute_id, false)}>Rifiuta</Button>
+                    <Button variant="contained" onClick={() => respondInvite(inv.dispute_id, true)}>{t('dashInviteAccept')}</Button>
+                    <Button variant="text" color="inherit" onClick={() => respondInvite(inv.dispute_id, false)}>{t('dashInviteDecline')}</Button>
                   </Stack>
                 </Stack>
                 <Box sx={{ mt: 1.5 }}>
                   <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
-                    Commento (opzionale)
+                    {t('dashCommentLabel')}
                   </Typography>
                   <TextField
                     multiline
@@ -210,7 +210,7 @@ export default function Dashboard() {
                     size="small"
                     value={inviteComments[inv.dispute_id] || ''}
                     onChange={(e) => setInviteComments(prev => ({ ...prev, [inv.dispute_id]: e.target.value }))}
-                    placeholder="Scrivi un commento per la controparte…"
+                    placeholder={t('dashCommentPlaceholder')}
                   />
                 </Box>
               </Paper>
@@ -246,7 +246,7 @@ export default function Dashboard() {
           ) : null}
 
           {items.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">No disputes yet.</Typography>
+            <Typography variant="body2" color="text.secondary">{t('dashNoDisputes')}</Typography>
           ) : filtered.length === 0 ? (
             <Typography variant="body2" color="text.secondary">{t('noMatchingDisputes')}</Typography>
           ) : (

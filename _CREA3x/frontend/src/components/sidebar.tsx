@@ -32,6 +32,7 @@ import { getRecentDisputes, removeRecentDispute, clearRecentDisputes } from '../
 import DisputeStatusBadge from './dispute-status-badge'
 
 function Logo() {
+  const { t } = useI18n()
   return (
     <Stack direction="row" spacing={1.5} alignItems="center">
       <Box
@@ -43,7 +44,7 @@ function Logo() {
       />
       <Box>
         <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>CREA3</Typography>
-        <Typography variant="caption" color="text.secondary">Dispute resolution platform</Typography>
+        <Typography variant="caption" color="text.secondary">{t('sbTagline')}</Typography>
       </Box>
     </Stack>
   )
@@ -105,17 +106,17 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
       {/* Quick actions */}
       <Box sx={{ px: 1 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Quick actions</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('sbQuickActions')}</Typography>
           <Button size="small" startIcon={<SettingsOutlinedIcon />} onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}>
-            Settings
+            {t('sbSettings')}
           </Button>
         </Stack>
         <Stack spacing={1}>
           <Button variant="outlined" color="inherit" size="small" startIcon={<AddOutlinedIcon />} sx={{ justifyContent: 'flex-start' }} onClick={() => go('/app')}>
-            Create / open a dispute
+            {t('sbCreateOpen')}
           </Button>
           <Button variant="outlined" color="inherit" size="small" startIcon={<HelpOutlineOutlinedIcon />} sx={{ justifyContent: 'flex-start' }} onClick={() => go('/app/faq')}>
-            Help &amp; procedural guidance
+            {t('sbHelp')}
           </Button>
         </Stack>
       </Box>
@@ -195,7 +196,7 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
       <Box sx={{ flexGrow: 1 }} />
       <Divider sx={{ my: 1.5 }} />
       <Box sx={{ px: 1 }}>
-        <Typography variant="caption" color="text.secondary">Signed in as</Typography>
+        <Typography variant="caption" color="text.secondary">{t('sbSignedInAs')}</Typography>
         <Typography sx={{ fontWeight: 600 }}>{user?.username}</Typography>
         <Typography variant="caption" color="text.secondary" component="div">{user?.email}</Typography>
         <Chip label={user?.role ?? 'user'} size="small" variant="outlined" sx={{ mt: 1 }} />
@@ -207,7 +208,7 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
           sx={{ mt: 2, justifyContent: 'flex-start' }}
           onClick={() => { logout(); nav('/') }}
         >
-          Logout
+          {t('sbLogout')}
         </Button>
       </Box>
     </Box>

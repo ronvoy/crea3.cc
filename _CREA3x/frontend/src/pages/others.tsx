@@ -23,45 +23,6 @@ const ICONS = {
   ext: 'M14 4h6v6M20 4l-9 9M19 13v6a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h6',
 }
 
-const COPY: Record<'en' | 'it', { intro: string; onPlatform: string; references: string; refsIntro: string; internal: Res[]; external: Res[] }> = {
-  en: {
-    intro: 'Shortcuts to the rest of the platform and to trusted European references.',
-    onPlatform: 'On this platform',
-    references: 'European references',
-    refsIntro: 'External, authoritative sources on EU justice and consumer rights. They open in a new tab.',
-    internal: [
-      { to: '/app/scope', title: 'Project scope', body: 'What CREA3 is, its objectives, and how it builds on the earlier CREA platform.', icon: Icon(ICONS.scope) },
-      { to: '/app/partners', title: 'Partners', body: 'The consortium of universities and organisations behind the platform, shown on a map.', icon: Icon(ICONS.partners) },
-      { to: '/app/mediators', title: 'Mediators', body: 'Find and invite a mediator, and coordinate a conference.', icon: Icon(ICONS.mediators) },
-      { to: '/app/faq', title: 'FAQs', body: 'Quick answers about accounts, running a dispute, and the assistant.', icon: Icon(ICONS.faq) },
-      { to: '/app/account', title: 'Account & privacy', body: 'Manage your email, password, notification preferences, and data.', icon: Icon(ICONS.account) },
-    ],
-    external: [
-      { href: 'https://e-justice.europa.eu', title: 'European e-Justice Portal', body: 'The EU’s one-stop point for justice information and procedures across Member States.', icon: Icon(ICONS.ext) },
-      { href: 'https://eur-lex.europa.eu', title: 'EUR-Lex', body: 'Official access to European Union law, treaties, and case-law.', icon: Icon(ICONS.ext) },
-      { href: 'https://europa.eu/youreurope', title: 'Your Europe', body: 'Practical guidance on citizens’ and businesses’ rights across the EU.', icon: Icon(ICONS.ext) },
-    ],
-  },
-  it: {
-    intro: 'Scorciatoie verso il resto della piattaforma e verso riferimenti europei affidabili.',
-    onPlatform: 'Sulla piattaforma',
-    references: 'Riferimenti europei',
-    refsIntro: 'Fonti esterne e autorevoli su giustizia e diritti dei consumatori dell’UE. Si aprono in una nuova scheda.',
-    internal: [
-      { to: '/app/scope', title: 'Ambito del progetto', body: 'Cos’è CREA3, i suoi obiettivi e come si basa sulla precedente piattaforma CREA.', icon: Icon(ICONS.scope) },
-      { to: '/app/partners', title: 'Partner', body: 'Il consorzio di università e organizzazioni dietro la piattaforma, su una mappa.', icon: Icon(ICONS.partners) },
-      { to: '/app/mediators', title: 'Mediatori', body: 'Trova e invita un mediatore e coordina una conferenza.', icon: Icon(ICONS.mediators) },
-      { to: '/app/faq', title: 'Domande frequenti', body: 'Risposte rapide su account, gestione di una controversia e assistente.', icon: Icon(ICONS.faq) },
-      { to: '/app/account', title: 'Account e privacy', body: 'Gestisci email, password, preferenze di notifica e i tuoi dati.', icon: Icon(ICONS.account) },
-    ],
-    external: [
-      { href: 'https://e-justice.europa.eu', title: 'Portale europeo della giustizia elettronica', body: 'Il punto unico dell’UE per informazioni e procedure di giustizia tra gli Stati membri.', icon: Icon(ICONS.ext) },
-      { href: 'https://eur-lex.europa.eu', title: 'EUR-Lex', body: 'Accesso ufficiale al diritto dell’Unione europea, trattati e giurisprudenza.', icon: Icon(ICONS.ext) },
-      { href: 'https://europa.eu/youreurope', title: 'La tua Europa', body: 'Indicazioni pratiche sui diritti di cittadini e imprese nell’UE.', icon: Icon(ICONS.ext) },
-    ],
-  },
-}
-
 function ResourceTile({ r }: { r: Res }) {
   const inner = (
     <div className="group flex h-full gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
@@ -84,13 +45,30 @@ function ResourceTile({ r }: { r: Res }) {
 }
 
 export default function Others() {
-  const { lang } = useI18n()
-  const c = COPY[lang === 'it' ? 'it' : 'en']
+  const { t } = useI18n()
+  const c = {
+    intro: t('othersIntro'),
+    onPlatform: t('othersOnPlatform'),
+    references: t('othersReferences'),
+    refsIntro: t('othersRefsIntro'),
+    internal: [
+      { to: '/app/scope', title: t('othersInt1Title'), body: t('othersInt1Body'), icon: Icon(ICONS.scope) },
+      { to: '/app/partners', title: t('othersInt2Title'), body: t('othersInt2Body'), icon: Icon(ICONS.partners) },
+      { to: '/app/mediators', title: t('othersInt3Title'), body: t('othersInt3Body'), icon: Icon(ICONS.mediators) },
+      { to: '/app/faq', title: t('othersInt4Title'), body: t('othersInt4Body'), icon: Icon(ICONS.faq) },
+      { to: '/app/account', title: t('othersInt5Title'), body: t('othersInt5Body'), icon: Icon(ICONS.account) },
+    ] as Res[],
+    external: [
+      { href: 'https://e-justice.europa.eu', title: t('othersExt1Title'), body: t('othersExt1Body'), icon: Icon(ICONS.ext) },
+      { href: 'https://eur-lex.europa.eu', title: t('othersExt2Title'), body: t('othersExt2Body'), icon: Icon(ICONS.ext) },
+      { href: 'https://europa.eu/youreurope', title: t('othersExt3Title'), body: t('othersExt3Body'), icon: Icon(ICONS.ext) },
+    ] as Res[],
+  }
 
   return (
     <div className="grid gap-4">
       <Card>
-        <CardHeader title={lang === 'it' ? 'Altre risorse' : 'Other resources'} subtitle={c.intro} />
+        <CardHeader title={t('othersTitle')} subtitle={c.intro} />
         <div className="p-5">
           <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">{c.onPlatform}</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -109,8 +87,8 @@ export default function Others() {
               <ResourceTile
                 r={{
                   href: projectWebsite,
-                  title: lang === 'it' ? 'Sito del progetto' : 'Project website',
-                  body: lang === 'it' ? 'Pagina ufficiale del progetto CREA3.' : 'The official CREA3 project page.',
+                  title: t('othersWebsiteTitle'),
+                  body: t('othersWebsiteBody'),
                   icon: Icon(ICONS.ext),
                 }}
               />

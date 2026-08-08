@@ -802,9 +802,9 @@ export default function DisputeDetail() {
           {/* Invite box (agents only). Mediator invited still sees only proposals. */}
           {!isMediator && meParticipation && (normalizeStatus(meParticipation.invite_status) === 'invited' || normalizeStatus(meParticipation.invite_status) === 'pending') ? (
             <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <div className="font-semibold text-amber-900">You have been invited to this dispute</div>
+              <div className="font-semibold text-amber-900">{t('dispInviteTitle')}</div>
               <div className="text-sm text-amber-800 mt-1">
-                Accept to access drafts and submit preferences. Decline to remove access.
+                {t('dispInviteBody')}
               </div>
               <div className="mt-3 flex gap-2 flex-wrap">
                 <Button onClick={() => respondInvite(true)}>Accept</Button>
@@ -819,10 +819,10 @@ export default function DisputeDetail() {
           <div className="mt-4 flex flex-wrap gap-2">
             <SummaryCard title={t('overviewStatus')} value={dispute?.status || '—'} />
             <SummaryCard title={t('overviewMethod')} value={methodLabel} />
-            <SummaryCard title="Goods" value={`${goods.length} goods`} />
-            <SummaryCard title="Preferences" value={`${readyCount} ready`} />
-            <SummaryCard title="Proposals" value={proposals.length > 0 ? 'available' : 'not yet'} />
-            <SummaryCard title="Participants" value={`${joinedCount} joined · ${pendingCount} pending · ${declinedCount} declined`} />
+            <SummaryCard title={t('tabGoods')} value={`${goods.length} goods`} />
+            <SummaryCard title={t('tabPreferences')} value={`${readyCount} ready`} />
+            <SummaryCard title={t('tabProposals')} value={proposals.length > 0 ? 'available' : 'not yet'} />
+            <SummaryCard title={t('summaryParticipants')} value={`${joinedCount} joined · ${pendingCount} pending · ${declinedCount} declined`} />
           </div>
 
           {/* Closed banner (abandon control moved to the header, top-right) */}
@@ -909,7 +909,7 @@ export default function DisputeDetail() {
                 ) : null}
 
                 {isMediator ? (
-                  <div className="mt-3 text-sm text-rose-700">Not authorized.</div>
+                  <div className="mt-3 text-sm text-rose-700">{t('dispNotAuthorized')}</div>
                 ) : (
                   <div className="mt-4 grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -972,7 +972,7 @@ export default function DisputeDetail() {
                             onRemove={() => removeFromDashboard(a.id)}
                           />
                         ))}
-                        {agents.length === 0 ? <div className="text-sm text-slate-600">No agents yet.</div> : null}
+                        {agents.length === 0 ? <div className="text-sm text-slate-600">{t('dispNoAgents')}</div> : null}
                       </div>
                     </div>
                   </div>
@@ -988,7 +988,7 @@ export default function DisputeDetail() {
                 <div className="text-sm text-slate-600 mt-1">{t('goodsTabSubtitle')}</div>
 
                 {isMediator ? (
-                  <div className="mt-3 text-sm text-rose-700">Not authorized.</div>
+                  <div className="mt-3 text-sm text-rose-700">{t('dispNotAuthorized')}</div>
                 ) : (
                   <div className="mt-4 space-y-5">
                     {/* Add a new good (hidden once this party has locked) */}
@@ -1141,7 +1141,7 @@ export default function DisputeDetail() {
                 <div className="text-sm text-slate-600 mt-1">{t('prefsTabSubtitle')}</div>
 
                 {isMediator ? (
-                  <div className="mt-3 text-sm text-rose-700">Not authorized.</div>
+                  <div className="mt-3 text-sm text-rose-700">{t('dispNotAuthorized')}</div>
                 ) : !lockStatus.all_locked ? (
                   <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                     {(lockStatus.pending_count ?? 0) > 0
@@ -1205,9 +1205,9 @@ export default function DisputeDetail() {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div>
-                    <div className="text-base font-semibold text-slate-900">Allocation Proposals</div>
+                    <div className="text-base font-semibold text-slate-900">{t('dispAllocProposalsTitle')}</div>
                     <div className="text-sm text-slate-600 mt-1">
-                      Mediators can view proposals only. Agents can accept or reject.
+                      {t('dispMediatorViewNote')}
                     </div>
                   </div>
 
@@ -1236,12 +1236,12 @@ export default function DisputeDetail() {
                 </div>
 
                 {isMediator ? (
-                  <div className="mt-2 text-xs text-slate-600">Mediator mode: read-only proposals.</div>
+                  <div className="mt-2 text-xs text-slate-600">{t('dispMediatorReadonly')}</div>
                 ) : null}
 
                 {stepStatus('proposals') === 'blocked' && !isMediator ? (
                   <div className="mt-3 text-sm text-rose-700">
-                    Proposal is blocked: ensure goods exist and at least 2 agents completed ratings.
+                    {t('dispProposalBlocked')}
                   </div>
                 ) : null}
 
@@ -1316,7 +1316,7 @@ export default function DisputeDetail() {
 
                   {dispute?.status === 'accepted' ? (
                     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-                      All agents accepted the latest proposal. You can now generate the final report.
+                      {t('dispAllAccepted')}
                     </div>
                   ) : null}
                 </div>
@@ -1327,10 +1327,10 @@ export default function DisputeDetail() {
             {tab === 'mediation' ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-base font-semibold text-slate-900">Mediation</div>
-                <div className="text-sm text-slate-600 mt-1">Plan a conference time slot (optional workflow).</div>
+                <div className="text-sm text-slate-600 mt-1">{t('dispPlanConfHint')}</div>
 
                 {stepStatus('mediation') === 'blocked' ? (
-                  <div className="mt-3 text-sm text-rose-700">Not authorized (or proposal not available yet).</div>
+                  <div className="mt-3 text-sm text-rose-700">{t('dispNotAuthProposal')}</div>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <div className="text-sm text-slate-700">
@@ -1345,30 +1345,30 @@ export default function DisputeDetail() {
             {/* ROOM */}
             {tab === 'room' ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-base font-semibold text-slate-900">Dispute Room</div>
-                <div className="text-sm text-slate-600 mt-1">Open video now or plan a conference date.</div>
+                <div className="text-base font-semibold text-slate-900">{t('dispRoomTitle')}</div>
+                <div className="text-sm text-slate-600 mt-1">{t('dispRoomSubtitle')}</div>
 
                 {stepStatus('room') === 'blocked' ? (
-                  <div className="mt-3 text-sm text-rose-700">Not authorized. Accept the invite first (or you are a mediator).</div>
+                  <div className="mt-3 text-sm text-rose-700">{t('dispNotAuthRoom')}</div>
                 ) : (
                   <div className="mt-4 grid md:grid-cols-2 gap-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="font-semibold">Video conference now</div>
-                      <div className="text-sm text-slate-600 mt-1">Open the Jitsi room immediately.</div>
+                      <div className="font-semibold">{t('dispVideoNow')}</div>
+                      <div className="text-sm text-slate-600 mt-1">{t('dispVideoNowSub')}</div>
                       <Button
                         className="mt-3"
                         onClick={() =>
                           window.open(`https://meet.jit.si/CREA3-Dispute-${disputeId}#config.prejoinPageEnabled=false`, '_blank')
                         }
                       >
-                        Open room
+                        {t('dispOpenRoom')}
                       </Button>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="font-semibold">Plan a conference</div>
-                      <div className="text-sm text-slate-600 mt-1">Propose time slots and get agreement from agents.</div>
+                      <div className="font-semibold">{t('dispPlanConf')}</div>
+                      <div className="text-sm text-slate-600 mt-1">{t('dispPlanConfSub')}</div>
                       <Button className="mt-3" variant="ghost" onClick={() => setTab('mediation')}>
-                        Plan / Agree on a date
+                        {t('dispPlanAgreeDate')}
                       </Button>
                     </div>
                   </div>
@@ -2017,6 +2017,7 @@ function ParticipantRow({
   onResend: () => void
   onRemove: () => void
 }) {
+  const { t } = useI18n()
   const [showMsg, setShowMsg] = useState(false)
   const status = normalizeStatus(agent.invite_status)
   const role = (agent.role_in_dispute || 'agent').toLowerCase()
@@ -2036,22 +2037,22 @@ function ParticipantRow({
           <div className="text-xs text-slate-600 truncate">{agent.email}</div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {statusPill(status)}
-            <span className="text-xs text-slate-600">share: {Math.round((agent.entitlement_share || 0) * 100)}%</span>
+            <span className="text-xs text-slate-600">{t('dispShare')}: {Math.round((agent.entitlement_share || 0) * 100)}%</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {canResend ? (
-            <Button variant="ghost" onClick={onResend}>Resend invite</Button>
+            <Button variant="ghost" onClick={onResend}>{t('dispResendInvite')}</Button>
           ) : null}
 
           {canRemove ? (
-            <Button variant="ghost" onClick={onRemove}>Remove from dashboard</Button>
+            <Button variant="ghost" onClick={onRemove}>{t('dispRemoveFromDash')}</Button>
           ) : null}
 
           {agent.invite_comment ? (
             <Button variant="ghost" onClick={() => setShowMsg(v => !v)}>
-              {showMsg ? 'Hide message' : 'Show message'}
+              {showMsg ? t('dispHideMsg') : t('dispShowMsg')}
             </Button>
           ) : null}
         </div>

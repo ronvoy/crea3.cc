@@ -21,94 +21,30 @@ const LANDMARK = 'M3 21h18M5 21V10M9 21V10M15 21V10M19 21V10M3 10l9-6 9 6'
 const WP_ICONS = [SCALE, CHAT, LAYERS]
 const STAT_ICONS = [SCALE, DOC, CHAT, USERS, CAP, BOOK, BUILDING, LANDMARK]
 
-type Content = {
-  kicker: string
-  title: string
-  tagline: string
-  chips: string[]
-  intro: string[]
-  ecgarTitle: string
-  ecgarText: string
-  wpHeading: string
-  wps: { tag: string; title: string; body: string }[]
-  videoNote: string
-  audienceHeading: string
-  audienceNote: string
-  stats: { n: string; label: string }[]
-  closing: string
-}
-
-const EN: Content = {
-  kicker: 'Project scope',
-  title: 'CREA3 — Conflict Resolution with Equitative Algorithms',
-  tagline: 'AI-assisted, game-theoretical online dispute resolution for Europe.',
-  chips: ['Builds on CREA & CREA2', 'EU JUST Programme', 'Open source'],
-  intro: [
-    'CREA3 brings AI-driven tools and game-theoretical algorithms to civil dispute resolution. It guides people step by step toward a fair, efficient and tailored outcome, helping them find the information they need along the way.',
-    'In parallel, it tackles the differences between the national legal systems of the EU Member States so that cross-border disputes can be handled on common ground.',
-  ],
-  ecgarTitle: 'European Common Ground of Available Rights (ECGAR)',
-  ecgarText:
-    'The mandatory rules of each Member State are set aside and the procedure operates on the remaining “available rights”. The goal is to widen access to Online Dispute Resolution (ODR) and reduce structural barriers to justice.',
-  wpHeading: 'Three innovations',
-  wps: [
-    { tag: 'WP2', title: 'Law & AI standards', body: 'Links the ECGAR to the game-theoretical model to set precise standards for integrating law and AI.' },
-    { tag: 'WP3', title: 'Smart conversational interface', body: 'Machine-learning tools power an assistant that guides practitioners, legal professionals and ordinary users through the whole procedure.' },
-    { tag: 'WP4', title: 'Blockchain certification', body: 'Smart-contract technology, built with a DApp design methodology, certifies the agreement reached between the parties.' },
-  ],
-  videoNote: 'A built-in videoconferencing function lets the mediator meet both parties inside the platform (WP3).',
-  audienceHeading: 'Who it is for',
-  audienceNote: 'CREA3 improves the existing CREA platform and is released as open source, for a broad range of EU stakeholders.',
-  stats: [
-    { n: '150+', label: 'Lawyers' },
-    { n: '30', label: 'Notaries' },
-    { n: '50', label: 'Mediators' },
-    { n: '5', label: 'Consumer associations' },
-    { n: '100', label: 'Academics' },
-    { n: '300', label: 'Students' },
-    { n: '5', label: 'Legal-tech companies' },
-    { n: '5', label: 'Policymakers' },
-  ],
-  closing: 'Open-source software, distributed for reuse across the European justice community.',
-}
-
-const IT: Content = {
-  kicker: 'Ambito del progetto',
-  title: 'CREA3 — Conflict Resolution with Equitative Algorithms',
-  tagline: 'Risoluzione delle controversie online assistita dall’IA e basata sulla teoria dei giochi, per l’Europa.',
-  chips: ['Si basa su CREA e CREA2', 'Programma UE JUST', 'Open source'],
-  intro: [
-    'CREA3 porta strumenti basati sull’IA e algoritmi di teoria dei giochi nella risoluzione delle controversie civili. Guida le persone passo dopo passo verso un esito equo, efficiente e su misura, aiutandole a trovare le informazioni necessarie lungo il percorso.',
-    'In parallelo affronta le differenze tra i sistemi giuridici nazionali degli Stati membri dell’UE, così che le controversie transfrontaliere possano essere trattate su un terreno comune.',
-  ],
-  ecgarTitle: 'Terreno Comune Europeo dei Diritti Disponibili (ECGAR)',
-  ecgarText:
-    'Le norme imperative di ciascuno Stato membro vengono messe da parte e la procedura opera sui restanti “diritti disponibili”. L’obiettivo è ampliare l’accesso alla Risoluzione delle Controversie Online (ODR) e ridurre le barriere strutturali alla giustizia.',
-  wpHeading: 'Tre innovazioni',
-  wps: [
-    { tag: 'WP2', title: 'Standard tra diritto e IA', body: 'Collega l’ECGAR al modello di teoria dei giochi per definire standard precisi di integrazione tra diritto e IA.' },
-    { tag: 'WP3', title: 'Interfaccia conversazionale intelligente', body: 'Strumenti di apprendimento automatico alimentano un assistente che guida professionisti, operatori del diritto e utenti comuni lungo l’intera procedura.' },
-    { tag: 'WP4', title: 'Certificazione blockchain', body: 'La tecnologia smart-contract, realizzata con una metodologia di progettazione DApp, certifica l’accordo raggiunto tra le parti.' },
-  ],
-  videoNote: 'Una funzione di videoconferenza integrata consente al mediatore di incontrare entrambe le parti all’interno della piattaforma (WP3).',
-  audienceHeading: 'A chi si rivolge',
-  audienceNote: 'CREA3 migliora la piattaforma CREA esistente ed è rilasciata come open source, per un’ampia gamma di portatori di interesse dell’UE.',
-  stats: [
-    { n: '150+', label: 'Avvocati' },
-    { n: '30', label: 'Notai' },
-    { n: '50', label: 'Mediatori' },
-    { n: '5', label: 'Associazioni di consumatori' },
-    { n: '100', label: 'Accademici' },
-    { n: '300', label: 'Studenti' },
-    { n: '5', label: 'Aziende legal-tech' },
-    { n: '5', label: 'Responsabili politici' },
-  ],
-  closing: 'Software open source, distribuito per il riuso nella comunità europea della giustizia.',
-}
+const STAT_NUMS = ['150+', '30', '50', '5', '100', '300', '5', '5']
 
 export default function Scope() {
-  const { lang } = useI18n()
-  const c = lang === 'it' ? IT : EN
+  const { t } = useI18n()
+  const c = {
+    kicker: t('scopeKicker'),
+    title: t('scopeTitle'),
+    tagline: t('scopeTagline'),
+    chips: [t('scopeChip1'), t('scopeChip2'), t('scopeChip3')],
+    intro: [t('scopeIntro1'), t('scopeIntro2')],
+    ecgarTitle: t('scopeEcgarTitle'),
+    ecgarText: t('scopeEcgarText'),
+    wpHeading: t('scopeWpHeading'),
+    wps: [
+      { tag: 'WP2', title: t('scopeWp1Title'), body: t('scopeWp1Body') },
+      { tag: 'WP3', title: t('scopeWp2Title'), body: t('scopeWp2Body') },
+      { tag: 'WP4', title: t('scopeWp3Title'), body: t('scopeWp3Body') },
+    ],
+    videoNote: t('scopeVideoNote'),
+    audienceHeading: t('scopeAudienceHeading'),
+    audienceNote: t('scopeAudienceNote'),
+    stats: STAT_NUMS.map((n, i) => ({ n, label: t(`scopeStat${i + 1}` as any) })),
+    closing: t('scopeClosing'),
+  }
 
   return (
     <div className="grid gap-4">

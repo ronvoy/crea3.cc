@@ -11,6 +11,7 @@ import { api } from '../api/client'
 import { useAuth } from '../store/auth'
 
 function LogoMark() {
+  const { t } = useI18n()
   const [failed, setFailed] = useState(false)
   const inner = failed ? (
     <div className="flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded-2xl border border-white/40 bg-white/80 text-2xl font-bold text-slate-900 shadow-lg shadow-sky-500/20">
@@ -25,7 +26,7 @@ function LogoMark() {
     />
   )
   return (
-    <Link to="/" aria-label="CREA3 — home" className="rounded-2xl transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
+    <Link to="/" aria-label={t('ariaHome')} className="rounded-2xl transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
       {inner}
     </Link>
   )
@@ -67,7 +68,7 @@ export default function Landing() {
                 <div className="text-3xl font-semibold leading-tight md:text-4xl">CREA3</div>
               </div>
             </div>
-            <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+            <nav className="hidden items-center gap-1 md:flex" aria-label={t('ariaPrimary')}>
               <TopNav to="/workflow" label={t('landingNavWorkflow')} />
               <TopNav to="/partners" label={t('landingNavPartners')} />
               <TopNav to="/scope" label={t('landingNavScope')} />
@@ -222,7 +223,7 @@ export default function Landing() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <EuEmblem className="h-12 w-auto rounded-md" />
               <div className="mt-2 text-sm font-medium text-slate-800">{t('fundingCofunded')}</div>
-              <div className="text-xs text-slate-500">European Commission · JUST Programme</div>
+              <div className="text-xs text-slate-500">{t('landingEcJust')}</div>
             </div>
           </div>
 
@@ -469,7 +470,7 @@ function WorkflowCarousel() {
           step(1)
         }
       }}
-      aria-label="Workflow carousel"
+      aria-label={t('ariaCarousel')}
     >
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10">
         <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${active * 100}%)` }}>
@@ -511,7 +512,7 @@ function WorkflowCarousel() {
             variant="ghost"
             className="h-9 w-9 rounded-full border border-white/15 bg-white/10 p-0 text-white hover:bg-white/15"
             onClick={() => step(-1)}
-            aria-label="Previous step"
+            aria-label={t('ariaPrev')}
           >
             ‹
           </Button>
@@ -519,7 +520,7 @@ function WorkflowCarousel() {
             variant="ghost"
             className="h-9 w-9 rounded-full border border-white/15 bg-white/10 p-0 text-white hover:bg-white/15"
             onClick={() => step(1)}
-            aria-label="Next step"
+            aria-label={t('ariaNext')}
           >
             ›
           </Button>

@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "i18n:scan": "node scripts/i18n-scan.mjs",
+    "i18n:coverage": "node scripts/i18n-coverage.mjs",
+    "i18n:audit": "node scripts/i18n-audit.mjs",
+    "i18n:translate": "node scripts/i18n-translate.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

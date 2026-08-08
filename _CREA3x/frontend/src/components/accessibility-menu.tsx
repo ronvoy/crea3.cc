@@ -53,7 +53,7 @@ export default function AccessibilityMenu() {
             className="w-full text-left rounded-xl px-3 py-3 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             <div className="font-semibold">{t('highContrast')}</div>
-            <div className="text-xs text-white/60">Improves readability</div>
+            <div className="text-xs text-white/60">{t('amImprovesReadability')}</div>
           </button>
 
           <button
@@ -63,7 +63,7 @@ export default function AccessibilityMenu() {
             className="w-full text-left rounded-xl px-3 py-3 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             <div className="font-semibold">{t('reduceMotion')}</div>
-            <div className="text-xs text-white/60">Disables animated backgrounds</div>
+            <div className="text-xs text-white/60">{t('amDisablesMotion')}</div>
           </button>
 
           <div className="rounded-xl px-3 py-3">
@@ -72,7 +72,7 @@ export default function AccessibilityMenu() {
               <button
                 className="min-h-[44px] min-w-[44px] rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 onClick={dec}
-                aria-label="Decrease font size"
+                aria-label={t('amDecFont')}
               >
                 A−
               </button>
@@ -80,7 +80,7 @@ export default function AccessibilityMenu() {
               <button
                 className="min-h-[44px] min-w-[44px] rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 onClick={inc}
-                aria-label="Increase font size"
+                aria-label={t('amIncFont')}
               >
                 A+
               </button>

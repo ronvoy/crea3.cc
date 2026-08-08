@@ -18,7 +18,7 @@ import { useI18n } from '../i18n'
 export default function PublicShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   useLocation()
-  useI18n()
+  const { t } = useI18n()
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'transparent' }}>
@@ -44,9 +44,9 @@ export default function PublicShell({ children }: { children: React.ReactNode })
               sx={{ height: 40, width: 40, borderRadius: 2, p: 0.5, bgcolor: 'action.hover' }}
             />
             <Box>
-              <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>CREA3 Platform</Typography>
+              <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>{t('psPlatform')}</Typography>
               <Typography variant="caption" color="text.secondary">
-                Dispute resolution platform
+                {t('psTagline')}
               </Typography>
             </Box>
           </Stack>
@@ -54,12 +54,12 @@ export default function PublicShell({ children }: { children: React.ReactNode })
           <Box sx={{ flexGrow: 1 }} />
 
           <Stack direction="row" spacing={1} alignItems="center">
-            <Box component="nav" aria-label="Primary" sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
+            <Box component="nav" aria-label={t('ariaPrimary')} sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
               {[
-                { to: '/workflow', label: 'Workflow' },
-                { to: '/partners', label: 'Partners' },
-                { to: '/scope', label: 'Scope' },
-                { to: '/help', label: 'Help' },
+                { to: '/workflow', label: t('landingNavWorkflow') },
+                { to: '/partners', label: t('landingNavPartners') },
+                { to: '/scope', label: t('landingNavScope') },
+                { to: '/help', label: t('landingNavHelp') },
               ].map((n) => (
                 <RouterLink
                   key={n.to}
@@ -72,15 +72,15 @@ export default function PublicShell({ children }: { children: React.ReactNode })
             </Box>
             {user ? (
               <Button component={RouterLink} to="/app" variant="contained">
-                Open app
+                {t('psOpenApp')}
               </Button>
             ) : (
               <>
                 <Button component={RouterLink} to="/login" variant="outlined">
-                  Sign in
+                  {t('psSignIn')}
                 </Button>
                 <Button component={RouterLink} to="/register" variant="contained">
-                  Register
+                  {t('psRegister')}
                 </Button>
               </>
             )}

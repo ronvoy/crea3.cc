@@ -38,13 +38,13 @@ export default function ForgotPasswordPage() {
       <AuthLayout title={t('forgotSentTitle')} subtitle="">
         <div className="space-y-4">
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            We emailed you a 6-digit reset code. Enter it on the next page to set a new password.
+            {t('fpResetSent')}
           </div>
           <Button
             className="w-full justify-center"
             onClick={() => navigate(`/reset-password?email=${encodeURIComponent(email.trim())}`)}
           >
-            Enter reset code
+            {t('fpEnterCode')}
           </Button>
           <div className="text-sm text-slate-600">
             <Link className="underline underline-offset-4" to="/login">

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useI18n } from '../i18n'
 
 // Five-pointed star polygon points, centred at (cx,cy) with outer radius R.
 function starPoints(cx: number, cy: number, R: number): string {
@@ -14,6 +15,7 @@ function starPoints(cx: number, cy: number, R: number): string {
 
 /** Official European Union emblem: 12 gold stars in a circle on a blue field. */
 export default function EuEmblem({ className = '' }: { className?: string }) {
+  const { t } = useI18n()
   const cx = 45
   const cy = 30
   const ring = 18 // radius of the circle the stars sit on
@@ -23,7 +25,7 @@ export default function EuEmblem({ className = '' }: { className?: string }) {
     return starPoints(cx + ring * Math.cos(a), cy + ring * Math.sin(a), star)
   })
   return (
-    <svg viewBox="0 0 90 60" className={className} role="img" aria-label="European Union emblem">
+    <svg viewBox="0 0 90 60" className={className} role="img" aria-label={t('ariaEmblem')}>
       <rect width="90" height="60" rx="4" fill="#003399" />
       {stars.map((p, i) => (
         <polygon key={i} points={p} fill="#FFCC00" />

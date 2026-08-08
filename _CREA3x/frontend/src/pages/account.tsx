@@ -4,9 +4,11 @@ import { api } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useNavigate } from 'react-router-dom'
 import { CountrySettings, NotificationSettings } from '../components/country'
+import { useI18n } from '../i18n'
 
 export default function Account() {
   const { user, setUser, logout } = useAuth()
+  const { t } = useI18n()
   const nav = useNavigate()
   const [email, setEmail] = useState(user?.email ?? '')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -111,29 +113,29 @@ export default function Account() {
 
       {/* Sign-in & security */}
       <Card>
-        <CardHeader title="Sign-in & security" subtitle="Update the email and password you use to sign in." />
+        <CardHeader title={t('accSecurityTitle')} subtitle={t('accSecuritySubtitle')} />
         <div className="space-y-5 p-5">
           <div>
             <div className="mb-1 text-xs font-medium text-slate-600">Email</div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Button onClick={changeEmail} className="sm:w-auto">Update email</Button>
+              <Button onClick={changeEmail} className="sm:w-auto">{t('accUpdateEmail')}</Button>
             </div>
           </div>
 
           <div className="border-t border-slate-200 pt-5">
             <div className="grid gap-3 md:grid-cols-2">
               <div>
-                <div className="mb-1 text-xs font-medium text-slate-600">Current password</div>
+                <div className="mb-1 text-xs font-medium text-slate-600">{t('accCurrentPw')}</div>
                 <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
               </div>
               <div>
-                <div className="mb-1 text-xs font-medium text-slate-600">New password</div>
+                <div className="mb-1 text-xs font-medium text-slate-600">{t('accNewPw')}</div>
                 <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
               </div>
             </div>
             <div className="mt-3">
-              <Button onClick={changePassword}>Change password</Button>
+              <Button onClick={changePassword}>{t('accChangePw')}</Button>
             </div>
           </div>
         </div>
@@ -141,11 +143,11 @@ export default function Account() {
 
       {/* Privacy & data */}
       <Card>
-        <CardHeader title="Privacy & data" subtitle="Delete the dispute data you created, or remove your account entirely." />
+        <CardHeader title={t('accPrivacyTitle')} subtitle={t('accPrivacySubtitle')} />
         <div className="p-5">
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={deleteData}>Delete my dispute data</Button>
-            <Button variant="danger" onClick={deleteAccount}>Delete account</Button>
+            <Button variant="outline" onClick={deleteData}>{t('accDeleteData')}</Button>
+            <Button variant="danger" onClick={deleteAccount}>{t('accDeleteAccount')}</Button>
           </div>
         </div>
       </Card>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, apiBlob } from '../api/client'
+import { useI18n } from '../i18n'
 
 type ArchiveItem = {
   dispute_id: number
@@ -22,6 +23,7 @@ function statusColor(s: string): string {
 }
 
 export default function ArchiveButton() {
+  const { t } = useI18n()
   const [items, setItems] = useState<ArchiveItem[]>([])
   const [open, setOpen] = useState(false)
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -89,7 +91,7 @@ export default function ArchiveButton() {
       <button
         type="button"
         onClick={togglePanel}
-        aria-label="Archive"
+        aria-label={t('arcAria')}
         className="relative grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"
       >
         {/* archive box icon */}
@@ -108,11 +110,11 @@ export default function ArchiveButton() {
       {open ? (
         <div className="absolute right-0 mt-2 w-[380px] max-w-[calc(100vw-2rem)] max-h-[460px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 shadow-xl z-[60]">
           <div className="px-4 py-3 border-b border-slate-100">
-            <div className="text-sm font-semibold">Dispute archive</div>
-            <div className="text-xs text-slate-500">Your disputes, their status, and reports.</div>
+            <div className="text-sm font-semibold">{t('arcTitle')}</div>
+            <div className="text-xs text-slate-500">{t('arcSubtitle')}</div>
           </div>
           {items.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">No disputes yet.</div>
+            <div className="px-4 py-8 text-center text-sm text-slate-500">{t('arcNoDisputes')}</div>
           ) : (
             <ul className="divide-y divide-slate-100">
               {items.slice(0, 5).map((it) => (
@@ -132,7 +134,7 @@ export default function ArchiveButton() {
                         <button
                           onClick={() => downloadPdf(it.dispute_id, it.title)}
                           className="text-xs px-2 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50"
-                          title="Download PDF report"
+                          title={t('arcDownloadPdf')}
                         >
                           PDF
                         </button>
@@ -140,16 +142,16 @@ export default function ArchiveButton() {
                       <button
                         onClick={() => setExpanded(expanded === it.dispute_id ? null : it.dispute_id)}
                         className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
-                        title="Show status history"
+                        title={t('arcShowHistory')}
                       >
-                        {expanded === it.dispute_id ? 'Hide' : 'History'}
+                        {expanded === it.dispute_id ? t('arcHide') : t('arcHistoryBtn')}
                       </button>
                     </div>
                   </div>
                   {expanded === it.dispute_id ? (
                     <ul className="mt-2 ml-1 border-l border-slate-200 pl-3 space-y-1">
                       {it.history.length === 0 ? (
-                        <li className="text-xs text-slate-400">No recorded events.</li>
+                        <li className="text-xs text-slate-400">{t('arcNoEvents')}</li>
                       ) : it.history.map((h, i) => (
                         <li key={i} className="text-xs text-slate-600">
                           <span className="font-medium">{h.event}</span>
@@ -167,7 +169,7 @@ export default function ArchiveButton() {
               onClick={() => { setOpen(false); nav('/app/archive') }}
               className="w-full px-4 py-2 text-center text-sm font-medium text-blue-700 hover:bg-slate-50 border-t border-slate-100"
             >
-              Show all →
+              {t('arcShowAll')}
             </button>
           ) : null}
         </div>

@@ -31,7 +31,7 @@ export default function VerifyEmailPage() {
       })
       setDone(true)
     } catch (err: any) {
-      setError(err?.message ?? 'Verification failed. Please check the code and try again.')
+      setError(err?.message ?? t('verifyFailed'))
     } finally {
       setBusy(false)
     }
@@ -67,11 +67,11 @@ export default function VerifyEmailPage() {
 
   if (done) {
     return (
-      <AuthLayout title="Email verified" subtitle="Your account is now active">
+      <AuthLayout title={t('verifyEmailDoneTitle')} subtitle={t('verifyEmailDoneSubtitle')}>
         <Stack spacing={2.5}>
-          <Alert severity="success">Your email has been verified — you can now sign in.</Alert>
+          <Alert severity="success">{t('verifyEmailDoneMsg')}</Alert>
           <Button variant="contained" size="large" onClick={() => navigate('/login')}>
-            Go to sign in
+            {t('verifyGoToSignIn')}
           </Button>
         </Stack>
       </AuthLayout>
@@ -79,12 +79,12 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <AuthLayout title="Verify your email" subtitle="Enter the 6-digit code we emailed you">
+    <AuthLayout title={t('verifyEmailTitle')} subtitle={t('verifyEmailSubtitle')}>
       <Stack component="form" spacing={2.5} onSubmit={submit}>
         {error ? <Alert severity="error">{error}</Alert> : null}
 
         <TextField
-          label="Email"
+          label={t('loginEmail')}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -93,7 +93,7 @@ export default function VerifyEmailPage() {
         />
         <Box>
           <TextField
-            label="6-digit code"
+            label={t('verifyCodeLabel')}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             inputProps={{ inputMode: 'numeric', maxLength: 6, style: { letterSpacing: '0.4em' } }}
@@ -114,18 +114,17 @@ export default function VerifyEmailPage() {
         ) : null}
 
         <Button type="submit" variant="contained" size="large" disabled={busy || !email || code.length < 4}>
-          {busy ? 'Verifying…' : 'Verify & continue'}
+          {busy ? t('verifyBtnBusy') : t('verifyBtnSubmit')}
         </Button>
 
         <Alert severity="info">
-          Didn't get the code? Check your spam folder, or use "Resend" above. Prefer a link? Open the verification
-          email and click the link instead — either method activates your account.
+          {t('verifyInfo')}
         </Alert>
 
         <Typography variant="body2" color="text.secondary">
-          Already verified?{' '}
+          {t('verifyAlreadyQ')}{' '}
           <MuiLink component={RouterLink} to="/login" underline="hover">
-            Sign in
+            {t('verifySignIn')}
           </MuiLink>
         </Typography>
       </Stack>

@@ -3,6 +3,7 @@ import { Box, Paper, Typography, Chip, Stack, Container } from '@mui/material'
 import SiteFooter from './site-footer'
 import SkipLink from './skip-link'
 import HelpWidget from './help-widget'
+import { useI18n } from '../i18n'
 
 export default function AuthLayout({
   title,
@@ -13,6 +14,7 @@ export default function AuthLayout({
   subtitle?: string
   children: React.ReactNode
 }) {
+  const { t } = useI18n()
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'transparent', py: { xs: 3, md: 5 } }}>
       <SkipLink />
@@ -31,7 +33,7 @@ export default function AuthLayout({
           />
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary">
-              Online dispute resolution platform
+              {t('authTagline')}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.1 }}>
               CREA3
@@ -39,9 +41,9 @@ export default function AuthLayout({
           </Box>
           <Box sx={{ flexGrow: 1 }} />
           <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }} aria-hidden>
-            <Chip label="Bids" size="small" variant="outlined" />
-            <Chip label="Rates" size="small" variant="outlined" />
-            <Chip label="Mediation" size="small" variant="outlined" />
+            <Chip label={t('authBids')} size="small" variant="outlined" />
+            <Chip label={t('authRates')} size="small" variant="outlined" />
+            <Chip label={t('authMediation')} size="small" variant="outlined" />
           </Stack>
         </Stack>
 
@@ -70,7 +72,7 @@ export default function AuthLayout({
                 color="text.secondary"
                 sx={{ fontWeight: 700, letterSpacing: '0.08em' }}
               >
-                Secure access
+                {t('authSecureAccess')}
               </Typography>
               <Typography variant="h5" sx={{ mt: 1, fontWeight: 600 }}>
                 {title}
@@ -83,24 +85,22 @@ export default function AuthLayout({
 
               <Stack spacing={2} sx={{ mt: 4 }}>
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                  <Typography sx={{ fontWeight: 600 }}>Accessibility</Typography>
+                  <Typography sx={{ fontWeight: 600 }}>{t('authA11y')}</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    Use the Settings bar on the right to switch light/dark mode, enable high-contrast,
-                    adjust font size, and reduce motion.
+                    {t('authA11yBody')}
                   </Typography>
                 </Paper>
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                  <Typography sx={{ fontWeight: 600 }}>Email verification</Typography>
+                  <Typography sx={{ fontWeight: 600 }}>{t('authEmailVerif')}</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                    New accounts receive a verification email. Open Mailpit locally to review messages
-                    during development.
+                    {t('authMailpitNote')}
                   </Typography>
                 </Paper>
               </Stack>
             </Box>
 
             <Typography variant="caption" color="text.secondary" sx={{ mt: 4 }}>
-              By continuing you agree to the platform terms &amp; privacy policy.
+              {t('authTerms')}
             </Typography>
           </Paper>
 
@@ -114,7 +114,7 @@ export default function AuthLayout({
           >
             <Box sx={{ display: { lg: 'none' }, mb: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                Secure access
+                {t('authSecureAccess')}
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 600 }}>
                 {title}
@@ -129,7 +129,7 @@ export default function AuthLayout({
             <Box sx={{ mt: 2 }}>{children}</Box>
 
             <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 4 }}>
-              Need help? Use the Help page or the dispute assistant once you enter a case.
+              {t('authNeedHelp')}
             </Typography>
           </Paper>
         </Box>

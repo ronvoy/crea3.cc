@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { useI18n } from '../i18n'
 
 type Notif = {
   id: number
@@ -12,39 +13,42 @@ type Notif = {
   created_at: string
 }
 
+type Translate = (key: any, vars?: Record<string, string | number>) => string
+
 // Human-readable line per notification type.
-function describe(n: Notif): { icon: string; text: string } {
-  const who = n.payload?.agent_name || 'A participant'
-  const where = n.dispute_title ? `“${n.dispute_title}”` : 'a dispute'
+function describe(n: Notif, t: Translate): { icon: string; text: string } {
+  const who = n.payload?.agent_name || t('ntfWho')
+  const where = n.dispute_title ? `“${n.dispute_title}”` : t('ntfWhereDefault')
   switch (n.type) {
     // Milestone events that advance the workflow:
     case 'AllPartiesJoined':
-      return { icon: '👥', text: `All parties have joined ${where}. You can add goods.` }
+      return { icon: '👥', text: t('ntfAllPartiesJoined', { where }) }
     case 'GoodsPhaseComplete':
-      return { icon: '✅', text: `All parties finished adding goods in ${where}. Preferences are open.` }
+      return { icon: '✅', text: t('ntfGoodsPhaseComplete', { where }) }
     case 'ProposalReady':
-      return { icon: '⚖', text: `A proposal is ready to review in ${where}.` }
+      return { icon: '⚖', text: t('ntfProposalReady', { where }) }
     case 'MeetingConfirmed':
-      return { icon: '📅', text: `A meeting time is now confirmed in ${where}.` }
+      return { icon: '📅', text: t('ntfMeetingConfirmed', { where }) }
     case 'DisputeAbandoned':
-      return { icon: '⚠', text: `${who} abandoned ${where}; it is now closed.` }
+      return { icon: '⚠', text: t('ntfDisputeAbandoned', { who, where }) }
     case 'DisputeFinalized':
-      return { icon: '🏁', text: `${where} has been finalized.` }
+      return { icon: '🏁', text: t('ntfDisputeFinalized', { where }) }
     default:
-      return { icon: '•', text: `Update in ${where}.` }
+      return { icon: '•', text: t('ntfDefault', { where }) }
   }
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: Translate): string {
   const d = new Date(iso).getTime()
   const s = Math.max(1, Math.floor((Date.now() - d) / 1000))
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`
-  const dd = Math.floor(h / 24); return `${dd}d ago`
+  if (s < 60) return t('ntfSecAgo', { n: s })
+  const m = Math.floor(s / 60); if (m < 60) return t('ntfMinAgo', { n: m })
+  const h = Math.floor(m / 60); if (h < 24) return t('ntfHourAgo', { n: h })
+  const dd = Math.floor(h / 24); return t('ntfDayAgo', { n: dd })
 }
 
 export default function NotificationsBell() {
+  const { t } = useI18n()
   const [items, setItems] = useState<Notif[]>([])
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
@@ -109,7 +113,7 @@ export default function NotificationsBell() {
       <button
         type="button"
         onClick={openPanel}
-        aria-label="Notifications"
+        aria-label={t('ntfAria')}
         className="relative grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white hover:bg-white/10 transition"
       >
         {/* bell icon (SVG, no external dep) */}
@@ -127,15 +131,15 @@ export default function NotificationsBell() {
       {open ? (
         <div className="absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-2rem)] max-h-[420px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 shadow-xl z-[60]">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <div className="text-sm font-semibold">Notifications</div>
-            <span className="text-xs text-slate-400">live</span>
+            <div className="text-sm font-semibold">{t('ntfTitle')}</div>
+            <span className="text-xs text-slate-400">{t('ntfLive')}</span>
           </div>
           {items.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-500">No notifications yet.</div>
+            <div className="px-4 py-8 text-center text-sm text-slate-500">{t('ntfNone')}</div>
           ) : (
             <ul className="divide-y divide-slate-100">
               {items.slice(0, 5).map((n) => {
-                const d = describe(n)
+                const d = describe(n, t)
                 return (
                   <li key={n.id}>
                     <button
@@ -145,7 +149,7 @@ export default function NotificationsBell() {
                       <span className="text-base leading-5">{d.icon}</span>
                       <span className="flex-1">
                         <span className="block text-sm text-slate-800">{d.text}</span>
-                        <span className="block text-xs text-slate-400 mt-0.5">{timeAgo(n.created_at)}</span>
+                        <span className="block text-xs text-slate-400 mt-0.5">{timeAgo(n.created_at, t)}</span>
                       </span>
                     </button>
                   </li>
@@ -158,7 +162,7 @@ export default function NotificationsBell() {
               onClick={() => { setOpen(false); nav('/app/notifications') }}
               className="w-full px-4 py-2 text-center text-sm font-medium text-blue-700 hover:bg-slate-50 border-t border-slate-100"
             >
-              Show all →
+              {t('ntfShowAll')}
             </button>
           ) : null}
         </div>

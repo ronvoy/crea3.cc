@@ -150,6 +150,13 @@ export default function AssistantWidget() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [msgs, open, full])
 
+  // Keep the opening greeting in sync with the UI language — but only while the
+  // conversation is still pristine (just the welcome, no real chat yet), so an
+  // in-progress conversation is never overwritten when the user switches lang.
+  useEffect(() => {
+    setMsgs((prev) => (prev.length === 1 && prev[0].role === 'bot' ? [{ role: 'bot', text: t('aiWelcome') }] : prev))
+  }, [lang, t])
+
   // Load the user's saved chats + voice capability when the panel opens.
   useEffect(() => {
     if (!open) return

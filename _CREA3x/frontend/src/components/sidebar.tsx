@@ -8,7 +8,6 @@ import {
   ListItemText,
   Typography,
   Button,
-  Chip,
   Divider,
   Stack,
   IconButton,
@@ -21,12 +20,8 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
 import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined'
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
-import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
-import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined'
-import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 import { getRecentDisputes, removeRecentDispute, clearRecentDisputes } from '../utils/recent'
 import DisputeStatusBadge from './dispute-status-badge'
@@ -60,7 +55,6 @@ function Logo() {
 
 export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
   const { t } = useI18n()
-  const { user, logout } = useAuth()
   const nav = useNavigate()
   const loc = useLocation()
 
@@ -110,24 +104,6 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
       </List>
 
       <Divider sx={{ my: 1.5 }} />
-
-      {/* Quick actions */}
-      <Box sx={{ px: 1 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('sbQuickActions')}</Typography>
-          <Button size="small" startIcon={<SettingsOutlinedIcon />} onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}>
-            {t('sbSettings')}
-          </Button>
-        </Stack>
-        <Stack spacing={1}>
-          <Button variant="outlined" color="inherit" size="small" startIcon={<AddOutlinedIcon />} onClick={() => go('/app')}>
-            {t('sbCreateOpen')}
-          </Button>
-          <Button variant="outlined" color="inherit" size="small" startIcon={<HelpOutlineOutlinedIcon />} onClick={() => go('/app/faq')}>
-            {t('sbHelp')}
-          </Button>
-        </Stack>
-      </Box>
 
       {/* Recent disputes */}
       {recents.length > 0 && (
@@ -194,32 +170,9 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
         >
           {t('sidebarContactSupport')}
         </Button>
-        <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: 'wrap', gap: 1 }}>
-          <Chip label={t('navFaqs')} size="small" variant="outlined" onClick={() => go('/app/faq')} />
-          <Chip label={t('navMediators')} size="small" variant="outlined" onClick={() => go('/app/mediators')} />
-        </Stack>
       </Box>
 
-      {/* Signed in / logout */}
       <Box sx={{ flexGrow: 1 }} />
-      <Divider sx={{ my: 1.5 }} />
-      <Box sx={{ px: 1 }}>
-        <Typography variant="caption" color="text.secondary">{t('sbSignedInAs')}</Typography>
-        <Typography sx={{ fontWeight: 600 }}>{user?.username}</Typography>
-        <Typography variant="caption" color="text.secondary" component="div">{user?.email}</Typography>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mt: 1, mb: 1 }}>
-          <Chip label={user?.role ?? 'user'} size="small" variant="outlined" />
-          <Button
-            variant="outlined"
-            color="inherit"
-            size="small"
-            startIcon={<LogoutOutlinedIcon />}
-            onClick={() => { logout(); nav('/') }}
-          >
-            {t('sbLogout')}
-          </Button>
-        </Stack>
-      </Box>
     </Box>
   )
 }

@@ -310,8 +310,11 @@ class Settings(BaseSettings):
     smtp_from: str = Field(default="no-reply@crea.local", validation_alias=AliasChoices("SMTP_FROM", "smtp_from"))
     smtp_from_name: str = Field(default="CREA3", validation_alias=AliasChoices("SMTP_FROM_NAME", "smtp_from_name"))
 
-    # Support mailbox (where the in-app "Contact support" form is delivered)
-    support_email: str = Field(default="", validation_alias=AliasChoices("SUPPORT_EMAIL", "support_email"))
+    # Support mailbox: in-app "Contact support" is delivered TO support_email,
+    # sent FROM support_from (using the SMTP credentials above).
+    support_email: str = Field(default="support@crea3.cc", validation_alias=AliasChoices("SUPPORT_EMAIL", "support_email"))
+    support_from: str = Field(default="info@crea3.cc", validation_alias=AliasChoices("SUPPORT_FROM", "support_from"))
+    support_from_name: str = Field(default="CREA3 Support", validation_alias=AliasChoices("SUPPORT_FROM_NAME", "support_from_name"))
 
     # Support BOTH SMTP_TLS and SMTP_STARTTLS (your .env uses SMTP_STARTTLS)
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))

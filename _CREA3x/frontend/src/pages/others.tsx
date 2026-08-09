@@ -70,14 +70,7 @@ export default function Others() {
       <Card>
         <CardHeader title={t('othersTitle')} subtitle={c.intro} />
         <div className="p-5">
-          <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">{c.onPlatform}</div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {c.internal.map((r) => (
-              <ResourceTile key={r.title} r={r} />
-            ))}
-          </div>
-
-          <div className="mt-7 text-sm font-semibold uppercase tracking-wide text-slate-500">{c.references}</div>
+          <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">{c.references}</div>
           <p className="mt-1 text-sm text-slate-600">{c.refsIntro}</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {c.external.map((r) => (

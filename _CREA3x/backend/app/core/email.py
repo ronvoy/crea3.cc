@@ -1,10 +1,32 @@
 from __future__ import annotations
 
 import smtplib
+from email.message import EmailMessage
 from email.mime.text import MIMEText
 from email.utils import formataddr
 
 from .config import settings
+
+
+def _deliver(msg) -> None:
+    """Open an SMTP connection (per current settings) and send a prepared msg."""
+    if settings.smtp_ssl:
+        server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20)
+    else:
+        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
+    try:
+        server.ehlo()
+        if settings.smtp_tls and not settings.smtp_ssl:
+            server.starttls()
+            server.ehlo()
+        if settings.smtp_user and settings.smtp_pass:
+            server.login(settings.smtp_user, settings.smtp_pass)
+        server.send_message(msg)
+    finally:
+        try:
+            server.quit()
+        except Exception:
+            pass
 
 
 def _send_email(*, to_email: str, subject: str, body_text: str) -> None:
@@ -12,27 +34,37 @@ def _send_email(*, to_email: str, subject: str, body_text: str) -> None:
     msg["Subject"] = subject
     msg["From"] = formataddr((settings.smtp_from_name, settings.smtp_from))
     msg["To"] = to_email
+    _deliver(msg)
 
-    if settings.smtp_ssl:
-        server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=20)
-    else:
-        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20)
 
-    try:
-        server.ehlo()
-        if settings.smtp_tls and not settings.smtp_ssl:
-            server.starttls()
-            server.ehlo()
+def send_email_with_attachments(
+    *,
+    to_email: str,
+    subject: str,
+    body_text: str,
+    attachments: list[tuple[str, str, bytes]] | None = None,
+    from_email: str | None = None,
+    from_name: str | None = None,
+    reply_to: str | None = None,
+) -> None:
+    """Send a plain-text email with optional file attachments.
 
-        if settings.smtp_user and settings.smtp_pass:
-            server.login(settings.smtp_user, settings.smtp_pass)
+    attachments: list of (filename, content_type, data). from_email/from_name
+    override the default SMTP sender (auth still uses the SMTP_* credentials).
+    """
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = formataddr((from_name or settings.smtp_from_name, from_email or settings.smtp_from))
+    msg["To"] = to_email
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.set_content(body_text)
 
-        server.send_message(msg)
-    finally:
-        try:
-            server.quit()
-        except Exception:
-            pass
+    for filename, content_type, data in attachments or []:
+        maintype, _, subtype = (content_type or "application/octet-stream").partition("/")
+        msg.add_attachment(data, maintype=maintype or "application", subtype=subtype or "octet-stream", filename=filename)
+
+    _deliver(msg)
 
 
 def send_verification_code_email(to_email: str, code: str) -> None:

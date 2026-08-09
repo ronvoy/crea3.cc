@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, Link as RouterLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   List,
@@ -34,7 +34,15 @@ import DisputeStatusBadge from './dispute-status-badge'
 function Logo() {
   const { t } = useI18n()
   return (
-    <Stack direction="row" spacing={1.5} alignItems="center">
+    <Stack
+      component={RouterLink}
+      to="/"
+      aria-label={t('ariaHome')}
+      direction="row"
+      spacing={1.5}
+      alignItems="center"
+      sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { opacity: 0.85 } }}
+    >
       <Box
         component="img"
         src="/crea3-logo.png"

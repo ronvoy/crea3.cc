@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useState } from 'react'
 import { COUNTRIES, PINS, MAP_VIEWBOX, type Pin } from '../data/europe-map'
+import { useI18n } from '../i18n'
 
 const [, , VIEW_W, VIEW_H] = MAP_VIEWBOX.split(' ').map(Number)
 const LEAD = PINS.find((p) => p.lead) ?? PINS[0]
@@ -57,6 +58,7 @@ function BuildingArtwork({ city }: { city: string }) {
  * Hover, tap, or focus a city to see the partner institution(s) and a photo of the site.
  */
 export default function EuropeMap({ className = '' }: { className?: string }) {
+  const { t } = useI18n()
   const [active, setActive] = useState<number | null>(null)
   const gid = useId().replace(/:/g, '')
   const total = PINS.reduce((n, p) => n + p.members.length, 0)
@@ -68,7 +70,7 @@ export default function EuropeMap({ className = '' }: { className?: string }) {
           viewBox={MAP_VIEWBOX}
           className="block h-auto w-full"
           role="img"
-          aria-label={`Map of Europe showing ${PINS.length} cities hosting ${total} CREA3 partner institutions.`}
+          aria-label={t('mapAria', { cities: PINS.length, total })}
         >
           <defs>
             <radialGradient id={`${gid}-sea`} cx="42%" cy="34%" r="85%">
@@ -130,8 +132,7 @@ export default function EuropeMap({ className = '' }: { className?: string }) {
       </div>
 
       <p className="mt-3 text-xs text-white/55">
-        {PINS.length} cities · {total} partner institutions across {COUNTRY_COUNT} countries. Select a marker to
-        see the institution and a photo of the site.
+        {t('mapCaption', { cities: PINS.length, total, countries: COUNTRY_COUNT })}
       </p>
 
       <style>{`

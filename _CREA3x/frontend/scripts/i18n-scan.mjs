@@ -40,7 +40,10 @@ const textRe = />\s*([A-Z][a-zA-Z][^<>{}]{4,})\s*</g
 // on locale but hold NON-display values (BCP-47 tags, ISO codes, code→code).
 const isCodeVal = (v) => /^['"`]?[a-z]{2}(-[A-Z]{2})?['"`]?$/i.test(v.trim()) // 'en', 'nl-BE'
 const bypassPatterns = [
-  ['lang-ternary', /\blang\s*===?\s*['"][a-z-]{2,5}['"]\s*\?/g, null],
+  // Any `lang === 'xx'` comparison — catches inline ternaries AND lang-derived
+  // booleans like `const it = lang === 'it'` then `it ? 'A' : 'B'` (which the
+  // ternary-only pattern missed and let untranslated copy through, e.g. partners).
+  ['lang-compare', /\blang\s*===?\s*['"][a-z-]{2,5}['"]/g, null],
   ['lang-switch', /\bswitch\s*\(\s*lang\s*\)/g, null],
   ['en-it-typed-map', /Record<\s*['"]en['"]/g, null],
   // `{ en: 'nl-BE' }` is a code map, not copy → skip when the value is a code.

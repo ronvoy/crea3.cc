@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link as RouterLink } from 'react-router-dom'
 import { Box, Paper, Typography, Chip, Stack, Container } from '@mui/material'
 import SiteFooter from './site-footer'
 import SkipLink from './skip-link'
@@ -19,26 +20,36 @@ export default function AuthLayout({
     <Box sx={{ minHeight: '100vh', bgcolor: 'transparent', py: { xs: 3, md: 5 } }}>
       <SkipLink />
       <Container maxWidth="lg">
-        {/* Header */}
+        {/* Header — logo + title link back to the landing page */}
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 4 }}>
-          <Box
-            component="img"
-            src="/crea3.logo.png"
-            alt="CREA3 logo"
-            loading="lazy"
-            sx={{ height: 48, width: 48, borderRadius: 2, objectFit: 'contain', bgcolor: 'action.hover' }}
-            onError={(e: any) => {
-              e.currentTarget.src = '/crea3-logo.png'
-            }}
-          />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary">
-              {t('authTagline')}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.1 }}>
-              CREA3
-            </Typography>
-          </Box>
+          <Stack
+            component={RouterLink}
+            to="/"
+            aria-label={t('ariaHome')}
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            sx={{ textDecoration: 'none', color: 'inherit', borderRadius: 2, '&:hover': { opacity: 0.85 } }}
+          >
+            <Box
+              component="img"
+              src="/crea3.logo.png"
+              alt="CREA3 logo"
+              loading="lazy"
+              sx={{ height: 48, width: 48, borderRadius: 2, objectFit: 'contain', bgcolor: 'action.hover' }}
+              onError={(e: any) => {
+                e.currentTarget.src = '/crea3-logo.png'
+              }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary">
+                {t('authTagline')}
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.1 }}>
+                CREA3
+              </Typography>
+            </Box>
+          </Stack>
           <Box sx={{ flexGrow: 1 }} />
           <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }} aria-hidden>
             <Chip label={t('authBids')} size="small" variant="outlined" />

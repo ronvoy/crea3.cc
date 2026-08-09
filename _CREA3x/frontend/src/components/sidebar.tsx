@@ -120,10 +120,10 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
           </Button>
         </Stack>
         <Stack spacing={1}>
-          <Button variant="outlined" color="inherit" size="small" startIcon={<AddOutlinedIcon />} sx={{ justifyContent: 'flex-start' }} onClick={() => go('/app')}>
+          <Button variant="outlined" color="inherit" size="small" startIcon={<AddOutlinedIcon />} onClick={() => go('/app')}>
             {t('sbCreateOpen')}
           </Button>
-          <Button variant="outlined" color="inherit" size="small" startIcon={<HelpOutlineOutlinedIcon />} sx={{ justifyContent: 'flex-start' }} onClick={() => go('/app/faq')}>
+          <Button variant="outlined" color="inherit" size="small" startIcon={<HelpOutlineOutlinedIcon />} onClick={() => go('/app/faq')}>
             {t('sbHelp')}
           </Button>
         </Stack>
@@ -189,7 +189,7 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
           color="inherit"
           size="small"
           startIcon={<SupportAgentOutlinedIcon />}
-          sx={{ mt: 1.5, justifyContent: 'flex-start' }}
+          sx={{ mt: 1.5 }}
           onClick={() => go('/app/support')}
         >
           {t('sidebarContactSupport')}
@@ -207,17 +207,18 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
         <Typography variant="caption" color="text.secondary">{t('sbSignedInAs')}</Typography>
         <Typography sx={{ fontWeight: 600 }}>{user?.username}</Typography>
         <Typography variant="caption" color="text.secondary" component="div">{user?.email}</Typography>
-        <Chip label={user?.role ?? 'user'} size="small" variant="outlined" sx={{ mt: 1 }} />
-        <Button
-          fullWidth
-          variant="outlined"
-          color="inherit"
-          startIcon={<LogoutOutlinedIcon />}
-          sx={{ mt: 2, justifyContent: 'flex-start' }}
-          onClick={() => { logout(); nav('/') }}
-        >
-          {t('sbLogout')}
-        </Button>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mt: 1, mb: 1 }}>
+          <Chip label={user?.role ?? 'user'} size="small" variant="outlined" />
+          <Button
+            variant="outlined"
+            color="inherit"
+            size="small"
+            startIcon={<LogoutOutlinedIcon />}
+            onClick={() => { logout(); nav('/') }}
+          >
+            {t('sbLogout')}
+          </Button>
+        </Stack>
       </Box>
     </Box>
   )

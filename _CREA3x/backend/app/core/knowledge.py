@@ -468,16 +468,67 @@ flowchart TD
 """
 
 
+CREA3_ABOUT_MD = """\
+# About the CREA3 Project
+
+**CREA3 — Conflict Resolution with Equitative Algorithms** is an EU co-funded platform
+for resolving cross-border civil and consumer disputes online. It brings AI-driven tools
+and game-theoretical algorithms to civil dispute resolution, guiding people step by step
+toward a fair, efficient and tailored outcome. CREA3 builds on the earlier **CREA** and
+**CREA2** projects and is released as open source. It is developed by a European academic
+and legal consortium under the **EU Justice (JUST) Programme**.
+
+## European Common Ground of Available Rights (ECGAR)
+CREA3 sets aside the mandatory rules of each Member State and operates on the remaining
+"available rights", to widen access to Online Dispute Resolution (ODR) and reduce
+structural barriers to justice across different national legal systems.
+
+## Three innovations
+- **Law & AI standards** — links the ECGAR to the game-theoretical model.
+- **Smart conversational interface** — an assistant that guides users through the procedure.
+- **Blockchain certification** — smart-contract technology certifies the parties' agreement.
+
+## Consortium & partners
+The consortium spans **9 partner institutions across 8 cities in 7 countries** — seven
+universities, a continental bar federation, and a consumers' association:
+
+- **Università degli Studi di Napoli Federico II** — Naples, Italy — University — **Project coordinator (lead)** — https://www.unina.it
+- **Università degli Studi Suor Orsola Benincasa** — Naples, Italy — University — https://www.unisob.na.it
+- **Adiconsum – Associazione Difesa Consumatori e Ambiente** — Rome, Italy — Consumer association — https://www.adiconsum.it
+- **Vrije Universiteit Brussel (VUB)** — Brussels, Belgium — University — https://www.vub.be
+- **FBE – Fédération des Barreaux d'Europe** — Strasbourg, France — Bar federation — https://www.fbe.org
+- **University of Ljubljana** — Ljubljana, Slovenia — University — https://www.uni-lj.si
+- **University of Zagreb – Faculty of Law** — Zagreb, Croatia — University — https://www.pravo.unizg.hr
+- **Vilnius University** — Vilnius, Lithuania — University — https://www.vu.lt
+- **TalTech – Tallinn University of Technology** — Tallinn, Estonia — University — https://www.taltech.ee
+
+The platform targets the six jurisdictions of Italy, Slovenia, Estonia, Belgium, Lithuania
+and Croatia. Contact the team at support@crea3.cc.
+"""
+
+
+# Seed docs: filename → content. Each is added only if that filename is absent,
+# so this is idempotent and also back-fills new docs into existing databases.
+_SEED_DOCS = {
+    "CREA3-workflow.md": CREA3_WORKFLOW_MD,
+    "CREA3-about.md": CREA3_ABOUT_MD,
+}
+
+
 def seed_workflow_doc(session: Session) -> None:
-    """Seed the workflow section with the CREA3 workflow doc if it is empty."""
+    """Seed the workflow section with the built-in CREA3 docs (idempotent)."""
     try:
-        existing = session.exec(select(KbDocument).where(KbDocument.section == "workflow")).first()
-        if existing:
-            return
-        add_document(
-            session, "workflow", "CREA3-workflow.md", "text/markdown",
-            CREA3_WORKFLOW_MD.encode("utf-8"), seeded=True,
-        )
-        logger.info("Seeded Knowledge Base 'workflow' section with CREA3-workflow.md")
+        present = {
+            d.filename
+            for d in session.exec(select(KbDocument).where(KbDocument.section == "workflow")).all()
+        }
+        for filename, content in _SEED_DOCS.items():
+            if filename in present:
+                continue
+            add_document(
+                session, "workflow", filename, "text/markdown",
+                content.encode("utf-8"), seeded=True,
+            )
+            logger.info("Seeded Knowledge Base 'workflow' section with %s", filename)
     except Exception as e:  # pragma: no cover - never block startup
         logger.warning("KB seed skipped: %s", e)

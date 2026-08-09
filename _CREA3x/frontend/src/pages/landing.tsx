@@ -478,15 +478,21 @@ function WorkflowCarousel() {
             <div key={s.id} className="w-full shrink-0">
               <div className="relative h-80 md:h-[34rem]">
                 <img src={s.imageSrc} alt={s.imageAlt} className="h-full w-full object-cover" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
                 <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-                  <div className="text-xl font-semibold leading-snug text-white md:text-2xl">{s.title}</div>
-                  <Pill className="border border-white/15 bg-white/10 text-white/80">
+                  <div
+                    className="rounded-xl bg-black/50 px-3 py-1.5 text-xl font-semibold leading-snug shadow-lg backdrop-blur-sm md:text-2xl"
+                    style={{ color: '#ffffff', textShadow: '0 1px 3px rgba(0,0,0,0.85)' }}
+                  >
+                    {s.title}
+                  </div>
+                  <Pill className="border border-white/15 bg-black/40 !text-white backdrop-blur-sm">
                     {i + 1} / {total}
                   </Pill>
                 </div>
               </div>
               <div className="p-4">
+                {/* text-white/80 auto-darkens to slate in light mode via index.css */}
                 <p className="text-sm leading-relaxed text-white/80">{s.description}</p>
               </div>
             </div>

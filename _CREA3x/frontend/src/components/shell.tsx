@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Box,
   AppBar,
@@ -15,6 +15,7 @@ import {
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
 import Sidebar from './sidebar'
 import SkipLink from './skip-link'
 import SiteFooter from './site-footer'
@@ -43,7 +44,8 @@ function titleFromPath(pathname: string, t: (k: any) => string) {
 
 export default function Shell() {
   const loc = useLocation()
-  const { user } = useAuth()
+  const nav = useNavigate()
+  const { user, logout } = useAuth()
   const { t } = useI18n()
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
@@ -113,6 +115,19 @@ export default function Shell() {
             >
               {t('refresh')}
             </Button>
+            {user ? (
+              <Button
+                variant="outlined"
+                color="inherit"
+                size="small"
+                startIcon={<LogoutOutlinedIcon />}
+                onClick={() => { logout(); nav('/') }}
+                aria-label={t('sbLogout')}
+                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+              >
+                {t('sbLogout')}
+              </Button>
+            ) : null}
           </Stack>
         </Toolbar>
       </AppBar>

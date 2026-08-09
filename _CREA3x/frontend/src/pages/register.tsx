@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import AuthLayout from '../components/auth-layout'
 import { Button, Input, ErrorBox } from '../components/ui'
 import { useI18n } from '../i18n'
 import { api } from '../api/client'
+import { useAuth } from '../store/auth'
 import { keycloak } from '../keycloak'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -13,6 +14,7 @@ export default function RegisterPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const user = useAuth((s) => s.user)
 
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState(params.get('email') || '')
@@ -24,6 +26,10 @@ export default function RegisterPage() {
   const [showFallback, setShowFallback] = useState(false)
   const [resend, setResend] = useState<ResendState>('idle')
   const [resendErr, setResendErr] = useState<string | null>(null)
+
+  // Already signed in? Skip the registration form and go to the app home.
+  if (user) return <Navigate to="/app" replace />
+
 
   function hostedRegister() {
     keycloak.register({ redirectUri: window.location.origin + '/app' })

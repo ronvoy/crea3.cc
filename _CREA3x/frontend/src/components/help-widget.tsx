@@ -20,6 +20,15 @@ import { useI18n, type I18nKey } from '../i18n'
 
 type Msg = { role: 'user' | 'bot'; text: string }
 
+// Persist the public chat across route changes (landing, /workflow, /partners,
+// /scope, /help, /login, /register …) for the tab session — cleared when the
+// page/tab is closed. The widget isn't rendered inside /app, so no conflict.
+const CHAT_KEY = 'crea3-helpchat'
+const OPEN_KEY = 'crea3-helpchat-open'
+function loadMsgs(): Msg[] | null {
+  try { const s = sessionStorage.getItem(CHAT_KEY); const p = s ? JSON.parse(s) : null; return Array.isArray(p) && p.length ? p : null } catch { return null }
+}
+
 // Render bot text as Markdown (bold, lists, tables, links). Internal "/…" links
 // navigate within the SPA (relative → work on any host); http(s) open a new tab.
 function Markdown({ text, onNavigate }: { text: string; onNavigate: () => void }) {
@@ -39,10 +48,11 @@ function Markdown({ text, onNavigate }: { text: string; onNavigate: () => void }
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ href, children }) =>
-            href && href.startsWith('/')
-              ? <MuiLink component={RouterLink} to={href} onClick={onNavigate}>{children}</MuiLink>
-              : <MuiLink href={href} target="_blank" rel="noreferrer">{children}</MuiLink>,
+          a: ({ href, children }) => {
+            if (href && href.startsWith('/')) return <MuiLink component={RouterLink} to={href} onClick={onNavigate}>{children}</MuiLink>
+            if (href && (href.startsWith('mailto:') || href.startsWith('tel:'))) return <MuiLink href={href}>{children}</MuiLink>
+            return <MuiLink href={href} target="_blank" rel="noreferrer">{children}</MuiLink>
+          },
         }}
       >
         {text}
@@ -66,10 +76,10 @@ const speechSupported = typeof window !== 'undefined' &&
  */
 export default function HelpWidget() {
   const { t, lang } = useI18n()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState<boolean>(() => { try { return sessionStorage.getItem(OPEN_KEY) === '1' } catch { return false } })
   const [full, setFull] = useState(false)
   const [autoplay, setAutoplay] = useState(true)
-  const [msgs, setMsgs] = useState<Msg[]>([{ role: 'bot', text: t('helpWidgetWelcome') }])
+  const [msgs, setMsgs] = useState<Msg[]>(() => loadMsgs() || [{ role: 'bot', text: t('helpWidgetWelcome') }])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -82,6 +92,10 @@ export default function HelpWidget() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [msgs, open])
+
+  // Persist chat + open-state for the tab session so it survives navigation.
+  useEffect(() => { try { sessionStorage.setItem(CHAT_KEY, JSON.stringify(msgs)) } catch {} }, [msgs])
+  useEffect(() => { try { sessionStorage.setItem(OPEN_KEY, open ? '1' : '0') } catch {} }, [open])
 
   // Keep the opening greeting in sync with the UI language while the chat is
   // still pristine (just the welcome) — never overwrite an in-progress chat.

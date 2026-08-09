@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, Navigate } from 'react-router-dom'
 import { Stack, TextField, Button, Alert, Typography, Link as MuiLink, Box } from '@mui/material'
 import AuthLayout from '../components/auth-layout'
 import { useI18n } from '../i18n'
@@ -11,6 +11,7 @@ export default function LoginPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const loadMe = useAuth((s) => s.loadMe)
+  const user = useAuth((s) => s.user)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,6 +19,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [unverified, setUnverified] = useState(false)
   const [showFallback, setShowFallback] = useState(!directAuthConfigured())
+
+  // Already signed in? Skip the login form and go to the app home.
+  if (user) return <Navigate to="/app" replace />
 
   function hostedLogin() {
     keycloak.login({ redirectUri: window.location.origin + '/app' })

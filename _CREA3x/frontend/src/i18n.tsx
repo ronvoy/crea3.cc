@@ -60,6 +60,8 @@ const strings = {
     dispHideMsg: 'Hide message',
     dispShare: 'share',
     dispPlanAgreeDate: 'Plan / Agree on a date',
+    stepComplete: '✓ This step is complete.',
+    stepInProgress: 'In progress.',
     setPageTitle: 'Settings',
     setPageSubtitle: 'Environment and preferences.',
     setA11yTitle: 'Accessibility',
@@ -686,6 +688,7 @@ const strings = {
     footerPartners: "Partners",
     footerPartnersNote: "Consortium institutions",
     footerCoordinatorRole: "Project coordinator",
+    footerContactName: "CREA3 Consortium <br> (coordinated by University of Naples Federico II)",
     footerTechRole: "Technical contact",
     footerRights: "CREA3 Dispute Resolution Platform",
     mediatorsTitle: "Mediators",
@@ -937,6 +940,9 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    footerContactName: "Consorzio CREA3 <br> (coordinato dall'Università degli Studi di Napoli Federico II)",
+    stepComplete: "✓ Questo passaggio è completato.",
+    stepInProgress: "In corso.",
     scopeKicker: "Ambito del progetto",
     scopeTitle: "CREA3 — Risoluzione dei conflitti con algoritmi equitativi",
     scopeTagline: "Risoluzione online delle controversie assistita da IA e teoria dei giochi per l'Europa.",
@@ -1853,6 +1859,9 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    footerContactName: "CREA3 Konzorcij <br> (usklajeno z Univerzo v Neaplju Federico II)",
+    stepComplete: "✓ Ta korak je zaključen.",
+    stepInProgress: "V teku.",
     scopeKicker: "Obseg projekta",
     scopeTitle: "CREA3 — Reševanje konfliktov z ekvitatnimi algoritmi",
     scopeTagline: "AI-podprto, igro-teoretično spletno reševanje sporov za Evropo.",
@@ -2769,6 +2778,9 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    footerContactName: "CREA3 konsortsium <br> (koordineeritud Napoli Ülikooli Federico II poolt)",
+    stepComplete: "✓ See samm on lõpetatud.",
+    stepInProgress: "Töös.",
     scopeKicker: "Projekti ulatus",
     scopeTitle: "CREA3 — Konflikti lahendamine õiglasete algoritmidega",
     scopeTagline: "AI-toega, mänguteoreetiline veebipõhine vaidluste lahendamine Euroopas.",
@@ -3685,6 +3697,9 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    footerContactName: "Consortium CREA3 <br> (coordonné par l'Université de Naples Federico II)",
+    stepComplete: "✓ Cette étape est terminée.",
+    stepInProgress: "En cours.",
     scopeKicker: "Portée du projet",
     scopeTitle: "CREA3 — Résolution de conflits avec des algorithmes équitables",
     scopeTagline: "Résolution de conflits en ligne assistée par IA et théorie des jeux pour l'Europe.",
@@ -4601,6 +4616,9 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    footerContactName: "CREA3 konsorciumas <br> (koordinuojamas Neapolio Federico II universiteto)",
+    stepComplete: "✓ Šis žingsnis baigtas.",
+    stepInProgress: "Vykdomas.",
     scopeKicker: "Projekto apimtis",
     scopeTitle: "CREA3 — Konfliktų sprendimas su teisingais algoritmais",
     scopeTagline: "AI pagalba, žaidimų teorijos pagrindu veikiantis internetinis ginčų sprendimas Europai.",
@@ -5517,6 +5535,9 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    footerContactName: "CREA3 Konzorcij <br> (koordinirano od strane Sveučilišta u Napulju Federico II)",
+    stepComplete: "✓ Ovaj korak je dovršen.",
+    stepInProgress: "U tijeku.",
     scopeKicker: "Opseg projekta",
     scopeTitle: "CREA3 — Rješavanje sukoba s ekvitatnim algoritmima",
     scopeTagline: "AI-pomoćno, teorijski igračko online rješavanje sporova za Europu.",
@@ -6437,6 +6458,9 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    footerContactName: "CREA3 Consortium <br> (gecoördineerd door de Universiteit van Napels Federico II)",
+    stepComplete: "✓ Deze stap is voltooid.",
+    stepInProgress: "Bezig.",
     scopeKicker: "Projectomvang",
     scopeTitle: "CREA3 — Conflictresolutie met Equitative Algoritmen",
     scopeTagline: "AI-ondersteunde, speltheoretische online geschiloplossing voor Europa.",

@@ -26,6 +26,12 @@ export default function HelpWidget() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [msgs, open])
 
+  // Keep the opening greeting in sync with the UI language while the chat is
+  // still pristine (just the welcome) — never overwrite an in-progress chat.
+  useEffect(() => {
+    setMsgs((prev) => (prev.length === 1 && prev[0].role === 'bot' ? [{ role: 'bot', text: t('helpWidgetWelcome') }] : prev))
+  }, [lang, t])
+
   async function ask(question: string) {
     const q = question.trim()
     if (!q || sending) return

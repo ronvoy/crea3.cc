@@ -10,7 +10,7 @@ const SUPPORT_EMAIL =
   import.meta.env.VITE_SUPPORT_EMAIL ||
   import.meta.env.VITE_PROJECT_CONTACT1_EMAIL ||
   import.meta.env.VITE_PROJECT_CONTACT_EMAIL ||
-  'support@crea3.eu'
+  'support@crea3.cc'
 
 export default function SupportPage() {
   const { t } = useI18n()

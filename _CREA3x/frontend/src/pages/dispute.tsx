@@ -1964,6 +1964,7 @@ function WorkflowStepControl({
   onSecondary?: () => void
   helpText?: string | null
 }) {
+  const { t } = useI18n()
   return (
     <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2000,7 +2001,7 @@ function WorkflowStepControl({
       ) : null}
 
       <div className={`mt-2 text-xs ${done ? 'text-emerald-700' : blockedReason ? 'text-amber-700' : 'text-slate-500'}`}>
-        {done ? '✓ This step is complete.' : (blockedReason || 'In progress.')}
+        {done ? t('stepComplete') : (blockedReason || t('stepInProgress'))}
       </div>
     </div>
   )

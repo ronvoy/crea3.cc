@@ -116,7 +116,7 @@ function localeValues(src, lang = 'en') {
 const enValues = (src) => localeValues(src, 'en')
 
 async function translateBatch(pairs, langName) {
-  const sys = `You are a professional UI localizer for a civil dispute-resolution web app (CREA3). Translate the given English UI strings to ${langName}. Rules: keep meaning and tone; preserve placeholders like {x}, %s, \\n, punctuation and emoji; do NOT translate the product name "CREA3" or emails/URLs; keep it concise for buttons/labels. Return ONLY a compact JSON object mapping each original key to its translated string — no commentary, no code fences.`
+  const sys = `You are a professional UI localizer for a civil dispute-resolution web app (CREA3). Translate the given English UI strings to ${langName}. Rules: keep meaning and tone; preserve placeholders like {x}, %s, \\n, punctuation and emoji; preserve HTML tags EXACTLY as written (e.g. <br>, <b>, </b>) — never remove, translate, or reorder them; do NOT translate the product name "CREA3", proper institution names, URLs (http/https links) or email addresses — leave those byte-for-byte identical; keep it concise for buttons/labels. Return ONLY a compact JSON object mapping each original key to its translated string — no commentary, no code fences.`
   const user = 'Translate these (JSON key -> English text):\n' + JSON.stringify(pairs, null, 0)
   const res = await fetch(`${BASE}/chat/completions`, {
     method: 'POST',

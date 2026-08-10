@@ -258,8 +258,9 @@ class MailMessage(SQLModel, table=True):
     rows are NEVER erased — a message removed from the server is marked
     status='deleted' but its record is kept.
     """
-    __table_args__ = (UniqueConstraint("mailbox", "message_id", name="uq_mail_message"),)
+    __table_args__ = (UniqueConstraint("account", "mailbox", "message_id", name="uq_mail_message"),)
     id: Optional[int] = Field(default=None, primary_key=True)
+    account: str = Field(default="info", index=True)  # which mailbox account: info|support
     message_id: str = Field(index=True)              # RFC Message-ID (or synthetic)
     mailbox: str = Field(default="INBOX", index=True)
     imap_uid: Optional[str] = Field(default=None)

@@ -211,6 +211,7 @@ function UsersTab({ c, refreshTick }: { c: C; refreshTick: number }) {
 
 // ── MAIL ─────────────────────────────────────────────────────────────────────
 function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const [account, setAccount] = useState<string>("info"); // which mailbox: info | support
   const s = S(c);
   const [cfg, setCfg] = useState<any>(null);
   const [all, setAll] = useState<any[]>([]);        // messages from DB (current filter)
@@ -241,16 +242,16 @@ function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
   // Only the Inbox tab uses the filter dropdown; Sent shows all, Junk shows junk.
   const listFilter = box === "junk" ? "junk" : box === "sent" ? "all" : filter;
 
-  async function loadCfg() { try { setCfg(await adminApi("/api/admin/mail/config")); } catch (e: any) { setErr(e.message); } }
+  async function loadCfg() { try { setCfg(await adminApi(`/api/admin/mail/config?account=${account}`)); } catch (e: any) { setErr(e.message); } }
   async function loadDb() {
     setErr(null);
     try {
-      const r = await adminApi(`/api/admin/mail/messages?filter=${listFilter}&mailbox=${encodeURIComponent(listMailbox)}`);
+      const r = await adminApi(`/api/admin/mail/messages?account=${account}&filter=${listFilter}&mailbox=${encodeURIComponent(listMailbox)}`);
       setAll(r.messages || []); setPage(1); setOpen(null); setSelId(null);
     } catch (e: any) { setErr(e.message); }
   }
-  useEffect(() => { loadCfg(); }, []);
-  useEffect(() => { loadDb(); }, [filter, box, cfg?.sent_mailbox, cfg?.junk_mailbox]);
+  useEffect(() => { loadCfg(); }, [account]);
+  useEffect(() => { loadDb(); }, [account, filter, box, cfg?.sent_mailbox, cfg?.junk_mailbox]);
   useEffect(() => { if (refreshTick) loadDb(); }, [refreshTick]);
 
   // 'Fetch Mail' = sync IMAP -> DB (once), then load from the DB cache.
@@ -258,7 +259,7 @@ function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
     setErr(null); setNote(null); setBusy(true);
     try {
       const ds = box === "junk" ? "&default_status=junk" : "";
-      const r = await adminApi(`/api/admin/mail/sync?limit=${fetchN}&mailbox=${encodeURIComponent(serverMailbox)}${ds}`, { method: "POST" });
+      const r = await adminApi(`/api/admin/mail/sync?account=${account}&limit=${fetchN}&mailbox=${encodeURIComponent(serverMailbox)}${ds}`, { method: "POST" });
       setNote(`Synced ${box} — ${r.new} new, ${r.updated} updated, ${r.removed} removed.`);
       await loadDb();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
@@ -338,7 +339,7 @@ function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
   async function doSend() {
     setSendMsg(null); setErr(null);
     try {
-      const r = await adminApi("/api/admin/mail/send", { method: "POST", body: JSON.stringify({ ...send, attachments: atts }) });
+      const r = await adminApi(`/api/admin/mail/send?account=${account}`, { method: "POST", body: JSON.stringify({ ...send, attachments: atts }) });
       setSendMsg(`Sent to ${r.recipients} recipient(s) ✓`);
       setSend({ to: "", cc: "", bcc: "", subject: "", body: "" }); setAtts([]);
     } catch (e: any) { setErr(e.message); }
@@ -393,6 +394,14 @@ function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
       <div style={s.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ color: c.muted, fontSize: 13 }}>Mailbox:</span>
+            <select style={s.input} value={account} onChange={(e) => setAccount(e.target.value)} title="Mailbox account">
+              {(cfg?.accounts || [{ account: "info", email: cfg?.smtp_user || "info@crea3.cc", available: true }]).map((a: any) => (
+                <option key={a.account} value={a.account} disabled={!a.available}>
+                  {(a.email || a.account)}{a.available ? "" : " (no creds)"}
+                </option>
+              ))}
+            </select>
             {(["inbox", "sent", "junk"] as const).map((bb) => (
               <button key={bb} onClick={() => setBox(bb)}
                 style={{ ...(box === bb ? s.btn : s.ghost), textTransform: "capitalize" }}>{bb}</button>

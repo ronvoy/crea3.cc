@@ -315,6 +315,10 @@ class Settings(BaseSettings):
     support_email: str = Field(default="support@crea3.cc", validation_alias=AliasChoices("SUPPORT_EMAIL", "support_email"))
     support_from: str = Field(default="info@crea3.cc", validation_alias=AliasChoices("SUPPORT_FROM", "support_from"))
     support_from_name: str = Field(default="CREA3 Support", validation_alias=AliasChoices("SUPPORT_FROM_NAME", "support_from_name"))
+    # IMAP credentials for the support@ mailbox (admin Mail tab 2nd account).
+    support_imap_host: str = Field(default="", validation_alias=AliasChoices("SUPPORT_IMAP_HOST", "support_imap_host"))
+    support_imap_user: str = Field(default="", validation_alias=AliasChoices("SUPPORT_IMAP_USER", "SUPPORT_SMTP_USER", "support_imap_user"))
+    support_imap_pass: str = Field(default="", validation_alias=AliasChoices("SUPPORT_IMAP_PASS", "SUPPORT_SMTP_PASS", "support_imap_pass"))
 
     # Support BOTH SMTP_TLS and SMTP_STARTTLS (your .env uses SMTP_STARTTLS)
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))

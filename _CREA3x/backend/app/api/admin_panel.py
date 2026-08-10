@@ -182,37 +182,83 @@ def _detect_junk_mailbox(M) -> str:
 
 
 @router.get("/mail/config")
-def mail_config(_admin: str = Depends(require_admin_panel)):
-    """SMTP settings + detected mailbox names (password intentionally NOT returned)."""
+def mail_config(account: str = Query("info"), _admin: str = Depends(require_admin_panel)):
+    """SMTP settings + detected mailbox names for the selected account.
+
+    (The mailbox password is intentionally NOT returned.)
+    """
+    acc = _mail_account(account)
     sent = "INBOX.Sent"
     junk = "INBOX.Junk"
-    if settings.smtp_user and settings.smtp_pass:
+    if _account_available(account):
         socket.setdefaulttimeout(15)
         try:
-            M = _imap_connect()
+            M = _imap_connect(account)
             sent = _detect_sent_mailbox(M)
             junk = _detect_junk_mailbox(M)
             M.logout()
         except Exception:
             pass
     return {
+        "account": acc["name"],
+        "accounts": _accounts_list(),
         "junk_mailbox": junk,
-        "smtp_host": settings.smtp_host,
+        "smtp_host": acc["host"],
         "smtp_port": settings.smtp_port,
-        "smtp_user": settings.smtp_user,
-        "smtp_from": settings.smtp_from,
-        "smtp_from_name": settings.smtp_from_name,
+        "smtp_user": acc["user"],
+        "smtp_from": acc["from"],
+        "smtp_from_name": acc["from_name"],
         "smtp_ssl": settings.smtp_ssl,
         "smtp_starttls": settings.smtp_tls,
-        "imap_available": bool(settings.smtp_user and settings.smtp_pass),
+        "imap_available": _account_available(account),
         "inbox_mailbox": "INBOX",
         "sent_mailbox": sent,
     }
 
 
-def _imap_connect():
-    M = imaplib.IMAP4_SSL(settings.smtp_host, 993, ssl_context=ssl.create_default_context())
-    M.login(settings.smtp_user, settings.smtp_pass)
+# Mailbox accounts for the admin Mail tab. "info" = the primary SMTP account;
+# "support" = the support@ mailbox (only offered when its IMAP creds are set).
+def _mail_account(account: str | None) -> dict:
+    a = (account or "info").lower()
+    if a == "support":
+        return {
+            "name": "support",
+            "host": settings.support_imap_host or settings.smtp_host,
+            "user": settings.support_imap_user,
+            "password": settings.support_imap_pass,
+            "from": settings.support_from or settings.support_email,
+            "from_name": settings.support_from_name,
+            "email": settings.support_email or settings.support_imap_user,
+        }
+    return {
+        "name": "info",
+        "host": settings.smtp_host,
+        "user": settings.smtp_user,
+        "password": settings.smtp_pass,
+        "from": settings.smtp_from,
+        "from_name": settings.smtp_from_name,
+        "email": settings.smtp_user,
+    }
+
+
+def _account_available(account: str | None) -> bool:
+    a = _mail_account(account)
+    return bool(a["user"] and a["password"])
+
+
+def _accounts_list() -> list[dict]:
+    """Which mailbox accounts the admin Mail tab can offer (have creds)."""
+    out = []
+    for name in ("info", "support"):
+        a = _mail_account(name)
+        out.append({"account": name, "email": a["email"], "available": _account_available(name)})
+    return out
+
+
+def _imap_connect(account: str | None = "info"):
+    a = _mail_account(account)
+    M = imaplib.IMAP4_SSL(a["host"], 993, ssl_context=ssl.create_default_context())
+    M.login(a["user"], a["password"])
     return M
 
 
@@ -278,6 +324,7 @@ def _detect_mailbox(M, flag: str, name_kw: str, fallback: str) -> str:
 
 @router.post("/mail/sync")
 def mail_sync(
+    account: str = Query("info"),
     mailbox: str = Query("INBOX"),
     limit: int = Query(100, ge=1, le=1000),
     default_status: str = Query("inbox"),  # 'junk' when syncing the junk folder
@@ -287,12 +334,12 @@ def mail_sync(
     """Fetch from IMAP into the DB cache. New messages inserted (with body),
     existing ones updated (read status), server-removed ones marked deleted.
     Records are never erased."""
-    if not (settings.smtp_user and settings.smtp_pass):
-        raise HTTPException(status_code=503, detail="No mailbox credentials configured (SMTP_USER/SMTP_PASS).")
+    if not _account_available(account):
+        raise HTTPException(status_code=503, detail=f"No mailbox credentials configured for the '{account}' account.")
     socket.setdefaulttimeout(40)
     new = updated = removed = 0
     try:
-        M = _imap_connect()
+        M = _imap_connect(account)
         M.select(mailbox, readonly=True)
         typ, data = M.search(None, "ALL")
         ids = data[0].split()
@@ -304,9 +351,9 @@ def mail_sync(
             pass
 
         server_msgids: set[str] = set()
-        # Existing rows for this mailbox, keyed by message_id.
+        # Existing rows for this account + mailbox, keyed by message_id.
         existing = {m.message_id: m for m in session.exec(
-            select(MailMessage).where(MailMessage.mailbox == mailbox)
+            select(MailMessage).where(MailMessage.account == account, MailMessage.mailbox == mailbox)
         ).all()}
 
         for i in reversed(ids[-limit:]):
@@ -335,7 +382,7 @@ def mail_sync(
             body, atts = _parse_body_attachments(full)
             meta = [{"filename": a["filename"], "content_type": a["content_type"]} for a in atts]
             mrow = MailMessage(
-                message_id=msgid, mailbox=mailbox, imap_uid=i.decode(),
+                account=account, message_id=msgid, mailbox=mailbox, imap_uid=i.decode(),
                 from_addr=_decode(hdr.get("From")), to_addr=_decode(hdr.get("To")),
                 cc=_decode(hdr.get("Cc")), subject=_decode(hdr.get("Subject")),
                 date_str=_decode(hdr.get("Date")), body=body,
@@ -375,13 +422,14 @@ _STATUSES = ("inbox", "archived", "junk", "spam", "deleted")
 
 @router.get("/mail/messages")
 def mail_messages(
+    account: str = Query("info"),
     filter: str = Query("all"),  # all|unread|read|inbox|archived|junk|deleted
     mailbox: str = Query("INBOX"),  # "ALL" spans every mailbox (used by Junk)
     _admin: str = Depends(require_admin_panel),
     session: Session = Depends(get_session),
 ):
     """List cached messages from the DB (fast; no IMAP round-trip)."""
-    stmt = select(MailMessage)
+    stmt = select(MailMessage).where(MailMessage.account == account)
     if mailbox and mailbox.upper() != "ALL":
         stmt = stmt.where(MailMessage.mailbox == mailbox)
     f = (filter or "all").lower()
@@ -463,10 +511,10 @@ def mail_delete_permanent(row_id: int, _admin: str = Depends(require_admin_panel
     if not r:
         raise HTTPException(status_code=404, detail="Message not found.")
     server_deleted = False
-    if settings.smtp_user and settings.smtp_pass and r.message_id and not r.message_id.startswith(f"{r.mailbox}:seq:"):
+    if _account_available(r.account) and r.message_id and not r.message_id.startswith(f"{r.mailbox}:seq:"):
         socket.setdefaulttimeout(25)
         try:
-            M = _imap_connect()
+            M = _imap_connect(r.account)
             M.select(r.mailbox)
             mid = r.message_id.replace('"', '')
             typ, d = M.search(None, "HEADER", "Message-ID", f'"{mid}"')
@@ -536,16 +584,15 @@ def mail_bulk_permanent(body: MailBulkIn, _admin: str = Depends(require_admin_pa
     """Permanently delete many messages from the mail SERVER + the DB."""
     rows = session.exec(select(MailMessage).where(MailMessage.id.in_(body.ids))).all()
     server_deleted = 0
-    if settings.smtp_user and settings.smtp_pass:
-        socket.setdefaulttimeout(40)
-        # Group by mailbox so we select each folder once.
-        by_box: dict[str, list] = {}
-        for r in rows:
-            if r.message_id and not r.message_id.startswith(f"{r.mailbox}:seq:"):
-                by_box.setdefault(r.mailbox, []).append(r)
-        for mb, group in by_box.items():
+    socket.setdefaulttimeout(40)
+    # Group by (account, mailbox) so we connect + select each folder once.
+    by_box: dict[tuple[str, str], list] = {}
+    for r in rows:
+        if r.message_id and not r.message_id.startswith(f"{r.mailbox}:seq:") and _account_available(r.account):
+            by_box.setdefault((r.account, r.mailbox), []).append(r)
+    for (acct, mb), group in by_box.items():
             try:
-                M = _imap_connect()
+                M = _imap_connect(acct)
                 M.select(mb)
                 any_del = False
                 for r in group:
@@ -589,8 +636,8 @@ def _split_addrs(s: str | None) -> list[str]:
 
 
 @router.post("/mail/send")
-def mail_send(body: SendMailIn, _admin: str = Depends(require_admin_panel)):
-    """Send an email (To/Cc/Bcc + attachments) through the configured SMTP account."""
+def mail_send(body: SendMailIn, account: str = Query("info"), _admin: str = Depends(require_admin_panel)):
+    """Send an email (To/Cc/Bcc + attachments) through the selected SMTP account."""
     import base64
     import smtplib
     from email.mime.multipart import MIMEMultipart
@@ -598,6 +645,7 @@ def mail_send(body: SendMailIn, _admin: str = Depends(require_admin_panel)):
     from email.mime.application import MIMEApplication
     from email.utils import formataddr, make_msgid
 
+    acc = _mail_account(account)
     to_list = _split_addrs(body.to)
     cc_list = _split_addrs(body.cc)
     bcc_list = _split_addrs(body.bcc)
@@ -606,7 +654,7 @@ def mail_send(body: SendMailIn, _admin: str = Depends(require_admin_panel)):
 
     msg = MIMEMultipart()
     msg["Message-ID"] = make_msgid(domain="crea3.cc")  # so it can be tracked/deleted server-side
-    msg["From"] = formataddr((settings.smtp_from_name, settings.smtp_from))
+    msg["From"] = formataddr((acc["from_name"], acc["from"]))
     msg["To"] = ", ".join(to_list)
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
@@ -625,16 +673,16 @@ def mail_send(body: SendMailIn, _admin: str = Depends(require_admin_panel)):
     recipients = to_list + cc_list + bcc_list  # Bcc: envelope only, not a header
     try:
         if settings.smtp_ssl:
-            server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=25)
+            server = smtplib.SMTP_SSL(acc["host"], settings.smtp_port, timeout=25)
         else:
-            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=25)
+            server = smtplib.SMTP(acc["host"], settings.smtp_port, timeout=25)
         try:
             server.ehlo()
             if settings.smtp_tls and not settings.smtp_ssl:
                 server.starttls(); server.ehlo()
-            if settings.smtp_user and settings.smtp_pass:
-                server.login(settings.smtp_user, settings.smtp_pass)
-            server.sendmail(settings.smtp_from, recipients, msg.as_string())
+            if acc["user"] and acc["password"]:
+                server.login(acc["user"], acc["password"])
+            server.sendmail(acc["from"], recipients, msg.as_string())
         finally:
             try:
                 server.quit()
@@ -648,7 +696,7 @@ def mail_send(body: SendMailIn, _admin: str = Depends(require_admin_panel)):
     # the send.
     try:
         import time as _time
-        M = _imap_connect()
+        M = _imap_connect(account)
         sent_box = _detect_sent_mailbox(M)
         M.append(sent_box, "\\Seen", imaplib.Time2Internaldate(_time.time()), msg.as_bytes())
         M.logout()

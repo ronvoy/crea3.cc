@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate, Link as RouterLink } from 'react-router-dom'
 import {
   Box,
   AppBar,
@@ -10,12 +10,15 @@ import {
   Chip,
   Button,
   Stack,
+  Divider,
+  Menu,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined'
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline'
 import Sidebar from './sidebar'
 import SkipLink from './skip-link'
 import SiteFooter from './site-footer'
@@ -49,7 +52,9 @@ export default function Shell() {
   const { t } = useI18n()
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
+  const isPhone = useMediaQuery('(max-width:949.95px)') // < 950px
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null)
 
   useEffect(() => {
     setMobileOpen(false)
@@ -84,6 +89,31 @@ export default function Shell() {
             </IconButton>
           )}
 
+          {/* Brand — links to the landing page */}
+          <Stack
+            component={RouterLink}
+            to="/"
+            aria-label={t('ariaHome')}
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, '&:hover': { opacity: 0.85 } }}
+          >
+            <Box
+              component="img"
+              src="/crea3-logo.png"
+              alt="CREA3"
+              sx={{ height: 36, width: 36, borderRadius: 1.5, objectFit: 'contain', bgcolor: 'action.hover' }}
+              onError={(e: any) => { e.currentTarget.style.display = 'none' }}
+            />
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+              <Typography sx={{ fontWeight: 700, lineHeight: 1.1 }}>CREA3</Typography>
+              <Typography variant="caption" color="text.secondary">{t('sbTagline')}</Typography>
+            </Box>
+          </Stack>
+
+          <Divider orientation="vertical" flexItem sx={{ mx: { xs: 1, md: 2 }, my: 1 }} />
+
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" noWrap component="div">
               {t('appSubtitle')}
@@ -93,40 +123,64 @@ export default function Shell() {
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          {/* Actions stay inline in the navbar (their dropdowns anchor here, so
+              they never clip). Under 600px, Refresh/Logout collapse to icon-only. */}
+          <Stack direction="row" spacing={{ xs: 0.5, sm: 1.5 }} alignItems="center">
             {user ? (
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ display: { xs: 'none', sm: 'flex' } }}>
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  {user.username}
-                </Typography>
-                <Chip label={user.role ?? 'user'} size="small" variant="outlined" />
-              </Stack>
+              <>
+                {/* ≥950px: "username (email)" + role chip */}
+                {!isPhone ? (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                      {user.username} ({user.email})
+                    </Typography>
+                    <Chip label={user.role ?? 'user'} size="small" variant="outlined" />
+                  </Stack>
+                ) : null}
+                {/* <950px: user icon → details dropdown */}
+                {isPhone ? (
+                  <>
+                    <IconButton color="inherit" onClick={(e) => setUserAnchor(e.currentTarget)} aria-label={user.username}>
+                      <PersonOutlineIcon />
+                    </IconButton>
+                    <Menu anchorEl={userAnchor} open={!!userAnchor} onClose={() => setUserAnchor(null)}>
+                      <Box sx={{ px: 2, py: 1, minWidth: 200, maxWidth: 280 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>{user.username}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>{user.email}</Typography>
+                        <Chip label={user.role ?? 'user'} size="small" variant="outlined" sx={{ mt: 1 }} />
+                      </Box>
+                    </Menu>
+                  </>
+                ) : null}
+              </>
             ) : null}
             {user ? <NotificationsBell /> : null}
             {user ? <ArchiveButton /> : null}
-            <Button
-              variant="outlined"
-              color="inherit"
-              size="small"
-              startIcon={<RefreshIcon />}
-              onClick={() => window.location.reload()}
-              aria-label={t('refresh')}
-              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-            >
-              {t('refresh')}
-            </Button>
-            {user ? (
+            {isPhone ? (
+              <IconButton color="inherit" onClick={() => window.location.reload()} aria-label={t('refresh')}>
+                <RefreshIcon />
+              </IconButton>
+            ) : (
               <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
-                startIcon={<LogoutOutlinedIcon />}
-                onClick={() => { logout(); nav('/') }}
-                aria-label={t('sbLogout')}
-                sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+                variant="outlined" color="inherit" size="small" startIcon={<RefreshIcon />}
+                onClick={() => window.location.reload()} aria-label={t('refresh')}
               >
-                {t('sbLogout')}
+                {t('refresh')}
               </Button>
+            )}
+            {user ? (
+              isPhone ? (
+                <IconButton color="inherit" onClick={() => { logout(); nav('/') }} aria-label={t('sbLogout')}>
+                  <LogoutOutlinedIcon />
+                </IconButton>
+              ) : (
+                <Button
+                  variant="outlined" color="inherit" size="small" startIcon={<LogoutOutlinedIcon />}
+                  onClick={() => { logout(); nav('/') }} aria-label={t('sbLogout')}
+                >
+                  {t('sbLogout')}
+                </Button>
+              )
             ) : null}
           </Stack>
         </Toolbar>

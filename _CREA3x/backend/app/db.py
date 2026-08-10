@@ -77,6 +77,18 @@ def init_db() -> None:
             if agent_cols and "goods_locked" not in agent_cols:
                 conn.exec_driver_sql("ALTER TABLE disputeagent ADD COLUMN goods_locked BOOLEAN DEFAULT 0")
 
+            # MailMessage.account (admin Mail tab: multiple mailbox accounts).
+            # Add the column, then rebuild the unique index to include `account`
+            # so the same Message-ID can exist in both the info@ and support@ boxes.
+            mail_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(mailmessage)").fetchall()}
+            if mail_cols and "account" not in mail_cols:
+                conn.exec_driver_sql("ALTER TABLE mailmessage ADD COLUMN account VARCHAR DEFAULT 'info'")
+                conn.exec_driver_sql("DROP INDEX IF EXISTS uq_mail_message")
+                conn.exec_driver_sql(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_mail_message "
+                    "ON mailmessage(account, mailbox, message_id)"
+                )
+
 def get_session():
     with Session(engine) as session:
         yield session

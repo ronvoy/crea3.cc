@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink, Link as RouterLink, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   List,
@@ -25,33 +25,6 @@ import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined'
 import { useI18n } from '../i18n'
 import { getRecentDisputes, removeRecentDispute, clearRecentDisputes } from '../utils/recent'
 import DisputeStatusBadge from './dispute-status-badge'
-
-function Logo() {
-  const { t } = useI18n()
-  return (
-    <Stack
-      component={RouterLink}
-      to="/"
-      aria-label={t('ariaHome')}
-      direction="row"
-      spacing={1.5}
-      alignItems="center"
-      sx={{ textDecoration: 'none', color: 'inherit', '&:hover': { opacity: 0.85 } }}
-    >
-      <Box
-        component="img"
-        src="/crea3-logo.png"
-        alt="CREA3"
-        sx={{ height: 36, width: 36, borderRadius: 2, objectFit: 'contain', bgcolor: 'action.hover' }}
-        onError={(e: any) => { e.currentTarget.style.display = 'none' }}
-      />
-      <Box>
-        <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>CREA3</Typography>
-        <Typography variant="caption" color="text.secondary">{t('sbTagline')}</Typography>
-      </Box>
-    </Stack>
-  )
-}
 
 export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
   const { t } = useI18n()
@@ -85,8 +58,6 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
-      <Box sx={{ px: 1, py: 1 }}><Logo /></Box>
-
       <List sx={{ mt: 1 }}>
         {items.map((it) => (
           <ListItemButton
@@ -165,7 +136,7 @@ export default function Sidebar({ onNavClick }: { onNavClick?: () => void }) {
           color="inherit"
           size="small"
           startIcon={<SupportAgentOutlinedIcon />}
-          sx={{ mt: 1.5 }}
+          sx={{ mt: 1.5, mb: 2 }}
           onClick={() => go('/app/support')}
         >
           {t('sidebarContactSupport')}

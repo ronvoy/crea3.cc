@@ -77,19 +77,21 @@ export default function Shell() {
           bgcolor: 'background.paper',
         }}
       >
-        <Toolbar sx={{ gap: 2 }}>
+        <Toolbar disableGutters sx={{ pr: { xs: 1, sm: 2 } }}>
           {!isDesktop && (
             <IconButton
               edge="start"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
               aria-expanded={mobileOpen}
+              sx={{ ml: 1 }}
             >
               <MenuIcon />
             </IconButton>
           )}
 
-          {/* Brand — links to the landing page */}
+          {/* Brand — on desktop it spans exactly the sidebar width so the divider
+              lines up with the sidebar's right border into one seamless line. */}
           <Stack
             component={RouterLink}
             to="/"
@@ -97,24 +99,28 @@ export default function Shell() {
             direction="row"
             spacing={1}
             alignItems="center"
-            sx={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, '&:hover': { opacity: 0.85 } }}
+            sx={{
+              textDecoration: 'none', color: 'inherit', flexShrink: 0,
+              width: { md: DRAWER_WIDTH }, pl: { xs: 1.5, md: 3 }, pr: 1.5,
+              '&:hover': { opacity: 0.85 },
+            }}
           >
             <Box
               component="img"
               src="/crea3-logo.png"
               alt="CREA3"
-              sx={{ height: 36, width: 36, borderRadius: 1.5, objectFit: 'contain', bgcolor: 'action.hover' }}
+              sx={{ height: 36, width: 36, borderRadius: 1.5, objectFit: 'contain', bgcolor: 'action.hover', flexShrink: 0 }}
               onError={(e: any) => { e.currentTarget.style.display = 'none' }}
             />
-            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-              <Typography sx={{ fontWeight: 700, lineHeight: 1.1 }}>CREA3</Typography>
-              <Typography variant="caption" color="text.secondary">{t('sbTagline')}</Typography>
+            <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0 }}>
+              <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.1 }}>CREA3</Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>{t('sbTagline')}</Typography>
             </Box>
           </Stack>
 
-          <Divider orientation="vertical" flexItem sx={{ mx: { xs: 1, md: 2 }, my: 1 }} />
+          <Divider orientation="vertical" flexItem sx={{ my: 0, borderColor: 'divider' }} />
 
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, pl: { xs: 1.5, md: 2 } }}>
             <Typography variant="caption" color="text.secondary" noWrap component="div">
               {t('appSubtitle')}
             </Typography>

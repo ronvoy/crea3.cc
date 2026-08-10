@@ -20,13 +20,13 @@ from __future__ import annotations
 import json as _json
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from .deps import get_current_user
 from ..db import get_session
-from ..models import Dispute, DisputeAgent, Good, Preference, Strategy, User, MediationSlot, Report
+from ..models import Dispute, DisputeAgent, Good, Preference, Strategy, User, MediationSlot, Report, SourceRef
 from ..core import llm
 from ..core.authz import require_access, get_participant, participant_is_mediator
 
@@ -527,16 +527,20 @@ class AskOut(BaseModel):
     intent: str
     provider: str
     grounded_on_dispute: int | None = None
-    sources: list[str] = Field(default_factory=list)
+    sources: list[SourceRef] = Field(default_factory=list)
     session_id: int
     message_id: int | None = None
 
 
-def _kb_grounding(session: Session, section: str, question: str) -> tuple[str, list[str]]:
+def _kb_grounding(session: Session, section: str, question: str,
+                  max_chunks: int = 8, max_sources: int = 3, rel_ratio: float = 0.4) -> tuple[str, list[dict]]:
     """Retrieve top KB chunks for a section and format them as grounding context.
 
-    Returns (context_block, source_filenames). Empty when the section has no
-    matching documents — the caller then answers from the model's own knowledge.
+    Only chunks strongly relevant to the query are kept (score within `rel_ratio`
+    of the best match), and at most `max_sources` (default 3) distinct documents
+    are cited. Returns (context_block, sources) where sources is a de-duplicated
+    list of {id, name}. Empty when nothing relevant matched — the caller then
+    answers from the model's own knowledge.
     """
     try:
         from ..core import knowledge
@@ -545,12 +549,23 @@ def _kb_grounding(session: Session, section: str, question: str) -> tuple[str, l
         chunks = []
     if not chunks:
         return "", []
-    blocks, sources = [], []
-    for i, ch in enumerate(chunks, 1):
+    # Keep only chunks strongly relevant to the query — score within rel_ratio of
+    # the top match — so weakly-matching docs are never cited as a source.
+    chunks.sort(key=lambda c: c.get("score", 0) or 0, reverse=True)
+    top = chunks[0].get("score", 0) or 0
+    threshold = rel_ratio * top if top > 0 else 0
+    relevant = [c for c in chunks if (c.get("score", 0) or 0) >= threshold][:max_chunks]
+    blocks: list[str] = []
+    sources: list[dict] = []
+    seen_ids: set = set()
+    for i, ch in enumerate(relevant, 1):
         fn = ch.get("filename", "document")
+        did = ch.get("doc_id")
         blocks.append(f"[{i}] (source: {fn})\n{ch.get('text', '')}")
-        if fn not in sources:
-            sources.append(fn)
+        key = did if did is not None else fn
+        if key not in seen_ids and len(sources) < max_sources:
+            seen_ids.add(key)
+            sources.append({"id": did, "name": fn})
     context = (
         "\n\nReference excerpts from the CREA3 knowledge base. Prefer these when "
         "answering and cite the source filename you used. If they do not contain "
@@ -558,6 +573,26 @@ def _kb_grounding(session: Session, section: str, question: str) -> tuple[str, l
         + "\n\n".join(blocks)
     )
     return context, sources
+
+
+@router.get("/kb/documents/{doc_id}/download")
+def kb_source_download(doc_id: int, _user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Open/download the KB source document a chat answer cited.
+
+    The KB stores extracted text (not the original binary), so we serve that text
+    inline — enough to review exactly what grounded the answer.
+    """
+    from ..models import KbDocument
+    doc = session.get(KbDocument, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Source document not found.")
+    filename = (doc.filename or f"source-{doc_id}.txt").replace('"', "").replace("\n", "").replace("\r", "")
+    media = "text/markdown" if filename.lower().endswith(".md") else "text/plain"
+    return Response(
+        content=(doc.text or "").encode("utf-8"),
+        media_type=f"{media}; charset=utf-8",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 import re as _re
@@ -682,7 +717,7 @@ def _system_for_intent(
     the next step.
     """
     grounded: int | None = None
-    sources: list[str] = []
+    sources: list[dict] = []
     if intent == "legal_statutes":
         system = LEGAL_GUIDE
         ctx, sources = _kb_grounding(session, "legal_statutes", payload.question)

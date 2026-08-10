@@ -101,7 +101,7 @@ export default function Shell() {
             alignItems="center"
             sx={{
               textDecoration: 'none', color: 'inherit', flexShrink: 0,
-              width: { md: DRAWER_WIDTH }, pl: { xs: 1.5, md: 3 }, pr: 1.5,
+              width: { md: DRAWER_WIDTH - 1 }, pl: { xs: 1.5, md: 3 }, pr: 1.5,
               '&:hover': { opacity: 0.85 },
             }}
           >
@@ -113,7 +113,7 @@ export default function Shell() {
               onError={(e: any) => { e.currentTarget.style.display = 'none' }}
             />
             <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0 }}>
-              <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.1 }}>CREA3</Typography>
+              <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.1, color: 'text.primary' }}>CREA3</Typography>
               <Typography variant="caption" color="text.secondary" noWrap>{t('sbTagline')}</Typography>
             </Box>
           </Stack>

@@ -1,9 +1,17 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
+from pydantic import BaseModel as _PydBaseModel
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON, UniqueConstraint
 
 def utcnow():
     return datetime.now(timezone.utc)
+
+
+class SourceRef(_PydBaseModel):
+    """A KB source citation in a chat answer: the document id (for download/open)
+    and its display name (filename). id is None for legacy string-only sources."""
+    id: Optional[int] = None
+    name: str
 
 class AccessLog(SQLModel, table=True):
     """A simple request log used by the admin 'control room'."""

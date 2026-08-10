@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip, Button,
+  Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip, Button, Link as MuiLink,
 } from '@mui/material'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import CloseIcon from '@mui/icons-material/Close'
@@ -22,12 +22,12 @@ import CircularProgress from '@mui/material/CircularProgress'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useLocation, matchPath } from 'react-router-dom'
-import { api, API_BASE, getAccessToken } from '../api/client'
+import { api, apiBlob, API_BASE, getAccessToken } from '../api/client'
 import { useI18n, type I18nKey } from '../i18n'
 
 type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
 type Msg = {
-  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: string[]; files?: string[]
+  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: Array<{ id: number | null; name: string }>; files?: string[]
   voice?: boolean; audioUrl?: string; msgId?: number; hasAudioIn?: boolean
 }
 type Attachment = { filename: string; text: string; chars: number; truncated: boolean }
@@ -579,6 +579,18 @@ export default function AssistantWidget() {
 
   const showLegalDisclaimer = msgs.some((m) => m.intent === 'legal_statutes' || m.intent === 'past_cases')
 
+  // Open the KB source document a chat answer cited (auth'd fetch → new tab).
+  async function openSource(id: number) {
+    try {
+      const blob = await apiBlob(`/api/assistant/kb/documents/${id}/download`)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (e: any) {
+      setVoiceErr(e?.message || t('aiVoiceUnsupported'))
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -735,7 +747,19 @@ export default function AssistantWidget() {
                   </Paper>
                   {m.role === 'bot' && m.sources && m.sources.length ? (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, maxWidth: full ? 'min(100%, 60rem)' : '92%' }}>
-                      {t('aiSources')}: {m.sources.join(', ')}
+                      {t('aiSources')}:{' '}
+                      {m.sources.map((s, idx) => (
+                        <React.Fragment key={idx}>
+                          {idx > 0 ? ', ' : ''}
+                          {s.id != null ? (
+                            <MuiLink component="button" type="button" onClick={() => openSource(s.id as number)} sx={{ fontWeight: 600, verticalAlign: 'baseline' }}>
+                              {s.name}
+                            </MuiLink>
+                          ) : (
+                            s.name
+                          )}
+                        </React.Fragment>
+                      ))}
                     </Typography>
                   ) : null}
                   {m.role === 'bot' && i > 0 ? (() => {

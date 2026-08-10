@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 
 from .deps import get_current_user
 from ..db import get_session
-from ..models import ChatSession, ChatMessage, User
+from ..models import ChatSession, ChatMessage, User, SourceRef
 
 router = APIRouter(prefix="/api/assistant/sessions", tags=["assistant-history"])
 
@@ -46,7 +46,7 @@ def get_or_create_session(session: Session, user: User, session_id: int | None,
 
 
 def save_message(session: Session, sess: ChatSession, user: User, role: str, text: str,
-                 *, intent: str | None = None, sources: list[str] | None = None,
+                 *, intent: str | None = None, sources: list | None = None,
                  files: list[str] | None = None, transcript: str | None = None,
                  audio_in_b64: str | None = None, audio_in_mime: str | None = None) -> ChatMessage:
     msg = ChatMessage(
@@ -76,7 +76,7 @@ class MessageOut(BaseModel):
     role: str
     text: str
     intent: str | None = None
-    sources: list[str] = Field(default_factory=list)
+    sources: list[SourceRef] = Field(default_factory=list)
     files: list[str] = Field(default_factory=list)
     has_audio: bool = False       # bot answer has stored TTS audio
     has_audio_in: bool = False    # user message has stored recorded audio
@@ -128,9 +128,11 @@ def get_session_detail(sid: int, user: User = Depends(get_current_user), session
     out = []
     for m in msgs:
         try:
-            sources = json.loads(m.sources_json or "[]")
+            raw_sources = json.loads(m.sources_json or "[]")
         except Exception:
-            sources = []
+            raw_sources = []
+        # Legacy rows stored bare filename strings; normalize to {id, name}.
+        sources = [{"id": None, "name": s} if isinstance(s, str) else s for s in raw_sources]
         try:
             files = json.loads(m.files_json or "[]")
         except Exception:

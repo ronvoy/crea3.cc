@@ -45,13 +45,29 @@ def get_or_create_session(session: Session, user: User, session_id: int | None,
     return sess
 
 
+def _jsonable_sources(sources: list | None) -> list:
+    """Normalize sources to plain JSON — dicts/strings pass through, pydantic
+    SourceRef (or anything else) is coerced — so json.dumps can never raise."""
+    out = []
+    for s in sources or []:
+        if isinstance(s, (str, dict)):
+            out.append(s)
+        elif hasattr(s, "model_dump"):
+            out.append(s.model_dump())
+        elif hasattr(s, "dict"):
+            out.append(s.dict())
+        else:
+            out.append(str(s))
+    return out
+
+
 def save_message(session: Session, sess: ChatSession, user: User, role: str, text: str,
                  *, intent: str | None = None, sources: list | None = None,
                  files: list[str] | None = None, transcript: str | None = None,
                  audio_in_b64: str | None = None, audio_in_mime: str | None = None) -> ChatMessage:
     msg = ChatMessage(
         session_id=sess.id, user_id=user.id, role=role, text=text, intent=intent,
-        sources_json=json.dumps(sources or []), files_json=json.dumps(files or []),
+        sources_json=json.dumps(_jsonable_sources(sources)), files_json=json.dumps(files or []),
         transcript=transcript, audio_in_b64=audio_in_b64, audio_in_mime=audio_in_mime,
     )
     session.add(msg)

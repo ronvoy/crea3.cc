@@ -18,6 +18,9 @@ sees their OWN preferences/strategy in the context — never another party's.
 from __future__ import annotations
 
 import json as _json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse, Response
@@ -558,10 +561,16 @@ def _kb_grounding(session: Session, section: str, question: str,
     blocks: list[str] = []
     sources: list[dict] = []
     seen_ids: set = set()
+    # Past-case documents may contain party identities — strip PII before the
+    # text is ever placed in the model's context.
+    scrub = (section == "past_cases")
     for i, ch in enumerate(relevant, 1):
         fn = ch.get("filename", "document")
         did = ch.get("doc_id")
-        blocks.append(f"[{i}] (source: {fn})\n{ch.get('text', '')}")
+        body = ch.get("text", "")
+        if scrub:
+            body = _scrub_pii(body, session)
+        blocks.append(f"[{i}] (source: {fn})\n{body}")
         key = did if did is not None else fn
         if key not in seen_ids and len(sources) < max_sources:
             seen_ids.add(key)
@@ -588,8 +597,12 @@ def kb_source_download(doc_id: int, _user: User = Depends(get_current_user), ses
         raise HTTPException(status_code=404, detail="Source document not found.")
     filename = (doc.filename or f"source-{doc_id}.txt").replace('"', "").replace("\n", "").replace("\r", "")
     media = "text/markdown" if filename.lower().endswith(".md") else "text/plain"
+    body = doc.text or ""
+    # Never serve unmasked party identities from past-case documents.
+    if (doc.section or "") == "past_cases":
+        body = _scrub_pii(body, session)
     return Response(
-        content=(doc.text or "").encode("utf-8"),
+        content=body.encode("utf-8"),
         media_type=f"{media}; charset=utf-8",
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
@@ -639,6 +652,37 @@ def _mask_case_facts(session: Session, d: Dispute, label: str) -> str:
         f"  - Outcome: {'final report generated' if report else 'no final report'}",
     ]
     return "\n".join(lines)
+
+
+def _scrub_pii(text: str, session: Session) -> str:
+    """Best-effort redaction of personal identity from free-text past-case KB
+    documents, applied BEFORE the text reaches the model or a download.
+
+    Removes emails and phone numbers, and masks any platform user's username or
+    email that appears verbatim. Arbitrary names of non-users cannot be reliably
+    auto-detected without NER, so this is defense-in-depth on top of the strict
+    PAST_CASES_GUIDE instruction never to output identities — the safest practice
+    is to anonymize past-case documents before uploading them to the KB.
+    """
+    if not text:
+        return text
+    import re
+    out = re.sub(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b", "[email redacted]", text)
+    # Phone-like sequences: an international +.. number, or grouped 3-3-4 digits.
+    out = re.sub(r"(?<!\w)(\+\d[\d\s().-]{7,}\d|\d{3}[\s.\-]\d{3}[\s.\-]\d{3,4})(?!\w)", "[phone redacted]", out)
+    try:
+        tokens = set()
+        for u in session.exec(select(User)).all():
+            for tok in (u.username or "", u.email or ""):
+                tok = tok.strip()
+                if len(tok) >= 3:
+                    tokens.add(tok)
+        # Replace longer tokens first so emails are masked before their local part.
+        for tok in sorted(tokens, key=len, reverse=True):
+            out = re.sub(r"\b" + re.escape(tok) + r"\b", "[party]", out, flags=re.IGNORECASE)
+    except Exception:
+        pass
+    return out
 
 
 def _past_cases_context(
@@ -1015,6 +1059,7 @@ def assistant_ask_stream(
     hist = _history_payload(payload.history)
     question = payload.question
     req_model = payload.model
+    user_id = user.id  # capture now — `user` may be detached inside the generator
 
     def event_stream():
         import queue
@@ -1068,14 +1113,20 @@ def assistant_ask_stream(
         text = "".join(parts).strip()
         msg_id = None
         if text:
+            # Persist the bot answer in a fresh session, re-loading the user by id
+            # (the dependency-scoped `user` may be expired/detached here). Log —
+            # never silently drop — so a save failure is visible, not invisible.
             try:
                 with Session(engine) as s:
                     cs = s.get(_ChatSession, session_id)
-                    if cs:
-                        m = chat_history.save_message(s, cs, user, "bot", text, intent=intent, sources=sources)
+                    u = s.get(User, user_id)
+                    if cs and u:
+                        m = chat_history.save_message(s, cs, u, "bot", text, intent=intent, sources=sources)
                         msg_id = m.id
-            except Exception:
-                pass
+                    else:
+                        logger.warning("Bot message not saved: session=%s user=%s missing", session_id, user_id)
+            except Exception as e:
+                logger.warning("Failed to save bot message (session=%s): %s", session_id, e)
         if err and not text:
             yield _sse({"type": "error", "detail": err})
         yield _sse({"type": "done", "message_id": msg_id,

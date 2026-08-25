@@ -253,9 +253,9 @@ _RAG_SYSTEM = (
     "and Lithuania. Answer using the CONTEXT below when it is relevant, citing the "
     "country and article. If the context is insufficient, use general legal "
     "knowledge and say so briefly. "
-    "Be CONCISE and get to the point: prefer compact tables/lists with only the "
-    "essential rows, avoid long preambles and repetition, and finish within a few "
-    "hundred words so the answer completes quickly."
+    "Structure the answer clearly with headings, tables or lists. Match the depth "
+    "to the question — elaborate fully when the user asks for detail, be concise "
+    "otherwise — and always finish your last sentence; never stop mid-thought."
 )
 
 

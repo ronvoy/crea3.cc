@@ -19,6 +19,10 @@ from __future__ import annotations
 
 import json as _json
 import logging
+import secrets
+import threading
+import time as _time
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +77,14 @@ ROLES:
 - The dispute owner manages agents and goods and generates proposals.
 - A mediator can only view; they cannot submit preferences or proposals.
 
-Answer ONLY using the information above and the dispute context provided. If a
-question is a legal question (about the law itself, rights, or statutes), do NOT
-answer it: tell the user to use the separate "Legal AI Assistant" page instead.
-Keep answers short, clear, and practical. If you don't know, say so.
+Answer ONLY using the information above and the dispute context provided.
+Answer the SPECIFIC question asked, briefly and practically — do NOT dump the whole
+workflow, the field help, or an example scenario unless the user explicitly asks for
+a full overview. For a greeting or small talk (e.g. "hi", "hello", "thanks"), reply
+with a short, friendly one-line greeting and invite them to ask about their dispute
+or how the platform works — nothing more. This is ONE assistant: legal questions are
+handled automatically, so never mention a separate page or tab. If you don't know,
+say so.
 """
 
 
@@ -205,7 +213,8 @@ ANSWER STYLE — direct and useful, no fluff:
   Make each step actionable and put the relevant clickable link IN the step it applies to.
 - If the visitor asks to see or open a page (e.g. "show me the home page", "take me to
   partners"), reply briefly and give that page's clickable link so they can click through.
-- Do NOT add the "Legal AI Assistant" note unless the question is actually a legal one.
+- For a greeting or small talk (e.g. "hi", "hello"), reply with a short friendly one-line
+  greeting and invite them to ask about CREA3 — do NOT dump the workflow or an overview.
 """
 )
 
@@ -974,12 +983,13 @@ def voice_config(_user: User = Depends(get_current_user)):
     When stt=false the browser transcribes locally (Web Speech API).
     """
     from ..core import stt
+    from ..core.config import settings
     try:
         from ..core import tts  # added in Step H
         tts_ok = tts.available()
     except Exception:
         tts_ok = False
-    return {"stt": stt.available(), "tts": tts_ok}
+    return {"stt": stt.available(), "tts": tts_ok, "tunnel_cap": bool(settings.tunnel_cap)}
 
 
 @router.post("/voice/transcribe")
@@ -1215,6 +1225,187 @@ def assistant_ask_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )
+
+
+# ==========================================================================
+# Background-job + polling delivery (tunnel-proof).
+#
+# Some reverse proxies / tunnels cap the DURATION of a single request and cut a
+# long-running SSE stream (the legal chatbot can take ~10-20s). This path moves
+# generation OFF the held connection: `/ask/start` kicks off a background worker
+# and returns a job id in <1s; the client then polls `/ask/poll` every ~1s, and
+# every request is sub-second — so no duration cap can ever cut the answer. The
+# SSE `/ask/stream` above is kept for direct/local use.
+# ==========================================================================
+
+_JOB_TTL_SECONDS = 600  # keep finished jobs briefly so late polls still succeed
+
+
+@dataclass
+class _AskJob:
+    id: str
+    user_id: int
+    created_at: float
+    status: str = "pending"          # pending | running | done | error
+    text: str = ""
+    intent: str | None = None
+    sources: list | None = None
+    session_id: int | None = None
+    grounded_on_dispute: bool = False
+    provider: str | None = None
+    fallback: bool = False
+    message_id: int | None = None
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+_ASK_JOBS: dict[str, _AskJob] = {}
+_ASK_JOBS_LOCK = threading.Lock()
+
+
+def _cleanup_ask_jobs() -> None:
+    now = _time.time()
+    with _ASK_JOBS_LOCK:
+        stale = [jid for jid, j in _ASK_JOBS.items() if now - j.created_at > _JOB_TTL_SECONDS]
+        for jid in stale:
+            _ASK_JOBS.pop(jid, None)
+
+
+def _run_ask_job(job_id: str, payload: "AskIn", user_id: int) -> None:
+    """Background worker: classify, ground, generate, persist — writing progress
+    into the job buffer so `/ask/poll` can hand it out incrementally."""
+    from ..core.config import settings
+    from ..db import engine
+    from ..models import ChatSession as _ChatSession
+    from . import chat_history
+
+    job = _ASK_JOBS.get(job_id)
+    if job is None:
+        return
+    try:
+        with Session(engine) as session:
+            user = session.get(User, user_id)
+            if user is None:
+                with job.lock:
+                    job.status = "error"
+                return
+            intent = payload.mode if payload.mode in INTENTS else classify_intent(payload.question, payload.history)
+            _log_query("inapp", intent, user.id, user.username, payload.lang)
+            system, grounded, sources = _system_for_intent(intent, payload, user, session)
+            system += _attachments_block(payload.attachments)
+
+            sess = chat_history.get_or_create_session(session, user, payload.session_id, payload.question)
+            session_id = sess.id
+            file_names = [a.filename for a in payload.attachments if (a.text or "").strip()]
+            chat_history.save_message(
+                session, sess, user, "user", payload.question,
+                files=file_names, transcript=payload.transcript,
+                audio_in_b64=payload.audio_in_b64, audio_in_mime=payload.audio_in_mime,
+            )
+            hist = _history_payload(payload.history)
+
+            with job.lock:
+                job.intent = intent
+                job.sources = sources
+                job.session_id = session_id
+                job.grounded_on_dispute = grounded
+                job.status = "running"
+
+            meta: dict = {}
+            try:
+                for chunk in llm.chat_stream(
+                    system=system, user_message=payload.question, history=hist,
+                    model=payload.model, openrouter_model=settings.legal_openrouter_model, meta=meta,
+                    prefer_legal_ai=(intent == "legal_statutes"), lang=payload.lang,
+                ):
+                    with job.lock:
+                        job.text += chunk
+            except (llm.LLMUnavailable, llm.LLMError) as e:
+                logger.warning("ask job generation error: %s", e)
+            except Exception:
+                logger.warning("ask job unexpected error", exc_info=True)
+
+            with job.lock:
+                text = job.text.strip()
+
+            msg_id = None
+            if text:
+                try:
+                    cs = session.get(_ChatSession, session_id)
+                    u = session.get(User, user_id)
+                    if cs and u:
+                        m = chat_history.save_message(session, cs, u, "bot", text, intent=intent, sources=sources)
+                        msg_id = m.id
+                except Exception as e:
+                    logger.warning("ask job: failed to save bot message: %s", e)
+
+            with job.lock:
+                job.provider = meta.get("provider")
+                job.fallback = bool(meta.get("fallback"))
+                job.message_id = msg_id
+                job.status = "done" if text else "error"
+    except Exception:
+        logger.warning("ask job fatal error", exc_info=True)
+        with job.lock:
+            job.status = "error"
+
+
+class AskStartOut(BaseModel):
+    job_id: str
+
+
+@router.post("/ask/start", response_model=AskStartOut)
+def assistant_ask_start(
+    payload: AskIn,
+    user: User = Depends(get_current_user),
+):
+    """Start a generation job and return its id immediately (sub-second)."""
+    _cleanup_ask_jobs()
+    job_id = secrets.token_urlsafe(12)
+    with _ASK_JOBS_LOCK:
+        _ASK_JOBS[job_id] = _AskJob(id=job_id, user_id=user.id, created_at=_time.time())
+    threading.Thread(target=_run_ask_job, args=(job_id, payload, user.id), daemon=True).start()
+    return AskStartOut(job_id=job_id)
+
+
+class AskPollOut(BaseModel):
+    status: str
+    text: str                       # NEW text since the requested offset
+    next_offset: int
+    intent: str | None = None
+    sources: list | None = None
+    session_id: int | None = None
+    grounded_on_dispute: bool | None = None
+    provider: str | None = None
+    fallback: bool | None = None
+    message_id: int | None = None
+
+
+@router.get("/ask/poll", response_model=AskPollOut)
+def assistant_ask_poll(
+    job_id: str,
+    offset: int = 0,
+    user: User = Depends(get_current_user),
+):
+    """Return the answer accumulated so far past `offset` (sub-second request)."""
+    with _ASK_JOBS_LOCK:
+        job = _ASK_JOBS.get(job_id)
+    if job is None or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Unknown or expired job.")
+    with job.lock:
+        full = job.text
+        off = offset if 0 <= offset <= len(full) else len(full)
+        return AskPollOut(
+            status=job.status,
+            text=full[off:],
+            next_offset=len(full),
+            intent=job.intent,
+            sources=job.sources,
+            session_id=job.session_id,
+            grounded_on_dispute=job.grounded_on_dispute,
+            provider=job.provider,
+            fallback=job.fallback,
+            message_id=job.message_id,
+        )
 
 
 # ==========================================================================

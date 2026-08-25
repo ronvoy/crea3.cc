@@ -178,6 +178,14 @@ class Settings(BaseSettings):
         default=True,
         validation_alias=AliasChoices("USE_OLLAMA", "use_ollama"),
     )
+    # Tunnel-cap mode. When true, the assistant widget uses the background-job +
+    # polling delivery (every request sub-second) so a reverse-proxy/tunnel that
+    # caps request DURATION can't cut a long answer. Set false (e.g. behind a
+    # Cloudflare tunnel with no short cap) to use the smoother SSE streaming.
+    tunnel_cap: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("TUNNEL_CAP", "tunnel_cap"),
+    )
     # Keep BELOW the tunnel/proxy timeout so a slow model fails fast with a clear
     # message instead of hanging until the proxy kills the connection.
     openrouter_timeout_seconds: float = Field(

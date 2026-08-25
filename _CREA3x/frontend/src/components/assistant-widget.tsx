@@ -130,6 +130,8 @@ export default function AssistantWidget() {
   const [transcribing, setTranscribing] = useState(false)
   const [sttAvailable, setSttAvailable] = useState(false)
   const [ttsAvailable, setTtsAvailable] = useState(false)
+  // Delivery mode: true = tunnel-proof polling; false = SSE streaming. From server config.
+  const [tunnelCap, setTunnelCap] = useState(true)
   const [autoplay, setAutoplay] = useState(true)
   // Unified audio playback state: which message/kind is playing and whether paused.
   const [nowPlaying, setNowPlaying] = useState<{ key: string; paused: boolean } | null>(null)
@@ -168,7 +170,7 @@ export default function AssistantWidget() {
     // Opening the assistant closes the accessibility panel (mutually exclusive).
     window.dispatchEvent(new Event('crea3-close-a11y'))
     api('/api/assistant/sessions').then((rows) => setSessions(rows || [])).catch(() => {})
-    api('/api/assistant/voice/config').then((c) => { setSttAvailable(!!c?.stt); setTtsAvailable(!!c?.tts) }).catch(() => {})
+    api('/api/assistant/voice/config').then((c) => { setSttAvailable(!!c?.stt); setTtsAvailable(!!c?.tts); setTunnelCap(c?.tunnel_cap !== false) }).catch(() => {})
   }, [open])
 
   // External open/close (Launch button on the dispute page) + mutual exclusion.
@@ -513,55 +515,99 @@ export default function AssistantWidget() {
     let streamErr: string | null = null
     try {
       const token = getAccessToken()
-      const res = await fetch(`${API_BASE}/api/assistant/ask/stream`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          question: q,
-          history: historyPayload(list),
-          lang,
-          dispute_id: disputeId,
-          mode: 'auto',
-          attachments: sentFiles.map((a) => ({ filename: a.filename, text: a.text })),
-          session_id: sessionId,
-          transcript: voice ? q : undefined,
-          audio_in_b64: voice?.audioB64,
-          audio_in_mime: voice?.mime,
-        }),
-      })
-      if (res.status === 401) { try { localStorage.removeItem('access_token') } catch {} }
-      if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`)
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+      const reqBody = {
+        question: q,
+        history: historyPayload(list),
+        lang,
+        dispute_id: disputeId,
+        mode: 'auto',
+        attachments: sentFiles.map((a) => ({ filename: a.filename, text: a.text })),
+        session_id: sessionId,
+        transcript: voice ? q : undefined,
+        audio_in_b64: voice?.audioB64,
+        audio_in_mime: voice?.mime,
+      }
 
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const events = buffer.split('\n\n')
-        buffer = events.pop() || ''
-        for (const ev of events) {
-          const dataLine = ev.split('\n').find((l) => l.startsWith('data:'))
-          if (!dataLine) continue
-          let obj: any
-          try { obj = JSON.parse(dataLine.slice(5).trim()) } catch { continue }
-          if (obj.type === 'meta') {
-            newSessionId = obj.session_id
+      if (tunnelCap) {
+        // Tunnel-proof delivery: start a background job, then poll for progress.
+        // Every request is sub-second, so a proxy/tunnel request-duration cap can
+        // never cut a long answer (unlike a single long-held SSE stream).
+        const startRes = await fetch(`${API_BASE}/api/assistant/ask/start`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify(reqBody),
+        })
+        if (startRes.status === 401) { try { localStorage.removeItem('access_token') } catch {} }
+        if (!startRes.ok) throw new Error(`Request failed (${startRes.status})`)
+        const { job_id: jobId } = await startRes.json()
+
+        let offset = 0
+        let metaSet = false
+        const startedAt = Date.now()
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const pollRes = await fetch(
+            `${API_BASE}/api/assistant/ask/poll?job_id=${encodeURIComponent(jobId)}&offset=${offset}`,
+            { credentials: 'include', headers: authHeaders },
+          )
+          if (!pollRes.ok) throw new Error(`Request failed (${pollRes.status})`)
+          const p = await pollRes.json()
+          if (p.session_id) newSessionId = p.session_id
+          if (!metaSet && p.intent) {
             patchLastBot({
-              intent: obj.intent as Intent,
-              sources: Array.isArray(obj.sources) && obj.sources.length ? obj.sources : undefined,
+              intent: p.intent as Intent,
+              sources: Array.isArray(p.sources) && p.sources.length ? p.sources : undefined,
             })
-          } else if (obj.type === 'token') {
-            acc += obj.text
-            patchLastBot({ text: acc })
-          } else if (obj.type === 'done') {
-            msgId = obj.message_id ?? undefined
-            patchLastBot({ msgId, fallback: !!obj.fallback })
-          } else if (obj.type === 'error') {
-            streamErr = obj.detail
+            metaSet = true
+          }
+          if (p.text) { acc += p.text; patchLastBot({ text: acc }) }
+          offset = p.next_offset ?? offset
+          if (p.status === 'done') { msgId = p.message_id ?? undefined; patchLastBot({ msgId, fallback: !!p.fallback }); break }
+          if (p.status === 'error') { streamErr = 'unavailable'; break }
+          if (Date.now() - startedAt > 180000) { streamErr = 'timeout'; break }
+          await new Promise((r) => setTimeout(r, 900))
+        }
+      } else {
+        // SSE streaming (smoother; use behind a tunnel with no short request cap).
+        const res = await fetch(`${API_BASE}/api/assistant/ask/stream`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify(reqBody),
+        })
+        if (res.status === 401) { try { localStorage.removeItem('access_token') } catch {} }
+        if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`)
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const events = buffer.split('\n\n')
+          buffer = events.pop() || ''
+          for (const ev of events) {
+            const dataLine = ev.split('\n').find((l) => l.startsWith('data:'))
+            if (!dataLine) continue
+            let obj: any
+            try { obj = JSON.parse(dataLine.slice(5).trim()) } catch { continue }
+            if (obj.type === 'meta') {
+              newSessionId = obj.session_id
+              patchLastBot({
+                intent: obj.intent as Intent,
+                sources: Array.isArray(obj.sources) && obj.sources.length ? obj.sources : undefined,
+              })
+            } else if (obj.type === 'token') {
+              acc += obj.text
+              patchLastBot({ text: acc })
+            } else if (obj.type === 'done') {
+              msgId = obj.message_id ?? undefined
+              patchLastBot({ msgId, fallback: !!obj.fallback })
+            } else if (obj.type === 'error') {
+              streamErr = obj.detail
+            }
           }
         }
       }

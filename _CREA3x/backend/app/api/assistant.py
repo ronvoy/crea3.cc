@@ -235,6 +235,56 @@ def assistant_public(payload: PublicAssistantIn, session: Session = Depends(get_
     return AssistantOut(answer=result.text, model=result.model)
 
 
+class ReportTurn(BaseModel):
+    role: str = Field(max_length=16)
+    text: str = Field(default="", max_length=8000)
+
+
+class ChatReportIn(BaseModel):
+    session_id: int | None = None
+    messages: list[ReportTurn] = Field(default_factory=list, max_length=400)
+
+
+@router.post("/report")
+def report_chat(payload: ChatReportIn, user: User = Depends(get_current_user)):
+    """Email the current assistant conversation to the support mailbox for admin
+    review — from info@ to support@, subject '[legal-ai-report]-<username>'."""
+    from ..core.config import settings
+    from ..core.email import _send_email
+
+    to_email = (settings.support_email or settings.smtp_from or "").strip()
+    if not to_email:
+        raise HTTPException(status_code=503, detail="Support mailbox is not configured.")
+
+    lines = []
+    for t in payload.messages:
+        who = "User" if t.role == "user" else "Assistant"
+        body_txt = (t.text or "").strip()
+        if body_txt:
+            lines.append(f"{who}:\n{body_txt}")
+    transcript = "\n\n".join(lines) if lines else "(the conversation was empty)"
+
+    subject = f"[legal-ai-report]-{user.username}"
+    body = (
+        "A Legal AI conversation was flagged for review from the CREA3 platform.\n\n"
+        "FROM\n"
+        f"  - User: {user.username}\n"
+        f"  - Email: {user.email}\n"
+        f"  - Role: {user.role}\n"
+        f"  - User ID: {user.id}\n"
+        + (f"  - Session ID: {payload.session_id}\n" if payload.session_id else "")
+        + "\nCONVERSATION TRANSCRIPT\n\n"
+        + transcript
+        + "\n\n—\nSent automatically by the Legal AI report button.\n"
+    )
+    try:
+        _send_email(to_email=to_email, subject=subject, body_text=body)
+    except Exception as exc:
+        logger.warning("legal-ai report email failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Could not send the report.")
+    return {"ok": True}
+
+
 LEGAL_GUIDE = """\
 You are the "Legal AI Assistant" for CREA3, a platform that helps families resolve
 civil disputes (division of assets in divorce or inheritance) across six European

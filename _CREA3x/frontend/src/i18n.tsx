@@ -852,6 +852,9 @@ const strings = {
     aiDropHere: 'Drop files to attach',
     aiHistory: 'Chat history',
     aiNewChat: 'New chat',
+    aiReport: 'Report this chat to support',
+    aiReportSent: 'Report sent to the support team.',
+    aiReportFailed: 'Could not send the report. Please try again.',
     aiNoHistory: 'No saved chats yet.',
     aiRename: 'Rename',
     aiDelete: 'Delete',
@@ -953,6 +956,9 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    aiReport: "Segnala questa chat al supporto",
+    aiReportSent: "Segnalazione inviata al team di supporto.",
+    aiReportFailed: "Impossibile inviare la segnalazione. Per favore riprova.",
     supportAttachments: "Allegati (opzionale)",
     supportAddFiles: "Aggiungi file",
     supportFileHint: "PNG, JPG, PDF, DOCX o TXT · fino a 8 file, 10 MB ciascuno.",
@@ -1885,6 +1891,9 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    aiReport: "Prijavi to klepet podpori",
+    aiReportSent: "Prijava poslana ekipi za podporo.",
+    aiReportFailed: "Prijave ni bilo mogoče poslati. Poskusite znova.",
     supportAttachments: "Priponke (neobvezno)",
     supportAddFiles: "Dodaj datoteke",
     supportFileHint: "PNG, JPG, PDF, DOCX ali TXT · do 8 datotek, 10 MB vsaka.",
@@ -2817,6 +2826,9 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    aiReport: "Teata sellest vestlusest toele",
+    aiReportSent: "Teade saadetud toeteamile.",
+    aiReportFailed: "Teate saatmine ebaõnnestus. Palun proovi uuesti.",
     supportAttachments: "Manused (valikuline)",
     supportAddFiles: "Lisa faile",
     supportFileHint: "PNG, JPG, PDF, DOCX või TXT · kuni 8 faili, igaühe suurus 10 MB.",
@@ -3749,6 +3761,9 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    aiReport: "Signaler cette discussion au support",
+    aiReportSent: "Signalement envoyé à l'équipe de support.",
+    aiReportFailed: "Impossible d'envoyer le signalement. Veuillez réessayer.",
     supportAttachments: "Pièces jointes (facultatif)",
     supportAddFiles: "Ajouter des fichiers",
     supportFileHint: "PNG, JPG, PDF, DOCX ou TXT · jusqu'à 8 fichiers, 10 Mo chacun.",
@@ -4681,6 +4696,9 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    aiReport: "Pranešti apie šią pokalbį palaikymui",
+    aiReportSent: "Pranešimas išsiųstas palaikymo komandai.",
+    aiReportFailed: "Nepavyko išsiųsti pranešimo. Prašome bandyti dar kartą.",
     supportAttachments: "Priedai (neprivalomi)",
     supportAddFiles: "Pridėti failus",
     supportFileHint: "PNG, JPG, PDF, DOCX arba TXT · iki 8 failų, po 10 MB kiekvienas.",
@@ -5613,6 +5631,9 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    aiReport: "Prijavite ovaj razgovor podršci",
+    aiReportSent: "Prijava poslana timu podrške.",
+    aiReportFailed: "Nije moguće poslati prijavu. Pokušajte ponovo.",
     supportAttachments: "Privitci (opcionalno)",
     supportAddFiles: "Dodaj datoteke",
     supportFileHint: "PNG, JPG, PDF, DOCX ili TXT · do 8 datoteka, 10 MB svaka.",
@@ -6549,6 +6570,9 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    aiReport: "Rapporteer deze chat aan de ondersteuning",
+    aiReportSent: "Rapport verzonden naar het ondersteuningsteam.",
+    aiReportFailed: "Het rapport kon niet worden verzonden. Probeer het opnieuw.",
     supportAttachments: "Bijlagen (optioneel)",
     supportAddFiles: "Bestanden toevoegen",
     supportFileHint: "PNG, JPG, PDF, DOCX of TXT · tot 8 bestanden, elk 10 MB.",

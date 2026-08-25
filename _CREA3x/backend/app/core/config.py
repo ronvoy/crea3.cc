@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     # can't overrun a tunnel/proxy response window (which shows up as a 502).
     # Applies to both the primary (Ollama) and the OpenRouter fallback.
     assistant_max_tokens: int = Field(
-        default=700,
+        default=1500,
         validation_alias=AliasChoices("ASSISTANT_MAX_TOKENS", "assistant_max_tokens"),
     )
 

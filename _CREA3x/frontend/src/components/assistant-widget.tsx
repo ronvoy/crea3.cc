@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip, Button, Link as MuiLink,
+  Snackbar, Alert,
 } from '@mui/material'
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import SendIcon from '@mui/icons-material/Send'
@@ -17,6 +19,7 @@ import StopCircleIcon from '@mui/icons-material/StopCircle'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PauseIcon from '@mui/icons-material/Pause'
 import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import VolumeOffOutlinedIcon from '@mui/icons-material/VolumeOffOutlined'
 import CircularProgress from '@mui/material/CircularProgress'
 import ReactMarkdown from 'react-markdown'
@@ -114,6 +117,8 @@ export default function AssistantWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([{ role: 'bot', text: t('aiWelcome') }])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [reporting, setReporting] = useState(false)
+  const [report, setReport] = useState<{ text: string; ok: boolean } | null>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [attaching, setAttaching] = useState(false)
   const [attachErr, setAttachErr] = useState<string | null>(null)
@@ -475,20 +480,31 @@ export default function AssistantWidget() {
     })
   }
 
-  async function ask(question: string, voice?: { audioUrl: string; audioB64: string; mime: string }) {
+  async function ask(question: string, voice?: { audioUrl: string; audioB64: string; mime: string }, regenerate = false) {
     const q = question.trim()
     if (!q || sending) return
     setInput('')
-    const list = msgs
-    const sentFiles = attachments
     stopAudio()
-    // Append the user turn AND an empty bot bubble we'll stream into.
-    setMsgs((m) => [
-      ...m,
-      { role: 'user', text: q, files: sentFiles.map((a) => a.filename), voice: !!voice, audioUrl: voice?.audioUrl },
-      { role: 'bot', text: '' },
-    ])
-    setAttachments([])
+    let list: Msg[]
+    const sentFiles = regenerate ? [] : attachments
+    if (regenerate) {
+      // Re-ask the last user question: keep messages up to & including it, drop
+      // the previous answer, and stream a fresh one. History excludes both.
+      let ui = -1
+      for (let i = msgs.length - 1; i >= 0; i--) { if (msgs[i].role === 'user') { ui = i; break } }
+      if (ui === -1) return
+      list = msgs.slice(0, ui)
+      setMsgs(msgs.slice(0, ui + 1).concat([{ role: 'bot', text: '' }]))
+    } else {
+      list = msgs
+      // Append the user turn AND an empty bot bubble we'll stream into.
+      setMsgs((m) => [
+        ...m,
+        { role: 'user', text: q, files: sentFiles.map((a) => a.filename), voice: !!voice, audioUrl: voice?.audioUrl },
+        { role: 'bot', text: '' },
+      ])
+      setAttachments([])
+    }
     setSending(true)
 
     let acc = ''
@@ -581,6 +597,30 @@ export default function AssistantWidget() {
 
   const showLegalDisclaimer = msgs.some((m) => m.intent === 'legal_statutes' || m.intent === 'past_cases')
 
+  // Email the whole conversation to support for admin review.
+  async function reportChat() {
+    if (reporting) return
+    const turns = msgs.filter((m) => (m.text || '').trim()).map((m) => ({ role: m.role, text: m.text }))
+    if (!turns.length) return
+    setReporting(true)
+    try {
+      await api('/api/assistant/report', { method: 'POST', body: { session_id: sessionId, messages: turns } })
+      setReport({ text: t('aiReportSent'), ok: true })
+    } catch {
+      setReport({ text: t('aiReportFailed'), ok: false })
+    } finally {
+      setReporting(false)
+    }
+  }
+
+  // Re-run the most recent question to regenerate its answer.
+  function regenerate() {
+    if (sending) return
+    let lastUser = ''
+    for (let i = msgs.length - 1; i >= 0; i--) { if (msgs[i].role === 'user') { lastUser = msgs[i].text; break } }
+    if (lastUser) ask(lastUser, undefined, true)
+  }
+
   // Open the KB source document a chat answer cited (auth'd fetch → new tab).
   async function openSource(id: number) {
     try {
@@ -657,6 +697,13 @@ export default function AssistantWidget() {
                 >
                   {autoplay ? <VolumeUpOutlinedIcon fontSize="small" /> : <VolumeOffOutlinedIcon fontSize="small" />}
                 </IconButton>
+              </Tooltip>
+              <Tooltip title={t('aiReport')} placement="bottom">
+                <span>
+                  <IconButton size="small" onClick={reportChat} disabled={reporting || msgs.length <= 1} aria-label={t('aiReport')} color="warning">
+                    <ReportProblemOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title={t('aiNewChat')} placement="bottom">
                 <IconButton size="small" onClick={newChat} aria-label={t('aiNewChat')}>
@@ -768,11 +815,22 @@ export default function AssistantWidget() {
                     const key = `tts:${m.msgId ?? 'live'}`
                     const playing = isPlaying(key)
                     return (
-                      <Tooltip title={playing ? t('aiPause') : t('aiSpeak')} placement="right">
-                        <IconButton size="small" onClick={() => speak(m)} aria-label={playing ? t('aiPause') : t('aiSpeak')} sx={{ mt: 0.25 }}>
-                          {playing ? <PauseIcon sx={{ fontSize: 18 }} /> : <VolumeUpOutlinedIcon sx={{ fontSize: 18 }} />}
-                        </IconButton>
-                      </Tooltip>
+                      <Stack direction="row" spacing={0.25} alignItems="center">
+                        <Tooltip title={playing ? t('aiPause') : t('aiSpeak')} placement="right">
+                          <IconButton size="small" onClick={() => speak(m)} aria-label={playing ? t('aiPause') : t('aiSpeak')} sx={{ mt: 0.25 }}>
+                            {playing ? <PauseIcon sx={{ fontSize: 18 }} /> : <VolumeUpOutlinedIcon sx={{ fontSize: 18 }} />}
+                          </IconButton>
+                        </Tooltip>
+                        {i === msgs.length - 1 && m.text ? (
+                          <Tooltip title={t('refresh')} placement="right">
+                            <span>
+                              <IconButton size="small" onClick={regenerate} disabled={sending} aria-label={t('refresh')} sx={{ mt: 0.25 }}>
+                                <RefreshIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        ) : null}
+                      </Stack>
                     )
                   })() : null}
                   {m.role === 'user' && m.files && m.files.length ? (
@@ -909,6 +967,15 @@ export default function AssistantWidget() {
           </Fab>
         </Tooltip>
       ) : null}
+
+      <Snackbar
+        open={!!report}
+        autoHideDuration={4000}
+        onClose={() => setReport(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {report ? <Alert severity={report.ok ? 'success' : 'error'} onClose={() => setReport(null)} variant="filled">{report.text}</Alert> : undefined}
+      </Snackbar>
     </Box>
   )
 }

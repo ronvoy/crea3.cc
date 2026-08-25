@@ -550,9 +550,11 @@ export default function AssistantWidget() {
         }
       }
       // Keep whatever text arrived; only show an error if nothing streamed.
+      // Never render the raw backend error (it may name a model/provider) — always
+      // a friendly, localized message.
       if (streamErr) {
         if (acc) patchLastBot({ text: `${acc}\n\n_${t('aiInterrupted')}_` })
-        else patchLastBot({ text: streamErr })
+        else patchLastBot({ text: t('aiWidgetUnavailable') })
       } else if (!acc) {
         patchLastBot({ text: t('aiWidgetUnavailable') })
       }

@@ -1146,7 +1146,11 @@ def assistant_ask_stream(
             except Exception as e:
                 logger.warning("Failed to save bot message (session=%s): %s", session_id, e)
         if err and not text:
-            yield _sse({"type": "error", "detail": err})
+            # Log the real reason server-side (may name a model/provider) but send
+            # the client only a generic flag — internal details must never surface
+            # in a chat reply.
+            logger.warning("assistant stream error: %s", err)
+            yield _sse({"type": "error", "detail": "unavailable"})
         yield _sse({"type": "done", "message_id": msg_id,
                     "provider": meta.get("provider"), "model": meta.get("model")})
 

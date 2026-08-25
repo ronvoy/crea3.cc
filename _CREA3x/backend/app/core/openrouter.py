@@ -58,9 +58,15 @@ def _model_candidates(override: str | None = None) -> list[str]:
     out: list[str] = []
     for m in raw.split(","):
         m = m.strip()
-        if m and m not in seen:
+        # Strict policy: only Mistral / Ministral models may be used. Any other
+        # provider (OpenAI, Google, etc.) is dropped even if it is configured, so
+        # a stray id can never be selected or surface in a reply.
+        if m and m not in seen and ("mistral" in m.lower() or "ministral" in m.lower()):
             seen.add(m)
             out.append(m)
+    # Never end up with an empty list — fall back to the free Mistral instruct.
+    if not out:
+        out.append("mistralai/mistral-7b-instruct:free")
     return out
 
 

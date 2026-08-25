@@ -66,8 +66,13 @@ def chat(
     `model` names the preferred Ollama model. `openrouter_model` optionally pins
     the OpenRouter fallback to a specific model (e.g. the Legal assistant pins
     Mistral); when None the fallback uses the configured OPENROUTER_MODEL list.
+
+    When USE_OLLAMA is false, the local primary is skipped entirely and the
+    request goes straight to OpenRouter (used while no local model is running).
     """
     try:
+        if not settings.use_ollama:
+            raise ollama.OllamaUnavailable("Ollama disabled (USE_OLLAMA=false).")
         text = ollama.chat(
             system=system, user_message=user_message, history=history, model=model, max_tokens=max_tokens
         )
@@ -119,8 +124,11 @@ def chat_stream(
     """
     meta = meta if meta is not None else {}
 
-    # 1) Try Ollama. Connection/availability errors surface on the first chunk.
+    # 1) Try Ollama (skipped entirely when USE_OLLAMA=false). Connection/
+    #    availability errors surface on the first chunk.
     try:
+        if not settings.use_ollama:
+            raise ollama.OllamaUnavailable("Ollama disabled (USE_OLLAMA=false).")
         gen = ollama.chat_stream(system=system, user_message=user_message, history=history, model=model)
         first = next(gen)
         meta["provider"] = OLLAMA

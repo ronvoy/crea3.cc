@@ -168,8 +168,15 @@ class Settings(BaseSettings):
     # CONSISTENT latency: behind a tunnel a slow reply is cut off by the proxy
     # and the widget only shows "offline".
     openrouter_model: str = Field(
-        default="inclusionai/ling-3.0-flash:free,google/gemma-4-26b-a4b-it:free,nvidia/nemotron-3-super-120b-a12b:free,openai/gpt-oss-20b:free",
+        default="mistralai/ministral-8b",
         validation_alias=AliasChoices("OPENROUTER_MODEL", "openrouter_model"),
+    )
+    # Toggle the local Ollama primary. Set USE_OLLAMA=false while no local model is
+    # running so requests skip Ollama and go straight to the OpenRouter fallback;
+    # set it back to true (the default) once the local endpoint is available again.
+    use_ollama: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("USE_OLLAMA", "use_ollama"),
     )
     # Keep BELOW the tunnel/proxy timeout so a slow model fails fast with a clear
     # message instead of hanging until the proxy kills the connection.
@@ -208,7 +215,7 @@ class Settings(BaseSettings):
     # Workflow assistant) and, when Ollama is unreachable, falls back to OpenRouter
     # PINNED to Mistral (instead of the Workflow assistant's rotating free list).
     legal_openrouter_model: str = Field(
-        default="mistralai/mistral-7b-instruct:free",
+        default="mistralai/ministral-8b",
         validation_alias=AliasChoices("LEGAL_OPENROUTER_MODEL", "legal_openrouter_model"),
     )
 

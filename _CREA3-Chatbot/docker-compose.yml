@@ -1,0 +1,11 @@
+services:
+  backend:
+    build: ./backend
+    env_file: ./.env
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=${BACKEND_PORT:-8094}
+    ports:
+      - "${BACKEND_PORT:-8094}:${BACKEND_PORT:-8094}"
+    volumes:
+      - ./backend/logs:/app/logs

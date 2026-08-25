@@ -21,13 +21,14 @@ import logging
 from dataclasses import dataclass
 from typing import Iterator
 
-from . import ollama, openrouter
+from . import legal_ai, ollama, openrouter
 from .config import settings
 
 logger = logging.getLogger(__name__)
 
 OLLAMA = "ollama"
 OPENROUTER = "openrouter"
+LEGAL_AI = "legal-ai"
 
 
 class LLMError(RuntimeError):
@@ -107,6 +108,25 @@ def chat(
     return ChatResult(text=text, model=(openrouter_model or settings.openrouter_model), provider=OPENROUTER)
 
 
+def _openrouter_stream(
+    *, system, user_message, history, openrouter_model, meta,
+) -> Iterator[str]:
+    """Stream from OpenRouter (the external Mistral secondary), setting meta."""
+    try:
+        gen = openrouter.chat_stream(system=system, user_message=user_message, history=history, model=openrouter_model)
+        first = next(gen)
+        meta["provider"] = OPENROUTER
+        meta["model"] = (openrouter_model or settings.openrouter_model)
+        yield first
+        yield from gen
+    except StopIteration:
+        return
+    except openrouter.OpenRouterUnavailable as e:
+        raise LLMUnavailable(f"The assistant is unavailable: {e}") from e
+    except openrouter.OpenRouterError as e:
+        raise LLMError(str(e)) from e
+
+
 def chat_stream(
     *,
     system: str,
@@ -115,14 +135,45 @@ def chat_stream(
     model: str | None = None,
     openrouter_model: str | None = None,
     meta: dict | None = None,
+    prefer_legal_ai: bool = False,
+    lang: str | None = None,
 ) -> Iterator[str]:
     """Stream a reply, Ollama first then OpenRouter (Mistral-pinned) fallback.
 
     Yields incremental text chunks. `meta` (if given) is populated with the
     provider/model that actually served the stream. Raises LLMUnavailable/LLMError
     only before any text is yielded (once streaming starts we commit to it).
+
+    When `prefer_legal_ai` is set (legal questions), the self-hosted LexAI chatbot
+    is the PRIMARY provider; if it is unreachable/errors the reply falls back to
+    OpenRouter (the external secondary) and `meta["fallback"]` is set True so the
+    UI can flag "switched to an external model".
     """
     meta = meta if meta is not None else {}
+
+    # 0) Legal AI chatbot (local RAG) as the primary for legal questions.
+    if prefer_legal_ai and legal_ai.is_configured():
+        try:
+            gen = legal_ai.ask_stream(user_message, lang=lang)
+            first = next(gen)
+            meta["provider"] = LEGAL_AI
+            meta["model"] = legal_ai.MODEL_LABEL
+            yield first
+            yield from gen
+            return
+        except StopIteration:
+            pass  # empty answer — fall back to OpenRouter
+        except legal_ai.LegalAIUnavailable as e:
+            logger.info("Legal AI chatbot unavailable (%s) — falling back to OpenRouter", e)
+        except legal_ai.LegalAIError as e:
+            logger.warning("Legal AI chatbot error (%s) — falling back to OpenRouter", e)
+        # Primary failed → external secondary. Flag the switch for the UI.
+        meta["fallback"] = True
+        yield from _openrouter_stream(
+            system=system, user_message=user_message, history=history,
+            openrouter_model=openrouter_model, meta=meta,
+        )
+        return
 
     # 1) Try Ollama (skipped entirely when USE_OLLAMA=false). Connection/
     #    availability errors surface on the first chunk.

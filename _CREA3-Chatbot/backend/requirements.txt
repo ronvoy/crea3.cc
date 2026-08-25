@@ -1,0 +1,23 @@
+python-dotenv==1.2.1
+numpy==2.4.0
+pandas==2.3.3
+faiss-cpu==1.13.1
+
+# Framework RAG e AI
+langchain==1.2.0
+langchain-openai
+langchain-community==0.4.1
+langchain-huggingface==1.2.0
+langchain-groq
+
+# Embeddings e Modelli Locali
+sentence-transformers==5.2.0
+transformers==4.57.3
+torch==2.9.1
+
+# Valutazione
+ragas>=0.1.10
+datasets==4.4.2
+tiktoken==0.12.0
+uvicorn==0.38.0
+fastapi==0.126.0

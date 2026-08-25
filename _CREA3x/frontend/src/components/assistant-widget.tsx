@@ -30,7 +30,7 @@ import { useI18n, type I18nKey } from '../i18n'
 
 type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
 type Msg = {
-  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: Array<{ id: number | null; name: string }>; files?: string[]
+  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: Array<{ id: number | null; name: string }>; files?: string[]; fallback?: boolean
   voice?: boolean; audioUrl?: string; msgId?: number; hasAudioIn?: boolean
 }
 type Attachment = { filename: string; text: string; chars: number; truncated: boolean }
@@ -559,7 +559,7 @@ export default function AssistantWidget() {
             patchLastBot({ text: acc })
           } else if (obj.type === 'done') {
             msgId = obj.message_id ?? undefined
-            patchLastBot({ msgId })
+            patchLastBot({ msgId, fallback: !!obj.fallback })
           } else if (obj.type === 'error') {
             streamErr = obj.detail
           }
@@ -775,6 +775,15 @@ export default function AssistantWidget() {
                       size="small" variant="outlined" label={t(INTENT_LABEL[m.intent])}
                       sx={{ mb: 0.5, height: 20, fontSize: 11 }}
                     />
+                  ) : null}
+                  {m.role === 'bot' && m.fallback ? (
+                    <Tooltip title={t('aiExternalModelHint')}>
+                      <Chip
+                        size="small" color="warning" variant="outlined"
+                        label={`⚠ ${t('aiExternalModel')}`}
+                        sx={{ mb: 0.5, height: 20, fontSize: 11 }}
+                      />
+                    </Tooltip>
                   ) : null}
                   <Paper
                     variant={m.role === 'user' ? 'elevation' : 'outlined'}

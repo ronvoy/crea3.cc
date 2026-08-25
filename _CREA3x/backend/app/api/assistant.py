@@ -1150,6 +1150,7 @@ def assistant_ask_stream(
                 for chunk in llm.chat_stream(
                     system=system, user_message=question, history=hist,
                     model=req_model, openrouter_model=settings.legal_openrouter_model, meta=meta,
+                    prefer_legal_ai=(intent == "legal_statutes"), lang=payload.lang,
                 ):
                     q.put(("token", chunk))
             except llm.LLMUnavailable as e:
@@ -1168,7 +1169,11 @@ def assistant_ask_stream(
             try:
                 kind, val = q.get(timeout=3.0)
             except queue.Empty:
-                yield ": keep-alive\n\n"   # SSE comment — ignored by the client
+                # Real `data:` heartbeat (not a bare comment): some tunnels/proxies
+                # buffer or drop connections that go idle without real data, which
+                # would cut the slower legal-chatbot path (silent ~20-30s) even
+                # though the OpenRouter path — streaming tokens early — survives.
+                yield _sse({"type": "ping"})
                 continue
             if kind is SENTINEL:
                 break
@@ -1202,7 +1207,8 @@ def assistant_ask_stream(
             logger.warning("assistant stream error: %s", err)
             yield _sse({"type": "error", "detail": "unavailable"})
         yield _sse({"type": "done", "message_id": msg_id,
-                    "provider": meta.get("provider"), "model": meta.get("model")})
+                    "provider": meta.get("provider"), "model": meta.get("model"),
+                    "fallback": bool(meta.get("fallback"))})
 
     return StreamingResponse(
         event_stream(),

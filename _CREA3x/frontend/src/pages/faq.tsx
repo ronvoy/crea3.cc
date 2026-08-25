@@ -34,7 +34,6 @@ export default function FAQ() {
   return (
     <div className="grid gap-4">
       <Card>
-        <CardHeader title={t('faqTitle')} subtitle={t('faqIntro')} />
         <div className="p-4">
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('faqSearchPlaceholder')} aria-label={t('faqSearchPlaceholder')} />
         </div>

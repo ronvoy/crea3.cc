@@ -206,3 +206,146 @@ html:not(.light):not(.hc) [class*="text-emerald-8"] { color: #6ee7b7 !important;
    light text reads. Matches the -200 token only (not -2000, which doesn't exist). */
 html:not(.light):not(.hc) [class~="bg-slate-200"],
 html:not(.light):not(.hc) [class*="bg-slate-200/"] { background-color: #1e293b !important; }
+
+/* ── WCAG AA++ accessibility toggles (driven by a11y-provider html classes) ── */
+
+/* WCAG 1.4.12 Text spacing — line-height ≥1.5, letter ≥0.12×, word ≥0.16× */
+html.a11y-spacing p,
+html.a11y-spacing li,
+html.a11y-spacing span,
+html.a11y-spacing a,
+html.a11y-spacing label,
+html.a11y-spacing button,
+html.a11y-spacing input,
+html.a11y-spacing textarea,
+html.a11y-spacing h1,
+html.a11y-spacing h2,
+html.a11y-spacing h3,
+html.a11y-spacing h4 {
+  line-height: 1.7 !important;
+  letter-spacing: 0.05em !important;
+  word-spacing: 0.14em !important;
+}
+
+/* Dyslexia-friendly / more legible font */
+html.a11y-dyslexic,
+html.a11y-dyslexic body,
+html.a11y-dyslexic button,
+html.a11y-dyslexic input,
+html.a11y-dyslexic textarea,
+html.a11y-dyslexic select,
+html.a11y-dyslexic p,
+html.a11y-dyslexic span,
+html.a11y-dyslexic div,
+html.a11y-dyslexic h1,
+html.a11y-dyslexic h2,
+html.a11y-dyslexic h3 {
+  font-family: "Comic Sans MS", "Trebuchet MS", Verdana, Tahoma, sans-serif !important;
+  letter-spacing: 0.02em;
+}
+
+/* WCAG 1.4.1 Use of colour — links are underlined, not colour-only */
+html.a11y-ulinks a {
+  text-decoration: underline !important;
+  text-underline-offset: 2px;
+}
+
+/* Larger pointer for low-vision / motor users */
+html.a11y-bigcursor,
+html.a11y-bigcursor * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24"><path d="M4 2 L4 19 L8.5 14.8 L11.4 21.6 L14.2 20.4 L11.3 13.8 L18 13.6 Z" fill="black" stroke="white" stroke-width="1.2"/></svg>') 4 2, auto !important;
+}
+
+/* WCAG 2.4.7 Focus visible — strong, consistent focus ring on keyboard focus */
+html.a11y-focus *:focus-visible {
+  outline: 3px solid #2563eb !important;
+  outline-offset: 2px !important;
+  border-radius: 3px;
+}
+
+/* ══ Accessibility panel v2 (AgID / WCAG 2.2) — driven by a11y-provider ══════ */
+
+/* Light Contrast (Sharp): crisper borders + darker text on the light theme */
+html.a11y-sharp [class*="border-"] { border-color: rgba(15,23,42,0.45) !important; }
+html.a11y-sharp body { color: #0b1220 !important; }
+
+/* Colour saturation — filter #root only, so MUI drawer/menu portals (siblings of
+   #root) keep correct fixed positioning and stay operable. */
+html.a11y-sat-high #root { filter: saturate(2); }
+html.a11y-sat-low  #root { filter: saturate(0.5); }
+html.a11y-sat-mono #root { filter: grayscale(1); }
+
+/* Readable / dyslexia-friendly font (prefers Atkinson Hyperlegible if installed) */
+html.a11y-readable, html.a11y-readable body, html.a11y-readable button,
+html.a11y-readable input, html.a11y-readable textarea, html.a11y-readable select,
+html.a11y-readable p, html.a11y-readable span, html.a11y-readable div,
+html.a11y-readable a, html.a11y-readable li, html.a11y-readable label,
+html.a11y-readable h1, html.a11y-readable h2, html.a11y-readable h3, html.a11y-readable h4 {
+  font-family: "Atkinson Hyperlegible", "Comic Sans MS", Verdana, Tahoma, sans-serif !important;
+}
+
+/* Highlight all headings */
+html.a11y-hl-headings h1, html.a11y-hl-headings h2, html.a11y-hl-headings h3,
+html.a11y-hl-headings h4, html.a11y-hl-headings h5, html.a11y-hl-headings h6 {
+  background: #fde047 !important;
+  color: #111 !important;
+  box-shadow: 0 0 0 2px #fde047 !important;
+  border-radius: 2px;
+}
+
+/* Letter spacing (tracking) */
+html.a11y-ls-wide  * { letter-spacing: 0.05em !important; }
+html.a11y-ls-xwide * { letter-spacing: 0.10em !important; }
+html.a11y-ls-ultra * { letter-spacing: 0.18em !important; }
+
+/* Line height (leading) */
+html.a11y-lh-generous p, html.a11y-lh-generous li, html.a11y-lh-generous span,
+html.a11y-lh-generous div, html.a11y-lh-generous label { line-height: 1.8 !important; }
+html.a11y-lh-double p, html.a11y-lh-double li, html.a11y-lh-double span,
+html.a11y-lh-double div, html.a11y-lh-double label { line-height: 2.2 !important; }
+
+/* Mouse-hover highlight */
+html.a11y-hover a:hover, html.a11y-hover button:hover, html.a11y-hover [role="button"]:hover,
+html.a11y-hover input:hover, html.a11y-hover select:hover, html.a11y-hover textarea:hover,
+html.a11y-hover label:hover, html.a11y-hover [tabindex]:hover {
+  outline: 3px solid #f59e0b !important;
+  outline-offset: 2px !important;
+}
+
+/* Keyboard focus highlight (cyan, WCAG 2.4.7) — overrides the default blue ring */
+html.a11y-focus *:focus-visible {
+  outline: 3px solid #06b6d4 !important;
+  outline-offset: 2px !important;
+  border-radius: 3px;
+}
+
+/* Pointer size & colour */
+html.a11y-cursor-black, html.a11y-cursor-black * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24"><path d="M4 2 L4 19 L8.5 14.8 L11.4 21.6 L14.2 20.4 L11.3 13.8 L18 13.6 Z" fill="black" stroke="white" stroke-width="1.2"/></svg>') 4 2, auto !important;
+}
+html.a11y-cursor-white, html.a11y-cursor-white * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24"><path d="M4 2 L4 19 L8.5 14.8 L11.4 21.6 L14.2 20.4 L11.3 13.8 L18 13.6 Z" fill="white" stroke="black" stroke-width="1.2"/></svg>') 4 2, auto !important;
+}
+
+/* Custom colours */
+html.a11y-custom body { color: var(--a11y-text) !important; background: var(--a11y-bg) !important; }
+html.a11y-custom h1, html.a11y-custom h2, html.a11y-custom h3, html.a11y-custom h4 { color: var(--a11y-heading) !important; }
+
+/* Reading guide line */
+.a11y-guide-line {
+  position: fixed; left: 0; right: 0; height: 3px; margin-top: -1px;
+  background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.7);
+  z-index: 2147483000; pointer-events: none;
+}
+/* Reading mask bands (dim top/bottom of screen) */
+.a11y-mask-band {
+  position: fixed; background: rgba(0,0,0,0.72);
+  z-index: 2147482000; pointer-events: none;
+}
+/* Text magnifier box */
+.a11y-magnifier-box {
+  position: fixed; display: none; max-width: 320px; z-index: 2147483600;
+  pointer-events: none; background: #111827; color: #fff; font-size: 1.6rem;
+  line-height: 1.35; padding: 10px 14px; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 2px solid #06b6d4;
+}

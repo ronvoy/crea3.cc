@@ -6,8 +6,6 @@ import {
   Tooltip,
   Typography,
   Stack,
-  Switch,
-  Button,
   Divider,
   Paper,
   Select,
@@ -20,19 +18,11 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
-import TextIncreaseOutlinedIcon from '@mui/icons-material/TextIncreaseOutlined'
-import TextDecreaseOutlinedIcon from '@mui/icons-material/TextDecreaseOutlined'
 import CloseIcon from '@mui/icons-material/Close'
 import { useLocation } from 'react-router-dom'
 import { useA11y } from './a11y-provider'
+import AccessibilityPanel from './accessibility-panel'
 import { useI18n, Lang } from '../i18n'
-
-function nextUp(v: 100 | 112 | 125 | 150) {
-  return v === 100 ? 112 : v === 112 ? 125 : v === 125 ? 150 : 150
-}
-function nextDown(v: 100 | 112 | 125 | 150) {
-  return v === 150 ? 125 : v === 125 ? 112 : v === 112 ? 100 : 100
-}
 
 const LANG_OPTIONS: Array<{ code: Lang; label: string; flag: string }> = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
@@ -52,16 +42,7 @@ export default function SettingsDock() {
   // The admin console has its own theme toggle — hide the global settings/theme
   // dock there so there is only one control.
   const location = useLocation()
-  const {
-    reduceMotion,
-    fontScale,
-    lightMode,
-    setReduceMotion,
-    setFontScale,
-    setLightMode,
-    reset,
-    announce,
-  } = useA11y()
+  const { lightMode, setLightMode } = useA11y()
   const { lang, setLang, t } = useI18n()
 
   const [open, setOpen] = useState(false)
@@ -192,60 +173,31 @@ export default function SettingsDock() {
         </Tooltip>
       </Paper>
 
-      {/* Accessibility panel — blank for now (placeholder to be filled in). */}
+      {/* Accessibility panel — WCAG 2.2 / AgID, ~70% viewport, centred content */}
       <Drawer
         anchor="right"
         open={a11yOpen}
         onClose={() => setA11yOpen(false)}
         sx={{ zIndex: (th) => th.zIndex.drawer + 5 }}
       >
-        <Box sx={{ width: { xs: '92vw', sm: 360 }, maxWidth: 420, height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ width: { xs: '96vw', md: '70vw' }, maxWidth: 1040, height: '100%', display: 'flex', flexDirection: 'column' }}>
           <Stack
             direction="row"
-            alignItems="center"
+            alignItems="flex-start"
             justifyContent="space-between"
-            sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}
+            sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}
           >
-            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
-              {t('accessibility')}
-            </Typography>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
+                {t('accessibility')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">{t('a11ySubtitle')}</Typography>
+            </Box>
             <IconButton aria-label={t('close')} onClick={() => setA11yOpen(false)}>
               <CloseIcon />
             </IconButton>
           </Stack>
-          <Box sx={{ p: 2, overflow: 'auto', flex: 1 }}>
-            {/* Font size — moved here from the settings panel */}
-            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography sx={{ fontWeight: 600 }}>{t('fontSize')}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t('dockStoredNote')}
-                  </Typography>
-                </Box>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
-                <IconButton aria-label={t('decreaseFont')} onClick={() => setFontScale(nextDown(fontScale))}>
-                  <TextDecreaseOutlinedIcon />
-                </IconButton>
-                <Typography sx={{ flex: 1, textAlign: 'center' }}>{fontScale}%</Typography>
-                <IconButton aria-label={t('increaseFont')} onClick={() => setFontScale(nextUp(fontScale))}>
-                  <TextIncreaseOutlinedIcon />
-                </IconButton>
-              </Stack>
-              <Box sx={{ textAlign: 'right', mt: 1 }}>
-                <Button
-                  size="small"
-                  onClick={() => {
-                    reset()
-                    announce(t('dockSettingsReset'))
-                  }}
-                >
-                  {t('reset')}
-                </Button>
-              </Box>
-            </Paper>
-          </Box>
+          <AccessibilityPanel onClose={() => setA11yOpen(false)} />
         </Box>
       </Drawer>
 
@@ -325,31 +277,5 @@ export default function SettingsDock() {
         </Box>
       </Drawer>
     </>
-  )
-}
-
-function ToggleRow({
-  title,
-  desc,
-  checked,
-  onChange,
-}: {
-  title: string
-  desc: string
-  checked: boolean
-  onChange: () => void
-}) {
-  return (
-    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {desc}
-          </Typography>
-        </Box>
-        <Switch checked={checked} onChange={onChange} inputProps={{ 'aria-label': title }} />
-      </Stack>
-    </Paper>
   )
 }

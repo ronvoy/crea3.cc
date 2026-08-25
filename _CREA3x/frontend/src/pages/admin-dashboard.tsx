@@ -39,7 +39,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 export default function AdminDashboardPage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge">("users");
+  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge">("stats");
   const [theme, setTheme] = useState<Theme>((localStorage.getItem("admin_theme") as Theme) || "dark");
   const [refreshTick, setRefreshTick] = useState(0);
   const c = palette(theme);
@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {(["users", "stats", "mail", "database", "knowledge"] as const).map((tt) => (
+          {(["stats", "mail", "users", "database", "knowledge"] as const).map((tt) => (
             <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt === "knowledge" ? "Knowledge Base" : tt[0].toUpperCase() + tt.slice(1)}</button>
           ))}
           <button onClick={() => setRefreshTick((n) => n + 1)} title="Refresh current tab" style={{ ...tb(false), background: c.accent, color: "#fff", borderColor: c.accent }}>⟳ Refresh</button>
@@ -160,7 +160,7 @@ function UsersTab({ c, refreshTick }: { c: C; refreshTick: number }) {
           <input style={s.input} placeholder="username" value={nu.username} onChange={(e) => setNu({ ...nu, username: e.target.value })} />
           <input style={s.input} placeholder="password (min 8)" value={nu.password} onChange={(e) => setNu({ ...nu, password: e.target.value })} />
           <select style={s.input} value={nu.role} onChange={(e) => setNu({ ...nu, role: e.target.value })}>
-            <option value="agent">agent</option><option value="mediator">mediator</option><option value="admin">admin</option>
+            <option value="agent">agent</option><option value="mediator">mediator</option>
           </select>
           <button style={s.btn} onClick={create}>Create</button>
         </div>
@@ -188,7 +188,7 @@ function UsersTab({ c, refreshTick }: { c: C; refreshTick: number }) {
                   <td style={s.td}>{u.username}</td>
                   <td style={s.td}>
                     <select style={s.input} value={u.role} onChange={(e) => patch(u.id, { role: e.target.value })}>
-                      <option value="agent">agent</option><option value="mediator">mediator</option><option value="admin">admin</option><option value="user">user</option>
+                      <option value="agent">agent</option><option value="mediator">mediator</option>
                     </select>
                   </td>
                   <td style={s.td}>{u.email_verified ? "✓" : <button style={s.ghost} onClick={() => patch(u.id, { email_verified: true })}>verify</button>}</td>
@@ -224,7 +224,7 @@ const RANGES: [string, string][] = [
   ["30d", "Last month"], ["180d", "Last 6 months"], ["365d", "Last year"],
   ["730d", "Last 2 years"], ["1095d", "3 years"], ["1825d", "5 years"], ["all", "All time"],
 ];
-const METRICS: [string, string][] = [["users", "Users joined"], ["disputes", "Disputes"], ["queries", "Assistant queries"]];
+const METRICS: [string, string][] = [["users", "Users"], ["disputes", "Disputes"], ["queries", "Queries"]];
 const QUERY_GROUPS: [string, string][] = [["channel", "Public vs Legal AI"], ["intent", "Query type"]];
 const GROUP_COLOR: Record<string, string> = {
   user: "#3b82f6", agent: "#10b981", mediator: "#f59e0b", admin: "#8b5cf6",
@@ -241,28 +241,30 @@ const GROUP_LABEL: Record<string, string> = {
 
 function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {
   const s = S(c);
+  const DEFAULT_RANGE_IDX = Math.max(0, RANGES.findIndex(([v]) => v === "30d"));
   const [metric, setMetric] = useState("users");
   const [group, setGroup] = useState("channel");        // only used for queries
-  const [range, setRange] = useState("30d");
-  const [custom, setCustom] = useState(false);
-  const [cn, setCn] = useState(30);
-  const [cu, setCu] = useState<"d" | "w" | "m" | "y">("d");
-  const [mode, setMode] = useState<"count" | "percent">("count");
+  const [rangeIdx, setRangeIdx] = useState(DEFAULT_RANGE_IDX);
+  const [frm, setFrm] = useState("");                   // custom range: from (YYYY-MM-DD)
+  const [to, setTo] = useState("");                     // custom range: to   (YYYY-MM-DD)
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const effRange = custom ? `${Math.max(1, cn)}${cu}` : range;
+  const custom = frm.trim() !== "";                     // a from-date switches to custom mode
+  const preset = RANGES[rangeIdx]?.[0] || "30d";
 
   async function load() {
     setLoading(true); setErr(null);
     try {
-      const q = new URLSearchParams({ metric, range: effRange });
+      const q = new URLSearchParams({ metric });
       if (metric === "queries") q.set("group", group);
+      if (custom) { q.set("from", frm); if (to.trim()) q.set("to", to); }
+      else q.set("range", preset);
       setData(await adminApi(`/api/admin/stats?${q.toString()}`));
     } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
   }
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [metric, group, effRange, refreshTick]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [metric, group, rangeIdx, frm, to, refreshTick]);
 
   const groups: string[] = data?.groups || [];
   const labels: string[] = data?.labels || [];
@@ -270,17 +272,11 @@ function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {
   const totals: Record<string, number> = data?.totals || {};
   const grand: number = data?.total || 0;
 
-  // Per-bucket totals for percent mode.
-  const bucketTotals = labels.map((_, i) => groups.reduce((a, g) => a + (series[g]?.[i] || 0), 0));
   const chartData = {
     labels,
     datasets: groups.map((g) => ({
       label: GROUP_LABEL[g] || g,
-      data: labels.map((_, i) => {
-        const v = series[g]?.[i] || 0;
-        if (mode === "percent") { const t = bucketTotals[i]; return t > 0 ? Math.round((v / t) * 1000) / 10 : 0; }
-        return v;
-      }),
+      data: labels.map((_, i) => series[g]?.[i] || 0),
       backgroundColor: GROUP_COLOR[g] || c.muted,
       borderColor: GROUP_COLOR[g] || c.muted,
       borderWidth: 0,
@@ -294,14 +290,14 @@ function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {
     plugins: {
       legend: { labels: { color: c.text, boxWidth: 12, font: { size: 12 } } },
       tooltip: {
-        callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y}${mode === "percent" ? "%" : ""}` },
+        callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y}` },
       },
     },
     scales: {
       x: { stacked: true, ticks: { color: c.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 14 }, grid: { color: c.border } },
       y: {
-        stacked: true, beginAtZero: true, max: mode === "percent" ? 100 : undefined,
-        ticks: { color: c.muted, precision: 0, callback: (v: any) => (mode === "percent" ? `${v}%` : v) },
+        stacked: true, beginAtZero: true,
+        ticks: { color: c.muted, precision: 0 },
         grid: { color: c.border },
       },
     },
@@ -309,14 +305,23 @@ function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {
 
   return (
     <div>
-      {/* Controls */}
-      <div style={{ ...s.card, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
-          Metric
-          <select style={s.input} value={metric} onChange={(e) => setMetric(e.target.value)}>
-            {METRICS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </label>
+      {/* Metric tabs */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        {METRICS.map(([v, l]) => {
+          const active = metric === v;
+          return (
+            <button key={v} onClick={() => setMetric(v)} style={{
+              padding: "9px 18px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 700,
+              border: `1px solid ${active ? c.accent : c.border}`,
+              background: active ? c.accent : "transparent",
+              color: active ? "#fff" : c.text,
+            }}>{l}</button>
+          );
+        })}
+      </div>
+
+      {/* Controls: queries breakdown + time-range slider + custom calendar */}
+      <div style={{ ...s.card, display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
         {metric === "queries" && (
           <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
             Breakdown
@@ -325,30 +330,33 @@ function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {
             </select>
           </label>
         )}
-        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+
+        {/* Preset dropdown (Today … All time) */}
+        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted, opacity: custom ? 0.4 : 1 }}>
           Time range
-          <select style={s.input} value={custom ? "custom" : range} onChange={(e) => { if (e.target.value === "custom") setCustom(true); else { setCustom(false); setRange(e.target.value); } }}>
-            {RANGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            <option value="custom">Custom…</option>
+          <select style={s.input} value={rangeIdx} disabled={custom}
+            onChange={(e) => setRangeIdx(Number(e.target.value))}>
+            {RANGES.map(([v, l], i) => <option key={v} value={i}>{l}</option>)}
           </select>
+        </label>
+
+        {/* Custom calendar range */}
+        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+          From
+          <input type="date" style={s.input} value={frm} max={to || undefined}
+            onChange={(e) => setFrm(e.target.value)} />
+        </label>
+        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+          To
+          <input type="date" style={s.input} value={to} min={frm || undefined} disabled={!custom}
+            onChange={(e) => setTo(e.target.value)} />
         </label>
         {custom && (
-          <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
-            Last N
-            <div style={{ display: "flex", gap: 6 }}>
-              <input style={{ ...s.input, width: 70 }} type="number" min={1} value={cn} onChange={(e) => setCn(Number(e.target.value))} />
-              <select style={s.input} value={cu} onChange={(e) => setCu(e.target.value as any)}>
-                <option value="d">days</option><option value="w">weeks</option><option value="m">months</option><option value="y">years</option>
-              </select>
-            </div>
-          </label>
+          <button onClick={() => { setFrm(""); setTo(""); }} style={{ ...s.ghost, alignSelf: "flex-end" }}>
+            Clear dates
+          </button>
         )}
-        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
-          Show
-          <select style={s.input} value={mode} onChange={(e) => setMode(e.target.value as any)}>
-            <option value="count">Count</option><option value="percent">Percent (100% stacked)</option>
-          </select>
-        </label>
+
         <span style={{ color: c.faint, fontSize: 12, marginLeft: "auto" }}>
           {loading ? "Loading…" : data ? `bucket: ${data.bucket} · ${grand} total` : ""}
         </span>

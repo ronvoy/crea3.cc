@@ -37,7 +37,7 @@ class User(SQLModel, table=True):
     # When using Keycloak, we don't store passwords locally.
     # Kept for compatibility with earlier local-auth versions.
     hashed_password: str = Field(default="")
-    role: str = Field(default="user", index=True)  # admin|user|agent|mediator
+    role: str = Field(default="agent", index=True)  # agent|mediator
     email_verified: bool = Field(default=False, index=True)
     # For local/dev flows we persist the verification token so users can copy/paste it
     email_verification_token: Optional[str] = Field(default=None, index=True)

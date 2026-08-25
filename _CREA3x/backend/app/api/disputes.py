@@ -41,13 +41,16 @@ def create_dispute(payload: DisputeCreateIn, user: User = Depends(get_current_us
 
 @router.get("", response_model=list[DisputeOut])
 def list_disputes(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    if user.role == "admin":
+    if user.role == "admin":  # legacy override (no admin role is issued any more)
         q = select(Dispute)
-    elif user.role == "user":
-        q = select(Dispute).where(Dispute.created_by_id == user.id)
     else:
-        # agent: disputes where their email is assigned
-        q = select(Dispute).join(DisputeAgent, DisputeAgent.dispute_id == Dispute.id).where(DisputeAgent.email == user.email)
+        # agent / mediator: disputes they created OR where their email is assigned
+        q = (
+            select(Dispute)
+            .outerjoin(DisputeAgent, DisputeAgent.dispute_id == Dispute.id)
+            .where((Dispute.created_by_id == user.id) | (DisputeAgent.email == user.email))
+            .distinct()
+        )
     disputes = session.exec(q.order_by(Dispute.id.desc())).all()
     # Hide soft-deleted disputes from the active list (they remain in the archive).
     disputes = [d for d in disputes if not getattr(d, "hidden_from_active", False)]

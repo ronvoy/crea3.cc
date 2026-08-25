@@ -191,7 +191,6 @@ export default function SettingsDock() {
               <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
                 {t('accessibility')}
               </Typography>
-              <Typography variant="body2" color="text.secondary">{t('a11ySubtitle')}</Typography>
             </Box>
             <IconButton aria-label={t('close')} onClick={() => setA11yOpen(false)}>
               <CloseIcon />

@@ -89,6 +89,13 @@ def init_db() -> None:
                     "ON mailmessage(account, mailbox, message_id)"
                 )
 
+            # Role consolidation: the platform now uses only `agent` and `mediator`.
+            # The legacy `user` and `admin` roles are folded into `agent` (the
+            # /admin console is a separate email+password login, not this role).
+            conn.exec_driver_sql(
+                "UPDATE user SET role='agent' WHERE role IN ('user', 'admin')"
+            )
+
 def get_session():
     with Session(engine) as session:
         yield session

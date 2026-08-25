@@ -98,7 +98,7 @@ def create_user(body: AdminUserCreate, _admin: str = Depends(require_admin_panel
     if session.exec(select(User).where(User.username == body.username.strip())).first():
         raise HTTPException(status_code=409, detail="This username is already taken.")
     role = body.role.strip().lower() or "agent"
-    if role not in ("agent", "mediator", "admin", "user"):
+    if role not in ("agent", "mediator"):
         role = "agent"
     u = User(
         email=email, username=body.username.strip(), role=role,
@@ -122,7 +122,7 @@ def update_user(user_id: int, body: AdminUserUpdate, _admin: str = Depends(requi
         u.username = body.username.strip()
     if body.role is not None:
         r = body.role.strip().lower()
-        if r in ("agent", "mediator", "admin", "user"):
+        if r in ("agent", "mediator"):
             u.role = r
     if body.email_verified is not None:
         u.email_verified = bool(body.email_verified)
@@ -847,6 +847,17 @@ def _norm_dt(dt: datetime) -> datetime:
     return dt.astimezone(_tz.utc)
 
 
+def _parse_date(s: str) -> datetime | None:
+    """Parse a 'YYYY-MM-DD' calendar date into a UTC-midnight datetime, or None."""
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s[:10], "%Y-%m-%d").replace(tzinfo=_tz.utc)
+    except ValueError:
+        return None
+
+
 def _parse_range(rng: str) -> tuple[datetime | None, str]:
     """Return (start_utc_or_None, bucket) for a range string. Supports presets,
     'all'/'max', and custom 'Nd' / 'Nw' / 'Nm' / 'Ny'. Bucket granularity is
@@ -923,7 +934,7 @@ def _dispute_bucket(status: str | None, hidden: bool | None) -> str:
 
 
 _GROUPS = {
-    ("users", "role"): ["user", "agent", "mediator", "admin"],
+    ("users", "role"): ["agent", "mediator"],
     ("disputes", "status"): ["active", "resolved", "dormant"],
     ("queries", "channel"): ["public", "inapp"],
     ("queries", "intent"): ["workflow", "legal_statutes", "past_cases", "public"],
@@ -935,6 +946,8 @@ def admin_stats(
     metric: str = Query("users"),   # users | disputes | queries
     group: str = Query(""),         # role | status | channel | intent
     rng: str = Query("30d", alias="range"),
+    frm: str = Query("", alias="from"),  # custom range start, ISO date (YYYY-MM-DD)
+    to: str = Query("", alias="to"),     # custom range end, ISO date (YYYY-MM-DD)
     _admin: str = Depends(require_admin_panel),
     session: Session = Depends(get_session),
 ):
@@ -942,7 +955,16 @@ def admin_stats(
     labels, one series per group, per-group totals, and (for queries) a per-user
     breakdown of public vs in-app usage."""
     now = datetime.now(_tz.utc)
-    start, bucket = _parse_range(rng)
+    end = now
+    custom = _parse_date(frm)
+    if custom is not None:  # explicit from/to calendar range overrides the preset
+        start = custom
+        end_d = _parse_date(to)
+        end = (end_d + timedelta(days=1)) if end_d is not None else now  # inclusive of `to` day
+        span_days = max(1, (end - start).days)
+        bucket = "hour" if span_days <= 2 else "day" if span_days <= 92 else "week" if span_days <= 731 else "month"
+    else:
+        start, bucket = _parse_range(rng)
 
     # (timestamp, group_key) rows for the chosen metric.
     if metric == "disputes":
@@ -956,15 +978,15 @@ def admin_stats(
     else:
         metric = "users"
         group = "role"
-        rows = [(u.created_at, (u.role or "user")) for u in session.exec(select(User)).all()]
+        rows = [(u.created_at, (u.role or "agent")) for u in session.exec(select(User)).all()]
 
     rows = [(ts, g) for (ts, g) in rows if ts is not None]
     if start is None:  # "all time" — anchor at the earliest record
         start = min((_norm_dt(ts) for ts, _ in rows), default=now)
-    rows = [(ts, g) for (ts, g) in rows if _norm_dt(ts) >= start]
+    rows = [(ts, g) for (ts, g) in rows if start <= _norm_dt(ts) <= end]
 
     groups = list(_GROUPS.get((metric, group), []))
-    labels = _labels(start, now, bucket)
+    labels = _labels(start, end, bucket)
     label_idx = {lab: i for i, lab in enumerate(labels)}
     series = {g: [0] * len(labels) for g in groups}
     totals = {g: 0 for g in groups}
@@ -990,7 +1012,7 @@ def admin_stats(
     if metric == "queries":
         by_user: dict = {}
         for l in logs:
-            if _norm_dt(l.created_at) < start:
+            if not (start <= _norm_dt(l.created_at) <= end):
                 continue
             key = l.username or (f"user #{l.user_id}" if l.user_id else "anonymous (public)")
             row = by_user.setdefault(key, {"user": key, "public": 0, "inapp": 0, "total": 0})

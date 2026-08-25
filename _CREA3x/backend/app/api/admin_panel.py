@@ -823,3 +823,178 @@ def db_delete(table: str, body: DbRowIn, _admin: str = Depends(require_admin_pan
     with engine.begin() as conn:
         conn.execute(text(f'DELETE FROM "{table}" WHERE {where_sql}'), params)
     return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STATS TAB  (users / disputes / assistant-query analytics over time)
+# ══════════════════════════════════════════════════════════════════════════════
+from datetime import timedelta, timezone as _tz
+import re as _re
+from ..models import Dispute, AssistantQueryLog
+
+# Preset range -> number of days back. "all" means "from the earliest record".
+_RANGE_DAYS = {
+    "1d": 1, "3d": 3, "7d": 7, "1w": 7, "15d": 15, "30d": 30, "1m": 30,
+    "180d": 180, "6m": 180, "365d": 365, "1y": 365, "730d": 730, "2y": 730,
+    "1095d": 1095, "3y": 1095, "1825d": 1825, "5y": 1825,
+}
+
+
+def _norm_dt(dt: datetime) -> datetime:
+    """Treat naive timestamps as UTC so bucketing is consistent."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=_tz.utc)
+    return dt.astimezone(_tz.utc)
+
+
+def _parse_range(rng: str) -> tuple[datetime | None, str]:
+    """Return (start_utc_or_None, bucket) for a range string. Supports presets,
+    'all'/'max', and custom 'Nd' / 'Nw' / 'Nm' / 'Ny'. Bucket granularity is
+    chosen from the span so charts stay readable."""
+    now = datetime.now(_tz.utc)
+    rng = (rng or "30d").strip().lower()
+    if rng in ("all", "max", ""):
+        return None, "month"
+    days = _RANGE_DAYS.get(rng)
+    if days is None:
+        m = _re.match(r"^(\d+)\s*([dwmy])$", rng)
+        days = int(m.group(1)) * {"d": 1, "w": 7, "m": 30, "y": 365}[m.group(2)] if m else 30
+    start = now - timedelta(days=days)
+    if days <= 2:
+        bucket = "hour"
+    elif days <= 92:
+        bucket = "day"
+    elif days <= 731:
+        bucket = "week"
+    else:
+        bucket = "month"
+    return start, bucket
+
+
+def _bucket_key(dt: datetime, bucket: str) -> str:
+    dt = _norm_dt(dt)
+    if bucket == "hour":
+        return dt.strftime("%Y-%m-%d %H:00")
+    if bucket == "day":
+        return dt.strftime("%Y-%m-%d")
+    if bucket == "week":
+        monday = dt - timedelta(days=dt.weekday())
+        return monday.strftime("%Y-%m-%d")
+    return dt.strftime("%Y-%m")
+
+
+def _bucket_step(dt: datetime, bucket: str) -> datetime:
+    if bucket == "hour":
+        return dt + timedelta(hours=1)
+    if bucket == "day":
+        return dt + timedelta(days=1)
+    if bucket == "week":
+        return dt + timedelta(weeks=1)
+    # month
+    y, m = dt.year, dt.month
+    return dt.replace(year=y + (m // 12), month=(m % 12) + 1, day=1)
+
+
+def _labels(start: datetime, now: datetime, bucket: str) -> list[str]:
+    """Ordered, gap-free bucket labels from start..now (chart x-axis)."""
+    start = _norm_dt(start)
+    if bucket == "hour":
+        cur = start.replace(minute=0, second=0, microsecond=0)
+    elif bucket == "month":
+        cur = start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif bucket == "week":
+        cur = (start - timedelta(days=start.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        cur = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    out, guard = [], 0
+    while cur <= now and guard < 5000:
+        out.append(_bucket_key(cur, bucket))
+        cur = _bucket_step(cur, bucket)
+        guard += 1
+    return out
+
+
+def _dispute_bucket(status: str | None, hidden: bool | None) -> str:
+    if (status or "") == "finalized":
+        return "resolved"
+    if (status or "") == "abandoned" or hidden:
+        return "dormant"
+    return "active"
+
+
+_GROUPS = {
+    ("users", "role"): ["user", "agent", "mediator", "admin"],
+    ("disputes", "status"): ["active", "resolved", "dormant"],
+    ("queries", "channel"): ["public", "inapp"],
+    ("queries", "intent"): ["workflow", "legal_statutes", "past_cases", "public"],
+}
+
+
+@router.get("/stats")
+def admin_stats(
+    metric: str = Query("users"),   # users | disputes | queries
+    group: str = Query(""),         # role | status | channel | intent
+    rng: str = Query("30d", alias="range"),
+    _admin: str = Depends(require_admin_panel),
+    session: Session = Depends(get_session),
+):
+    """Time-series analytics for the admin Stats tab. Returns gap-free bucket
+    labels, one series per group, per-group totals, and (for queries) a per-user
+    breakdown of public vs in-app usage."""
+    now = datetime.now(_tz.utc)
+    start, bucket = _parse_range(rng)
+
+    # (timestamp, group_key) rows for the chosen metric.
+    if metric == "disputes":
+        group = "status"
+        rows = [(d.created_at, _dispute_bucket(d.status, d.hidden_from_active))
+                for d in session.exec(select(Dispute)).all()]
+    elif metric == "queries":
+        group = group if group in ("channel", "intent") else "channel"
+        logs = session.exec(select(AssistantQueryLog)).all()
+        rows = [(l.created_at, (l.channel if group == "channel" else (l.intent or "public"))) for l in logs]
+    else:
+        metric = "users"
+        group = "role"
+        rows = [(u.created_at, (u.role or "user")) for u in session.exec(select(User)).all()]
+
+    rows = [(ts, g) for (ts, g) in rows if ts is not None]
+    if start is None:  # "all time" — anchor at the earliest record
+        start = min((_norm_dt(ts) for ts, _ in rows), default=now)
+    rows = [(ts, g) for (ts, g) in rows if _norm_dt(ts) >= start]
+
+    groups = list(_GROUPS.get((metric, group), []))
+    labels = _labels(start, now, bucket)
+    label_idx = {lab: i for i, lab in enumerate(labels)}
+    series = {g: [0] * len(labels) for g in groups}
+    totals = {g: 0 for g in groups}
+    for ts, g in rows:
+        if g not in series:  # unexpected group value → fold into first bucket group
+            series.setdefault(g, [0] * len(labels))
+            totals.setdefault(g, 0)
+            if g not in groups:
+                groups.append(g)
+        i = label_idx.get(_bucket_key(ts, bucket))
+        if i is not None:
+            series[g][i] += 1
+            totals[g] += 1
+
+    out = {
+        "metric": metric, "group": group, "bucket": bucket,
+        "range": rng, "start": start.isoformat(), "now": now.isoformat(),
+        "labels": labels, "groups": groups,
+        "series": series, "totals": totals, "total": sum(totals.values()),
+    }
+
+    # Per-user usage breakdown for the queries metric.
+    if metric == "queries":
+        by_user: dict = {}
+        for l in logs:
+            if _norm_dt(l.created_at) < start:
+                continue
+            key = l.username or (f"user #{l.user_id}" if l.user_id else "anonymous (public)")
+            row = by_user.setdefault(key, {"user": key, "public": 0, "inapp": 0, "total": 0})
+            row[l.channel if l.channel in ("public", "inapp") else "inapp"] += 1
+            row["total"] += 1
+        out["top_users"] = sorted(by_user.values(), key=lambda r: r["total"], reverse=True)[:20]
+    return out

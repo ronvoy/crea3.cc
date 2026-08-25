@@ -121,6 +121,21 @@ _LANG_NAMES = {
 }
 
 
+def _log_query(channel: str, intent: str | None, user_id: int | None = None,
+               username: str = "", lang: str | None = None) -> None:
+    """Record one assistant question for the admin Stats tab. Best-effort — a
+    logging failure must never affect the chat response."""
+    try:
+        from ..db import engine
+        from ..models import AssistantQueryLog
+        with Session(engine) as s:
+            s.add(AssistantQueryLog(channel=channel, intent=intent, user_id=user_id,
+                                    username=username or "", lang=lang))
+            s.commit()
+    except Exception as e:
+        logger.warning("assistant query-log failed: %s", e)
+
+
 def _lang_instruction(lang: str | None) -> str:
     name = _LANG_NAMES.get((lang or "").lower())
     if not name:
@@ -204,6 +219,7 @@ def assistant_public(payload: PublicAssistantIn, session: Session = Depends(get_
     CREA3-workflow.md, CREA3-about.md, and any docs the admin uploads there) so it can
     give real details, not just links.
     """
+    _log_query("public", "public", None, "", payload.lang)
     context, _sources = _kb_grounding(session, "workflow", payload.question)
     try:
         result = llm.chat(
@@ -978,6 +994,7 @@ def assistant_ask(
     from . import chat_history
 
     intent = payload.mode if payload.mode in INTENTS else classify_intent(payload.question, payload.history)
+    _log_query("inapp", intent, user.id, user.username, payload.lang)
     system, grounded, sources = _system_for_intent(intent, payload, user, session)
     system += _attachments_block(payload.attachments)
 
@@ -1044,6 +1061,7 @@ def assistant_ask_stream(
     from . import chat_history
 
     intent = payload.mode if payload.mode in INTENTS else classify_intent(payload.question, payload.history)
+    _log_query("inapp", intent, user.id, user.username, payload.lang)
     system, grounded, sources = _system_for_intent(intent, payload, user, session)
     system += _attachments_block(payload.attachments)
 

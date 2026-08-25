@@ -445,6 +445,23 @@ class ChatMessage(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
+class AssistantQueryLog(SQLModel, table=True):
+    """One row per user question to any assistant — powers the admin Stats tab.
+
+    Logged for both the public chatbot (channel='public', user_id=None) and the
+    in-app assistant (channel='inapp'), tagged with the classified intent so we
+    can chart usage by channel, by type, and per user over time.
+    """
+    __tablename__ = "assistant_query_log"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    user_id: Optional[int] = Field(default=None, index=True)   # None for anonymous public
+    username: str = Field(default="")                          # display snapshot
+    channel: str = Field(default="inapp", index=True)          # public | inapp
+    intent: Optional[str] = Field(default=None, index=True)    # workflow|legal_statutes|past_cases|public
+    lang: Optional[str] = Field(default=None)
+
+
 class WhatIfAnalysis(SQLModel, table=True):
     """A stored 'What if …' scenario analysis for a dispute (per user).
 

@@ -1,5 +1,12 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement,
+  Title, Tooltip, Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
 // Backend admin console: Users (Keycloak replacement), Mail (Mailpit
 // replacement) and Database (DBMS browser). All calls carry the admin_token
@@ -32,7 +39,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 export default function AdminDashboardPage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<"users" | "mail" | "database" | "knowledge">("users");
+  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge">("users");
   const [theme, setTheme] = useState<Theme>((localStorage.getItem("admin_theme") as Theme) || "dark");
   const [refreshTick, setRefreshTick] = useState(0);
   const c = palette(theme);
@@ -51,7 +58,7 @@ export default function AdminDashboardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {(["users", "mail", "database", "knowledge"] as const).map((tt) => (
+          {(["users", "stats", "mail", "database", "knowledge"] as const).map((tt) => (
             <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt === "knowledge" ? "Knowledge Base" : tt[0].toUpperCase() + tt.slice(1)}</button>
           ))}
           <button onClick={() => setRefreshTick((n) => n + 1)} title="Refresh current tab" style={{ ...tb(false), background: c.accent, color: "#fff", borderColor: c.accent }}>⟳ Refresh</button>
@@ -61,6 +68,7 @@ export default function AdminDashboardPage() {
       </header>
       <main style={{ padding: 22 }}>
         {tab === "users" && <UsersTab c={c} refreshTick={refreshTick} />}
+        {tab === "stats" && <StatsTab c={c} refreshTick={refreshTick} />}
         {tab === "mail" && <MailTab c={c} refreshTick={refreshTick} />}
         {tab === "database" && <DatabaseTab c={c} refreshTick={refreshTick} />}
         {tab === "knowledge" && <KnowledgeBaseTab c={c} refreshTick={refreshTick} />}
@@ -210,6 +218,192 @@ function UsersTab({ c, refreshTick }: { c: C; refreshTick: number }) {
 }
 
 // ── MAIL ─────────────────────────────────────────────────────────────────────
+// ── Stats tab ──────────────────────────────────────────────────────────────────
+const RANGES: [string, string][] = [
+  ["1d", "Today"], ["3d", "Last 3 days"], ["7d", "Last week"], ["15d", "Last 15 days"],
+  ["30d", "Last month"], ["180d", "Last 6 months"], ["365d", "Last year"],
+  ["730d", "Last 2 years"], ["1095d", "3 years"], ["1825d", "5 years"], ["all", "All time"],
+];
+const METRICS: [string, string][] = [["users", "Users joined"], ["disputes", "Disputes"], ["queries", "Assistant queries"]];
+const QUERY_GROUPS: [string, string][] = [["channel", "Public vs Legal AI"], ["intent", "Query type"]];
+const GROUP_COLOR: Record<string, string> = {
+  user: "#3b82f6", agent: "#10b981", mediator: "#f59e0b", admin: "#8b5cf6",
+  active: "#3b82f6", resolved: "#10b981", dormant: "#f59e0b",
+  public: "#14b8a6", inapp: "#6366f1",
+  workflow: "#3b82f6", legal_statutes: "#8b5cf6", past_cases: "#f59e0b",
+};
+const GROUP_LABEL: Record<string, string> = {
+  user: "Users", agent: "Agents", mediator: "Mediators", admin: "Admins",
+  active: "Active (ongoing)", resolved: "Resolved", dormant: "Dormant / abandoned",
+  public: "Public chatbot", inapp: "Legal AI (in-app)",
+  workflow: "Workflow", legal_statutes: "Legal", past_cases: "Past cases",
+};
+
+function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const s = S(c);
+  const [metric, setMetric] = useState("users");
+  const [group, setGroup] = useState("channel");        // only used for queries
+  const [range, setRange] = useState("30d");
+  const [custom, setCustom] = useState(false);
+  const [cn, setCn] = useState(30);
+  const [cu, setCu] = useState<"d" | "w" | "m" | "y">("d");
+  const [mode, setMode] = useState<"count" | "percent">("count");
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const effRange = custom ? `${Math.max(1, cn)}${cu}` : range;
+
+  async function load() {
+    setLoading(true); setErr(null);
+    try {
+      const q = new URLSearchParams({ metric, range: effRange });
+      if (metric === "queries") q.set("group", group);
+      setData(await adminApi(`/api/admin/stats?${q.toString()}`));
+    } catch (e: any) { setErr(e.message); } finally { setLoading(false); }
+  }
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [metric, group, effRange, refreshTick]);
+
+  const groups: string[] = data?.groups || [];
+  const labels: string[] = data?.labels || [];
+  const series: Record<string, number[]> = data?.series || {};
+  const totals: Record<string, number> = data?.totals || {};
+  const grand: number = data?.total || 0;
+
+  // Per-bucket totals for percent mode.
+  const bucketTotals = labels.map((_, i) => groups.reduce((a, g) => a + (series[g]?.[i] || 0), 0));
+  const chartData = {
+    labels,
+    datasets: groups.map((g) => ({
+      label: GROUP_LABEL[g] || g,
+      data: labels.map((_, i) => {
+        const v = series[g]?.[i] || 0;
+        if (mode === "percent") { const t = bucketTotals[i]; return t > 0 ? Math.round((v / t) * 1000) / 10 : 0; }
+        return v;
+      }),
+      backgroundColor: GROUP_COLOR[g] || c.muted,
+      borderColor: GROUP_COLOR[g] || c.muted,
+      borderWidth: 0,
+      stack: "s",
+      maxBarThickness: 46,
+    })),
+  };
+  const chartOptions: any = {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { labels: { color: c.text, boxWidth: 12, font: { size: 12 } } },
+      tooltip: {
+        callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.parsed.y}${mode === "percent" ? "%" : ""}` },
+      },
+    },
+    scales: {
+      x: { stacked: true, ticks: { color: c.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 14 }, grid: { color: c.border } },
+      y: {
+        stacked: true, beginAtZero: true, max: mode === "percent" ? 100 : undefined,
+        ticks: { color: c.muted, precision: 0, callback: (v: any) => (mode === "percent" ? `${v}%` : v) },
+        grid: { color: c.border },
+      },
+    },
+  };
+
+  return (
+    <div>
+      {/* Controls */}
+      <div style={{ ...s.card, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+          Metric
+          <select style={s.input} value={metric} onChange={(e) => setMetric(e.target.value)}>
+            {METRICS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        {metric === "queries" && (
+          <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+            Breakdown
+            <select style={s.input} value={group} onChange={(e) => setGroup(e.target.value)}>
+              {QUERY_GROUPS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </label>
+        )}
+        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+          Time range
+          <select style={s.input} value={custom ? "custom" : range} onChange={(e) => { if (e.target.value === "custom") setCustom(true); else { setCustom(false); setRange(e.target.value); } }}>
+            {RANGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <option value="custom">Custom…</option>
+          </select>
+        </label>
+        {custom && (
+          <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+            Last N
+            <div style={{ display: "flex", gap: 6 }}>
+              <input style={{ ...s.input, width: 70 }} type="number" min={1} value={cn} onChange={(e) => setCn(Number(e.target.value))} />
+              <select style={s.input} value={cu} onChange={(e) => setCu(e.target.value as any)}>
+                <option value="d">days</option><option value="w">weeks</option><option value="m">months</option><option value="y">years</option>
+              </select>
+            </div>
+          </label>
+        )}
+        <label style={{ display: "grid", gap: 4, fontSize: 12, color: c.muted }}>
+          Show
+          <select style={s.input} value={mode} onChange={(e) => setMode(e.target.value as any)}>
+            <option value="count">Count</option><option value="percent">Percent (100% stacked)</option>
+          </select>
+        </label>
+        <span style={{ color: c.faint, fontSize: 12, marginLeft: "auto" }}>
+          {loading ? "Loading…" : data ? `bucket: ${data.bucket} · ${grand} total` : ""}
+        </span>
+      </div>
+
+      {err && <div style={s.err}>{err}</div>}
+
+      {/* Summary cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>
+        {groups.map((g) => (
+          <div key={g} style={{ ...s.card, marginBottom: 0, borderLeft: `4px solid ${GROUP_COLOR[g] || c.muted}` }}>
+            <div style={{ color: c.muted, fontSize: 12 }}>{GROUP_LABEL[g] || g}</div>
+            <div style={{ fontSize: 26, fontWeight: 700 }}>{totals[g] || 0}</div>
+            <div style={{ color: c.faint, fontSize: 12 }}>{grand > 0 ? Math.round(((totals[g] || 0) / grand) * 100) : 0}% of total</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Chart */}
+      <div style={{ ...s.card }}>
+        <div style={{ height: 380 }}>
+          {labels.length ? <Bar data={chartData} options={chartOptions} /> : <div style={{ color: c.faint, padding: 40, textAlign: "center" }}>No data for this range.</div>}
+        </div>
+      </div>
+
+      {/* Per-user usage (queries only) */}
+      {metric === "queries" && data?.top_users?.length ? (
+        <div style={{ ...s.card }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Usage per user (Public vs Legal AI)</div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>
+                <th style={s.th}>User</th>
+                <th style={{ ...s.th, textAlign: "right" }}>Public chatbot</th>
+                <th style={{ ...s.th, textAlign: "right" }}>Legal AI (in-app)</th>
+                <th style={{ ...s.th, textAlign: "right" }}>Total</th>
+              </tr></thead>
+              <tbody>
+                {data.top_users.map((u: any, i: number) => (
+                  <tr key={i}>
+                    <td style={s.td}>{u.user}</td>
+                    <td style={{ ...s.td, textAlign: "right" }}>{u.public}</td>
+                    <td style={{ ...s.td, textAlign: "right" }}>{u.inapp}</td>
+                    <td style={{ ...s.td, textAlign: "right", fontWeight: 600 }}>{u.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
   const [account, setAccount] = useState<string>("info"); // which mailbox: info | support
   const s = S(c);

@@ -62,12 +62,12 @@ export default function LoginPage() {
         {error ? <Alert severity="error">{error}</Alert> : null}
 
         <TextField
-          label={t('loginEmail')}
-          type="email"
+          label={t('loginEmailOrUsername')}
+          type="text"
           autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.org"
+          placeholder={t('loginIdPlaceholder')}
           autoFocus
           fullWidth
         />

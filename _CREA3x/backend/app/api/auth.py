@@ -291,7 +291,7 @@ def login(payload: LoginIn, request: Request, session: Session = Depends(get_ses
         _log(session, request, "login_failed", email=payload.email.strip().lower(),
              detail="bad credentials")
         session.commit()
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        raise HTTPException(status_code=401, detail="Invalid email/username or password.")
     if not user.email_verified:
         _log(session, request, "login_failed", user=user, detail="email unverified")
         session.commit()

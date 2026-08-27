@@ -9,9 +9,12 @@ def utcnow():
 
 class SourceRef(_PydBaseModel):
     """A KB source citation in a chat answer: the document id (for download/open)
-    and its display name (filename). id is None for legacy string-only sources."""
+    and its display name (filename). id is None for legacy string-only sources.
+    `url` (when set) points at an external viewer page — e.g. the LexAI chatbot's
+    /source/view — opened in a new tab instead of the platform KB download."""
     id: Optional[int] = None
     name: str
+    url: Optional[str] = None
 
 class AccessLog(SQLModel, table=True):
     """A simple request log used by the admin 'control room'."""

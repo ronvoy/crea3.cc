@@ -516,21 +516,66 @@ and classify it into EXACTLY ONE of these labels:
 - past_cases: asking about SIMILAR or PAST dispute cases / precedents / how other
   comparable disputes went or were resolved.
 - legal_statutes: a country-specific LEGAL question about the law, statutes,
-  rights, regulations or legal procedure itself.
+  rights, regulations, inheritance/succession, divorce, or legal procedure itself.
+- general: small talk, greetings, thanks, chit-chat, or a general question that is
+  neither about using the platform nor about law or past cases.
 
-Reply with ONLY the single label word (workflow, past_cases or legal_statutes).
-No punctuation, no explanation.
+The message may be written in ANY language (English, Italian, French, Dutch,
+Slovenian, Estonian, Croatian, Lithuanian). Classify by MEANING, never by the
+language. A question about how the law works in a country — e.g. "Come funziona
+la successione in Italia?", "Comment fonctionne l'héritage en Italie?" — is
+legal_statutes, NOT workflow. A question about the user's own data on the
+platform (my disputes, my case status) is workflow, NOT general.
+
+Reply with ONLY the single label word (workflow, past_cases, legal_statutes or
+general). No punctuation, no explanation.
 """
+
+# All labels the classifier may output; INTENTS remains the three routable ones
+# (used for manual mode pinning) — `general` gets a lightweight chit-chat prompt.
+CLASSIFY_LABELS = INTENTS + ("general",)
+
+_GREETINGS = {
+    "hi", "hello", "hey", "yo", "thanks", "thank you", "ok", "okay", "good morning",
+    "good afternoon", "good evening", "how are you", "ciao", "salve", "grazie",
+    "buongiorno", "buonasera", "bonjour", "bonsoir", "salut", "merci", "hallo",
+    "hoi", "dank je", "bedankt", "hvala", "živjo", "zdravo", "dober dan", "tere",
+    "aitäh", "labas", "ačiū", "sveiki", "bok", "dobar dan",
+}
+
+
+def _is_small_talk(question: str) -> bool:
+    q = (question or "").strip().lower().rstrip("!?.…, ")
+    return len(q) <= 40 and (q in _GREETINGS or any(q.startswith(g + " ") and len(q) <= len(g) + 12 for g in _GREETINGS))
 
 
 def _heuristic_intent(question: str) -> str:
     q = (question or "").lower()
     past_kw = ("similar case", "past case", "previous case", "precedent",
                "other dispute", "other cases", "case like", "cases like",
-               "how did", "resolved before", "outcome of")
-    legal_kw = ("law", "legal", "statute", "article", "regulation", "gdpr",
-                "court", "jurisdiction", "rights", "inherit", "divorce law",
-                "entitled by law", "sentence", "ruling")
+               "how did", "resolved before", "outcome of",
+               # it / fr / other
+               "caso simile", "casi simili", "precedente", "cas similaire",
+               "affaire similaire", "jurisprudence")
+    # Legal / statutes keywords across the platform's languages (inheritance,
+    # succession, divorce, law, court, rights, article, regulation).
+    legal_kw = (
+        # en
+        "law", "legal", "statute", "article", "regulation", "gdpr", "court",
+        "jurisdiction", "rights", "inherit", "inheritance", "succession",
+        "divorce", "entitled by law", "sentence", "ruling", "heir", "estate",
+        # it
+        "legge", "legale", "successione", "eredità", "ereditaria", "erede",
+        "divorzio", "diritto", "diritti", "codice civile", "tribunale", "articolo",
+        # fr
+        "loi", "juridique", "héritage", "heritage", "succession", "divorce",
+        "droit", "droits", "code civil", "tribunal", "article",
+        # nl
+        "wet", "erfenis", "erfrecht", "echtscheiding", "recht", "rechtbank",
+        # sl / hr / et / lt (common roots)
+        "dedovanje", "razveza", "pravo", "nasljedstvo", "razvod", "pärimine",
+        "lahutus", "õigus", "paveldėjimas", "skyrybos", "teisė",
+    )
     if any(k in q for k in past_kw):
         return "past_cases"
     if any(k in q for k in legal_kw):
@@ -541,28 +586,39 @@ def _heuristic_intent(question: str) -> str:
 def classify_intent(question: str, history: list[AssistantTurn] | None = None) -> str:
     """Route a question to one of INTENTS.
 
-    Uses ONLY the local primary model (Ollama) with a short timeout — classifying
-    is a tiny one-word task, so this stays fast and NEVER adds a slow hosted
-    round-trip. Behind a tunnel, a second slow call (classify + answer) blows the
-    proxy's response timeout and returns 502; keeping this bounded avoids that.
-    Falls back to a keyword heuristic when the primary is unavailable or slow, so
-    classification never hard-fails and never delays the answer.
+    Uses the graded LLM (local primary → OpenRouter) so classification works by
+    MEANING in any language — the previous Ollama-only call fell straight to the
+    English-only heuristic whenever the local model was disabled, which misrouted
+    non-English legal questions to `workflow`. Bounded to a tiny one-word reply,
+    and it runs off the held connection (background job / pre-stream), so it does
+    not risk a tunnel timeout. Falls back to a multilingual keyword heuristic if
+    no provider can answer.
     """
-    from ..core import ollama
+    # Fast paths needing no model call: obvious small talk, and a confident
+    # multilingual keyword match (legal / past cases).
+    if _is_small_talk(question):
+        return "general"
+    heuristic = _heuristic_intent(question)
+    if heuristic != "workflow":
+        return heuristic
+    # Ambiguous (looks like workflow): confirm with the LLM, which routes by
+    # meaning in any language and catches legal questions the keywords missed.
     try:
-        text = ollama.chat(
+        res = llm.chat(
             system=_CLASSIFY_SYSTEM,
             user_message=question,
             history=None,          # the latest message is enough to route
-            timeout=12.0,          # bound it; heuristic covers the rest
+            max_tokens=8,
         )
-        label = (text or "").strip().lower()
-        for intent in INTENTS:
+        label = (res.text or "").strip().lower()
+        for intent in CLASSIFY_LABELS:
             if intent in label:
                 return intent
-    except ollama.OllamaError:
+    except (llm.LLMUnavailable, llm.LLMError):
         pass
-    return _heuristic_intent(question)
+    except Exception:
+        logger.warning("classify_intent failed; using heuristic", exc_info=True)
+    return heuristic
 
 
 # ── User file attachments (chat) ─────────────────────────────────────────────
@@ -681,6 +737,31 @@ def kb_source_download(doc_id: int, _user: User = Depends(get_current_user), ses
         media_type=f"{media}; charset=utf-8",
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
+
+
+@router.get("/kb/source-view")
+def kb_source_view(q: str, cases: int = 0):
+    """Proxy the LexAI chatbot's /source/view page to the browser.
+
+    Source links in chat answers open this in a NEW TAB, which cannot carry an
+    Authorization header — so the endpoint is unauthenticated by design. That is
+    safe: it serves only public statute text / anonymised case-law passages from
+    the legal knowledge base (never platform dispute data), and the chatbot
+    itself stays unexposed (this backend fetches the page server-side).
+    """
+    from ..core import legal_ai as _legal_ai
+    q = (q or "").strip()[:2000]
+    if not q:
+        raise HTTPException(status_code=400, detail="q must not be empty")
+    html = _legal_ai.fetch_source_page(q, k=4, cases=bool(cases))
+    if html is None:
+        html = (
+            "<!doctype html><meta charset='utf-8'>"
+            "<body style='font-family:system-ui;padding:40px;text-align:center'>"
+            "<h3>Sources unavailable</h3><p>The legal knowledge-base service is "
+            "not reachable right now. Please try again later.</p></body>"
+        )
+    return Response(content=html, media_type="text/html; charset=utf-8")
 
 
 import re as _re
@@ -835,16 +916,44 @@ def _system_for_intent(
     are grounded on the Knowledge Base; masked past-case retrieval is added in
     the next step.
     """
+    from urllib.parse import quote as _q
+    from ..core import legal_ai as _legal_ai
+
     grounded: int | None = None
     sources: list[dict] = []
+    if intent == "general":
+        # Small talk / general chit-chat: short friendly reply, no grounding,
+        # no sources, no intent chip in the UI.
+        system = (
+            "You are the friendly CREA3 assistant. The user's message is a "
+            "greeting or small talk. Reply in ONE short, warm sentence in the "
+            "user's language and invite them to ask about their dispute, the "
+            "platform, or a legal question. No lists, no headings, no overview."
+        )
+        return system + _lang_instruction(payload.lang), None, []
     if intent == "legal_statutes":
         system = LEGAL_GUIDE
         ctx, sources = _kb_grounding(session, "legal_statutes", payload.question)
         system += ctx
+        # Attach the LexAI knowledge-base passages as clickable sources: each
+        # opens the chatbot's /source/view page (proxied through this backend,
+        # since the chatbot itself is not exposed through the public tunnel).
+        view_url = f"/api/assistant/kb/source-view?q={_q(payload.question)}"
+        for s in _legal_ai.list_sources(payload.question, k=3):
+            name = s.get("name") or "source"
+            if not any(x.get("name") == name for x in sources):
+                sources.append({"id": None, "name": name, "url": view_url})
     elif intent == "past_cases":
         system = PAST_CASES_GUIDE
         system += (
-            "\n\nBy default present each relevant case as a short descriptive "
+            "\n\nSTRUCTURE THE ANSWER IN TWO SEPARATELY TITLED SECTIONS (omit a "
+            "section entirely if it has no material):\n"
+            "1. `### Similar disputes on the CREA3 platform` — ONLY the anonymised "
+            "internal CREA3 disputes provided below (Party A/Party B).\n"
+            "2. `### Related past cases from the legal knowledge base` — ONLY the "
+            "case-law documents provided below (cite their case IDs, e.g. ITD003). "
+            "Never mix material between the two sections.\n\n"
+            "Within each section, present each case as a short descriptive "
             "paragraph. If the user explicitly asks for a table / tabular form, OR a "
             "side-by-side comparison would clearly be easier to read, use a compact "
             "Markdown TABLE with columns: Parties | Context | Procedure | Hearing | "
@@ -862,20 +971,71 @@ def _system_for_intent(
                 grounded = payload.dispute_id
             except HTTPException:
                 pass
-        ctx, sources = _past_cases_context(
+        # Past-case retrieval still grounds the answer, but its documents are NOT
+        # surfaced as citations — only legal_statutes shows a Sources list.
+        ctx, _past_src = _past_cases_context(
             session, user, payload.question, current_dispute_id=payload.dispute_id, limit=3
         )
         if ctx:
             system += ctx
-        else:
+        # Case-law from the LexAI knowledge base (chatbot's *_cases_* shards) —
+        # rendered by the model as the second, separately titled section. These
+        # KB cases are ALSO the only citations shown: platform disputes are
+        # never listed as sources (GDPR — internal dispute data stays private).
+        kb_cases = _legal_ai.similar_cases(payload.question, k=3)
+        if kb_cases:
+            case_view = f"/api/assistant/kb/source-view?q={_q(payload.question)}&cases=1"
+            sources = [{"id": None, "name": (c.get("id") or "case"), "url": case_view}
+                       for c in kb_cases]
+            lines = []
+            for c in kb_cases:
+                head = " · ".join(x for x in (
+                    c.get("id"), c.get("country"), c.get("type"),
+                    c.get("law"), c.get("duration") and f"duration {c['duration']}",
+                    c.get("costs") and f"costs {c['costs']}",
+                ) if x)
+                lines.append(f"[{head}]\n{(c.get('excerpt') or '').strip()}")
             system += (
-                "\n\nNo similar internal cases were found. Answer from general "
-                "knowledge and say that no comparable CREA3 cases are on record yet."
+                "\n\nCASE-LAW DOCUMENTS from the legal knowledge base (use ONLY in "
+                "the 'Related past cases from the legal knowledge base' section):\n\n"
+                + "\n\n".join(lines)
+            )
+        if not ctx and not kb_cases:
+            system += (
+                "\n\nNo similar internal cases or knowledge-base cases were found. "
+                "Answer from general knowledge and say that no comparable CREA3 "
+                "cases are on record yet."
             )
     else:  # workflow
         system = PLATFORM_GUIDE
-        ctx, sources = _kb_grounding(session, "workflow", payload.question)
+        # Workflow answers use the platform-guide KB for grounding, but those
+        # internal docs (crea3-workflow.md, crea3-about.md …) are NOT shown as
+        # citations — Sources are reserved for legal_statutes answers.
+        ctx, _wf_src = _kb_grounding(session, "workflow", payload.question)
         system += ctx
+        # The user's own disputes (created OR assigned), so questions like
+        # "how many disputes do I have?" are answerable from any page.
+        try:
+            own = session.exec(
+                select(Dispute)
+                .outerjoin(DisputeAgent, DisputeAgent.dispute_id == Dispute.id)
+                .where((Dispute.created_by_id == user.id) | (DisputeAgent.email == user.email))
+                .distinct()
+            ).all()
+            own = [d for d in own if not getattr(d, "hidden_from_active", False)]
+            if own:
+                lst = "\n".join(
+                    f"- #{d.id} “{d.title}” — method: {d.method}, status: {d.status}"
+                    for d in own[:15]
+                )
+                system += (
+                    f"\n\nTHE USER'S OWN DISPUTES ({len(own)} total — use this to "
+                    f"answer questions about their disputes):\n{lst}"
+                )
+            else:
+                system += "\n\nTHE USER'S OWN DISPUTES: none yet."
+        except Exception:
+            logger.warning("workflow dispute summary failed", exc_info=True)
         if payload.dispute_id is not None:
             try:
                 context = _dispute_context_block(session, payload.dispute_id, user)
@@ -1251,7 +1411,7 @@ class _AskJob:
     intent: str | None = None
     sources: list | None = None
     session_id: int | None = None
-    grounded_on_dispute: bool = False
+    grounded_on_dispute: int | None = None   # dispute id when grounded (matches SSE meta)
     provider: str | None = None
     fallback: bool = False
     message_id: int | None = None
@@ -1374,7 +1534,7 @@ class AskPollOut(BaseModel):
     intent: str | None = None
     sources: list | None = None
     session_id: int | None = None
-    grounded_on_dispute: bool | None = None
+    grounded_on_dispute: int | None = None   # dispute id when grounded
     provider: str | None = None
     fallback: bool | None = None
     message_id: int | None = None

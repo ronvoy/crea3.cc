@@ -135,3 +135,76 @@ def ask_stream(question: str, *, lang: str | None = None) -> Iterator[str]:
 
     if use_blocking:
         yield from _chunk(ask(question, lang=lang))
+
+
+def similar_cases(question: str, *, k: int = 3) -> list[dict]:
+    """Fetch similar case documents from the chatbot's legal knowledge base.
+
+    Best-effort: returns [] when the chatbot is not configured/reachable so the
+    past-cases answer simply omits the KB section instead of failing.
+    """
+    base = (settings.legal_ai_url or "").strip().rstrip("/")
+    if not base:
+        return []
+    if base.endswith("/chat"):
+        base = base[: -len("/chat")]
+    try:
+        timeout = httpx.Timeout(connect=4.0, read=20.0, write=5.0, pool=4.0)
+        with httpx.Client(timeout=timeout) as client:
+            res = client.get(f"{base}/cases/retrieve", params={"q": question, "k": k})
+        if res.status_code >= 400:
+            return []
+        cases = (res.json() or {}).get("cases") or []
+        return cases if isinstance(cases, list) else []
+    except Exception as exc:  # noqa: BLE001 — never let KB lookup break the answer
+        logger.info("similar_cases lookup failed: %s", exc)
+        return []
+
+
+def _service_base() -> str:
+    base = (settings.legal_ai_url or "").strip().rstrip("/")
+    if base.endswith("/chat"):
+        base = base[: -len("/chat")]
+    return base
+
+
+def list_sources(question: str, *, k: int = 3, cases: bool = False) -> list[dict]:
+    """Names of the KB passages that ground an answer (best-effort, [] on failure).
+
+    cases=True lists case-law documents (ITD001 …) from the *_cases_* shards;
+    otherwise statute passages from the merged legal index.
+    """
+    base = _service_base()
+    if not base:
+        return []
+    try:
+        timeout = httpx.Timeout(connect=4.0, read=20.0, write=5.0, pool=4.0)
+        with httpx.Client(timeout=timeout) as client:
+            res = client.get(f"{base}/sources",
+                             params={"q": question, "k": k, "cases": int(cases)})
+        if res.status_code >= 400:
+            return []
+        srcs = (res.json() or {}).get("sources") or []
+        return srcs if isinstance(srcs, list) else []
+    except Exception as exc:  # noqa: BLE001
+        logger.info("list_sources lookup failed: %s", exc)
+        return []
+
+
+def fetch_source_page(question: str, *, k: int = 4, cases: bool = False) -> str | None:
+    """Fetch the chatbot's /source/view HTML so the platform can proxy it to the
+    browser (the chatbot itself is not exposed through the public tunnel)."""
+    base = _service_base()
+    if not base:
+        return None
+    try:
+        timeout = httpx.Timeout(connect=4.0, read=30.0, write=5.0, pool=4.0)
+        with httpx.Client(timeout=timeout) as client:
+            res = client.get(f"{base}/source/view",
+                             params={"q": question, "k": k, "cases": int(cases)})
+        if res.status_code >= 400:
+            return None
+        return res.text
+    except Exception as exc:  # noqa: BLE001
+        logger.info("fetch_source_page failed: %s", exc)
+        return None

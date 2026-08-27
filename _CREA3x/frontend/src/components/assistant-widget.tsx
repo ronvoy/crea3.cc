@@ -28,9 +28,9 @@ import { useLocation, matchPath } from 'react-router-dom'
 import { api, apiBlob, API_BASE, getAccessToken } from '../api/client'
 import { useI18n, type I18nKey } from '../i18n'
 
-type Intent = 'workflow' | 'past_cases' | 'legal_statutes'
+type Intent = 'workflow' | 'past_cases' | 'legal_statutes' | 'general'
 type Msg = {
-  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: Array<{ id: number | null; name: string }>; files?: string[]; fallback?: boolean
+  role: 'user' | 'bot'; text: string; intent?: Intent; sources?: Array<{ id: number | null; name: string; url?: string | null }>; files?: string[]; fallback?: boolean
   voice?: boolean; audioUrl?: string; msgId?: number; hasAudioIn?: boolean
 }
 type Attachment = { filename: string; text: string; chars: number; truncated: boolean }
@@ -58,7 +58,8 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 const ATTACH_ACCEPT = '.pdf,.doc,.docx,.odt,.rtf,.txt,.md,.markdown,.json,.csv,.log,.tsv'
 
-const INTENT_LABEL: Record<Intent, I18nKey> = {
+// `general` (small talk) deliberately has NO label — no chip is rendered for it.
+const INTENT_LABEL: Partial<Record<Intent, I18nKey>> = {
   workflow: 'aiIntentWorkflow',
   past_cases: 'aiIntentPastCases',
   legal_statutes: 'aiIntentLegalStatutes',
@@ -816,9 +817,9 @@ export default function AssistantWidget() {
             <Stack spacing={1}>
               {msgs.map((m, i) => (
                 <Box key={i} sx={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                  {m.role === 'bot' && m.intent ? (
+                  {m.role === 'bot' && m.intent && INTENT_LABEL[m.intent] ? (
                     <Chip
-                      size="small" variant="outlined" label={t(INTENT_LABEL[m.intent])}
+                      size="small" variant="outlined" label={t(INTENT_LABEL[m.intent]!)}
                       sx={{ mb: 0.5, height: 20, fontSize: 11 }}
                     />
                   ) : null}
@@ -855,7 +856,12 @@ export default function AssistantWidget() {
                       {m.sources.map((s, idx) => (
                         <React.Fragment key={idx}>
                           {idx > 0 ? ', ' : ''}
-                          {s.id != null ? (
+                          {s.url ? (
+                            // External source viewer (LexAI KB page) — new tab.
+                            <MuiLink href={`${API_BASE}${s.url}`} target="_blank" rel="noopener noreferrer" sx={{ fontWeight: 600, verticalAlign: 'baseline' }}>
+                              {s.name}
+                            </MuiLink>
+                          ) : s.id != null ? (
                             <MuiLink component="button" type="button" onClick={() => openSource(s.id as number)} sx={{ fontWeight: 600, verticalAlign: 'baseline' }}>
                               {s.name}
                             </MuiLink>
@@ -885,6 +891,20 @@ export default function AssistantWidget() {
                             </span>
                           </Tooltip>
                         ) : null}
+                      </Stack>
+                    )
+                  })() : null}
+                  {/* "Continue" chip on the latest answer when it looks cut off
+                      mid-sentence — sends a follow-up (with full history) that asks
+                      the model to resume seamlessly in the same language/format. */}
+                  {m.role === 'bot' && i === msgs.length - 1 && i > 0 && m.text && !sending ? (() => {
+                    const txt = m.text.trim()
+                    const looksCut = txt.length > 180 && !/[.!?…)"'`’”|:]\s*$/.test(txt)
+                    if (!looksCut) return null
+                    return (
+                      <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: 'wrap' }}>
+                        <Chip size="small" clickable variant="outlined" color="primary"
+                          label={`▶ ${t('aiContinue')}`} onClick={() => ask(t('aiContinuePrompt'))} />
                       </Stack>
                     )
                   })() : null}

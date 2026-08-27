@@ -19,7 +19,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from src.core.config_manager import AppConfig
@@ -318,3 +318,196 @@ def chat_stream(request: StreamRequest):
             yield ""
 
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
+
+
+# =============================================================================
+# Source viewer — a minimal, responsive HTML page that shows exactly which
+# knowledge-base documents grounded an answer (country, legal domain, articles
+# and the retrieved passage). Referenced by _CREA3x so a user can click a
+# "View sources" link and see the provenance of a legal answer (4.6).
+# =============================================================================
+
+import html as _html
+
+
+def _retrieve_docs(query: str, k: int):
+    from src.core.data_ingestion import EmbeddingFactory
+    from src.engines.vector_ops import VectorArchivist
+    path = os.path.join(config.vector_db_root_path, "merged_legal_index")
+    if not os.path.exists(path):
+        return []
+    try:
+        embedder = EmbeddingFactory.create_embedding_model(config)
+        vs = VectorArchivist.load_index(path, embedder)
+        return vs.similarity_search(query, k=k) if vs is not None else []
+    except Exception as exc:
+        print("[source/view] retrieval error:", repr(exc))
+        return []
+
+
+_SOURCE_PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sources · CREA3 LexAI</title>
+<style>
+ :root{{--bg:#0b1120;--card:#111a2e;--fg:#e6ecff;--muted:#93a1c0;--acc:#38bdf8;--line:#22304d}}
+ @media (prefers-color-scheme:light){{:root{{--bg:#f4f6fb;--card:#fff;--fg:#0b1120;--muted:#5b6b8c;--acc:#0369a1;--line:#e2e8f0}}}}
+ *{{box-sizing:border-box}} body{{margin:0;background:var(--bg);color:var(--fg);
+  font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px}}
+ .wrap{{max-width:820px;margin:0 auto}}
+ h1{{font-size:1.15rem;margin:0 0 4px}} .q{{color:var(--muted);margin:0 0 20px;font-size:.9rem}}
+ .q b{{color:var(--fg)}}
+ article{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--acc);
+  border-radius:12px;padding:16px 18px;margin:0 0 16px;overflow:hidden}}
+ .hd{{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}}
+ .badge{{background:var(--acc);color:#001018;font-weight:700;border-radius:999px;
+  min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;padding:0 8px}}
+ .fn{{font-weight:700;font-size:1rem;margin:0}}
+ .meta{{color:var(--muted);font-size:.82rem}}
+ pre{{white-space:pre-wrap;word-wrap:break-word;margin:8px 0 0;font:14px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:var(--fg);background:transparent}}
+ .empty{{color:var(--muted);text-align:center;padding:40px}}
+ footer{{color:var(--muted);font-size:.75rem;text-align:center;margin-top:24px}}
+</style></head><body><div class="wrap">
+<h1>Retrieved sources</h1>
+<p class="q">Grounding for: <b>{query}</b> — {n} passage(s)</p>
+{cards}
+<footer>CREA3 LexAI · sources are retrieved from the platform's legal knowledge base</footer>
+</div></body></html>"""
+
+
+def _retrieve_case_docs(query: str, k: int):
+    """Retrieve case documents from the *_cases_* shards (used by cases=1)."""
+    from src.core.data_ingestion import EmbeddingFactory
+    from src.engines.vector_ops import VectorArchivist
+    embedder = EmbeddingFactory.create_embedding_model(config)
+    scored = []
+    for path in _case_shard_paths():
+        vs = VectorArchivist.load_index(path, embedder)
+        if vs is None:
+            continue
+        try:
+            for doc, score in vs.similarity_search_with_score(query, k=k):
+                scored.append((score, doc))
+        except Exception as exc:
+            print(f"[source/view cases] shard {os.path.basename(path)} failed:", repr(exc))
+    scored.sort(key=lambda t: t[0])
+    return [d for _, d in scored[:k]]
+
+
+@app.get("/sources", )
+def sources_json(q: str, k: int = 3, cases: int = 0):
+    """Names/metadata of the passages that would ground an answer (JSON)."""
+    query = (q or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="q must not be empty")
+    k = max(1, min(k, 8))
+    docs = _retrieve_case_docs(query, k) if cases else _retrieve_docs(query, k)
+    out, seen = [], set()
+    for d in docs:
+        m = getattr(d, "metadata", {}) or {}
+        if cases:
+            name = m.get("ID") or m.get("source_file") or "case"
+            country = m.get("State") or ""
+        else:
+            name = m.get("filename") or os.path.basename(str(m.get("source", "") or "")) or "source"
+            country = m.get("country") or ""
+        if name in seen:
+            continue
+        seen.add(name)
+        out.append({"name": name, "country": country})
+    return {"query": query, "cases": bool(cases), "sources": out}
+
+
+@app.get("/source/view", response_class=HTMLResponse)
+def source_view(q: str, k: int = 4, cases: int = 0):
+    """Render the KB passages that ground an answer as a minimal responsive page.
+
+    cases=1 renders case-law documents from the *_cases_* shards instead of the
+    statute passages from the merged index.
+    """
+    query = (q or "").strip()
+    docs = (_retrieve_case_docs(query, max(1, min(k, 10))) if cases
+            else _retrieve_docs(query, max(1, min(k, 10))))
+    if not docs:
+        cards = '<div class="empty">No source passages were retrieved for this query.</div>'
+    else:
+        parts = []
+        for i, d in enumerate(docs, 1):
+            meta = getattr(d, "metadata", {}) or {}
+            if cases:
+                filename = meta.get("ID") or meta.get("source_file") or "case"
+                country = meta.get("State") or meta.get("country") or "—"
+                domain = meta.get("Type") or ""
+                codes = meta.get("Law") or meta.get("law") or ""
+            else:
+                country = meta.get("country") or meta.get("source_country") or "—"
+                filename = meta.get("filename") or os.path.basename(str(meta.get("source", "") or "")) or "Unknown source"
+                domain = meta.get("legal_domain") or ""
+                codes = meta.get("civil_codes_used") or ""
+            bits = " · ".join(x for x in [str(country), str(domain), str(codes)] if x and str(x).strip())
+            body = _html.escape((getattr(d, "page_content", "") or "").strip())
+            parts.append(
+                f'<article><div class="hd"><span class="badge">{i}</span>'
+                f'<p class="fn">{_html.escape(str(filename))}</p></div>'
+                f'<div class="meta">{_html.escape(bits)}</div><pre>{body}</pre></article>'
+            )
+        cards = "\n".join(parts)
+    return HTMLResponse(_SOURCE_PAGE.format(query=_html.escape((q or "").strip()) or "—", n=len(docs), cards=cards))
+
+
+# =============================================================================
+# Similar-cases retrieval (JSON) — searches the per-country *_cases_* shards so
+# the platform can show "related past cases from the legal knowledge base" as a
+# separate, titled section next to its own (GDPR-masked) internal disputes.
+# =============================================================================
+
+def _case_shard_paths() -> List[str]:
+    root = config.vector_db_root_path
+    try:
+        return sorted(
+            os.path.join(root, d) for d in os.listdir(root)
+            if "_cases_" in d and os.path.isdir(os.path.join(root, d))
+        )
+    except FileNotFoundError:
+        return []
+
+
+@app.get("/cases/retrieve")
+def cases_retrieve(q: str, k: int = 4):
+    """Top-k similar case documents across all jurisdictions' case shards."""
+    from src.core.data_ingestion import EmbeddingFactory
+    from src.engines.vector_ops import VectorArchivist
+
+    query = (q or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="q must not be empty")
+    k = max(1, min(k, 8))
+
+    embedder = EmbeddingFactory.create_embedding_model(config)
+    scored = []
+    for path in _case_shard_paths():
+        vs = VectorArchivist.load_index(path, embedder)   # cached after first load
+        if vs is None:
+            continue
+        try:
+            for doc, score in vs.similarity_search_with_score(query, k=k):
+                scored.append((score, doc))
+        except Exception as exc:
+            print(f"[cases/retrieve] shard {os.path.basename(path)} failed:", repr(exc))
+    scored.sort(key=lambda t: t[0])          # FAISS L2: lower = more similar
+
+    out = []
+    for score, doc in scored[:k]:
+        m = getattr(doc, "metadata", {}) or {}
+        out.append({
+            "id": m.get("ID") or m.get("source_file") or "case",
+            "country": m.get("State") or m.get("country") or "",
+            "type": m.get("Type") or "",
+            "law": m.get("Law") or m.get("law") or "",
+            "duration": m.get("Legal_Duration") or "",
+            "costs": m.get("Costs") or "",
+            "instance": m.get("Instance_Type") or "",
+            "excerpt": (getattr(doc, "page_content", "") or "").strip()[:900],
+        })
+    return {"query": query, "cases": out}

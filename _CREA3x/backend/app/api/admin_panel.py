@@ -937,7 +937,7 @@ _GROUPS = {
     ("users", "role"): ["agent", "mediator"],
     ("disputes", "status"): ["active", "resolved", "dormant"],
     ("queries", "channel"): ["public", "inapp"],
-    ("queries", "intent"): ["workflow", "legal_statutes", "past_cases", "public"],
+    ("queries", "intent"): ["workflow", "legal_statutes", "past_cases", "general", "public"],
 }
 
 

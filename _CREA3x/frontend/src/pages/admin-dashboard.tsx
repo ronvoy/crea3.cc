@@ -230,13 +230,13 @@ const GROUP_COLOR: Record<string, string> = {
   user: "#3b82f6", agent: "#10b981", mediator: "#f59e0b", admin: "#8b5cf6",
   active: "#3b82f6", resolved: "#10b981", dormant: "#f59e0b",
   public: "#14b8a6", inapp: "#6366f1",
-  workflow: "#3b82f6", legal_statutes: "#8b5cf6", past_cases: "#f59e0b",
+  workflow: "#3b82f6", legal_statutes: "#8b5cf6", past_cases: "#f59e0b", general: "#64748b",
 };
 const GROUP_LABEL: Record<string, string> = {
   user: "Users", agent: "Agents", mediator: "Mediators", admin: "Admins",
   active: "Active (ongoing)", resolved: "Resolved", dormant: "Dormant / abandoned",
   public: "Public chatbot", inapp: "Legal AI (in-app)",
-  workflow: "Workflow", legal_statutes: "Legal", past_cases: "Past cases",
+  workflow: "Workflow", legal_statutes: "Legal", past_cases: "Past cases", general: "General",
 };
 
 function StatsTab({ c, refreshTick }: { c: C; refreshTick: number }) {

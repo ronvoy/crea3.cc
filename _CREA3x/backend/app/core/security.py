@@ -12,7 +12,15 @@ import secrets
 
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+# New hashes use PBKDF2-SHA256. SHA-512 and legacy SHA-1 are accepted for
+# VERIFICATION only, so accounts migrated from Keycloak (which hashes with
+# pbkdf2-sha512 by default since v24, pbkdf2-sha256/sha1 before) can keep
+# their passwords; "auto" marks them deprecated so they rehash on update.
+pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256", "pbkdf2_sha512", "pbkdf2_sha1"],
+    default="pbkdf2_sha256",
+    deprecated="auto",
+)
 
 
 def hash_password(password: str) -> str:

@@ -1520,12 +1520,124 @@ function buildWhatIfContext(allocations: any[], money: (n: number) => string): s
 // "What if …" — agree/disagree are pre-generated in the background and stored per
 // dispute; 'differ' lets the user type a custom scenario. Results are fetched from
 // the DB (polling while generating), so nothing streams live and freezes.
+// Amber "external model" marker — shown when the analysis was produced by the
+// hosted fallback because the local legal AI (LexAI) was unavailable.
+function ExternalModelChip({ t }: { t: (k: any) => string }) {
+  return (
+    <span
+      title={t('aiExternalModelHint')}
+      className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+    >
+      ⚠ {t('aiExternalModel')}
+    </span>
+  )
+}
+
+// "P2Y9M" / "PY07M" → "2 years, 9 months" / "7 months" (localized); '' → '-'.
+function humanDuration(raw: string, t: (k: any) => string): string {
+  const v = (raw || '').trim()
+  if (!v) return '-'
+  const y = /(\d+)\s*Y/i.exec(v)
+  const m = /(\d+)\s*M(?!I)/i.exec(v.replace(/^P?\d*Y/i, ''))
+  const years = y ? parseInt(y[1], 10) : 0
+  const months = m ? parseInt(m[1], 10) : 0
+  const parts: string[] = []
+  if (years > 0) parts.push(`${years} ${t(years === 1 ? 'durYear' : 'durYears')}`)
+  if (months > 0) parts.push(`${months} ${t(months === 1 ? 'durMonth' : 'durMonths')}`)
+  return parts.length ? parts.join(', ') : '-'
+}
+
+// Court references for a party who DISAGREES — closest past legal cases from
+// the LexAI knowledge base, listed with the court/instance that handled them.
+function CourtReferences({ disputeId, t }: { disputeId: number; t: (k: any) => string }) {
+  const [state, setState] = useState<{ loading: boolean; available: boolean; courts: any[] }>({
+    loading: true, available: true, courts: [],
+  })
+  const [tick, setTick] = useState(0)   // bump to retry the lookup
+  useEffect(() => {
+    let alive = true
+    setState((s) => ({ ...s, loading: true }))
+    ;(async () => {
+      try {
+        const d = await api(`/api/assistant/what-if/court-references?dispute_id=${disputeId}`)
+        if (alive) setState({ loading: false, available: d?.available !== false, courts: d?.courts ?? [] })
+      } catch {
+        if (alive) setState({ loading: false, available: false, courts: [] })
+      }
+    })()
+    return () => { alive = false }
+  }, [disputeId, tick])
+
+  return (
+    <details open className="mt-3 rounded-xl border border-slate-200 bg-white">
+      <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-800">
+        ⚖️ {t('whatIfCourtRefsTitle')}
+      </summary>
+      <div className="px-3 pb-3">
+        <div className="text-xs text-slate-500 mb-2">{t('whatIfCourtRefsHint')}</div>
+        {state.loading ? (
+          <div className="text-sm text-slate-500">{t('whatIfCourtRefsLoading')}</div>
+        ) : !state.available ? (
+          <div className="text-sm text-amber-700">
+            {t('whatIfCourtRefsUnavailable')}{' '}
+            <button className="text-blue-600 hover:underline" onClick={() => setTick((n) => n + 1)}>⟳ {t('refresh')}</button>
+          </div>
+        ) : !state.courts.length ? (
+          <div className="text-sm text-slate-500">
+            {t('whatIfCourtRefsEmpty')}{' '}
+            <button className="text-blue-600 hover:underline" onClick={() => setTick((n) => n + 1)}>⟳ {t('refresh')}</button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+                  <th className="py-1.5 pr-3">{t('courtColCourt')}</th>
+                  <th className="py-1.5 pr-3">{t('courtColCase')}</th>
+                  <th className="py-1.5">{t('courtColDuration')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.courts.map((c: any, i: number) => (
+                  <tr key={i} className="border-b border-slate-100 align-top">
+                    <td className="py-1.5 pr-3 font-medium text-slate-800">
+                      {c.country} — {c.court_name || t('courtUnspecified')}
+                    </td>
+                    <td className="py-1.5 pr-3">
+                      {c.case_url ? (
+                        <a href={c.case_url} target="_blank" rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline">{c.case_id || '-'}</a>
+                      ) : (c.case_id || '-')}
+                    </td>
+                    <td className="py-1.5 text-slate-600">{humanDuration(c.duration, t)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
 function WhatIfAnswer({ row, t }: { row: any; t: (k: any) => string }) {
   if (!row || row.status === 'generating') return <div className="text-slate-500 text-sm">{t('whatIfThinking')}</div>
   if (row.status === 'error') return <div className="text-rose-700 text-sm">{row.answer || 'Error'}</div>
   return (
     <div className="whatif-md space-y-2 leading-relaxed text-sm text-slate-800">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{row.answer || '—'}</ReactMarkdown>
+      {row.fallback ? <div><ExternalModelChip t={t} /></div> : null}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Case-reference links open the KB source page in a new tab.
+          a: (props: any) => (
+            <a {...props} target="_blank" rel="noopener noreferrer"
+              className="text-blue-600 hover:underline" />
+          ),
+        }}
+      >{row.answer || '—'}</ReactMarkdown>
+      {row.fallback ? <div className="pt-1"><ExternalModelChip t={t} /></div> : null}
     </div>
   )
 }
@@ -1641,6 +1753,9 @@ function WhatIfSection({ disputeId, allocations, money, t, lang }: {
             </button>
           </div>
           <WhatIfAnswer row={view === 'agree' ? data.agree : data.disagree} t={t} />
+          {/* Court references — only when the party leans toward DISAGREEING;
+              hidden entirely when they switch back to "I agree". */}
+          {view === 'disagree' ? <CourtReferences disputeId={disputeId} t={t} /> : null}
         </div>
       ) : null}
 

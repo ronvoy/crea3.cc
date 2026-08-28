@@ -485,5 +485,8 @@ class WhatIfAnalysis(SQLModel, table=True):
     question: str = Field(default="")                    # the prompt sent to the model
     answer: str = Field(default="")
     status: str = Field(default="generating", index=True)  # generating|done|error
+    # True when the analysis was produced by the external hosted model because
+    # the local legal AI (LexAI) was unavailable — drives the UI marker.
+    fallback: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow, index=True)
     updated_at: datetime = Field(default_factory=utcnow)

@@ -376,18 +376,32 @@ _SOURCE_PAGE = """<!doctype html>
 </div></body></html>"""
 
 
-def _retrieve_case_docs(query: str, k: int):
-    """Retrieve case documents from the *_cases_* shards (used by cases=1)."""
+def _retrieve_case_docs(query: str, k: int, countries: Optional[List[str]] = None):
+    """Retrieve case documents from the *_cases_* shards (used by cases=1).
+
+    The query is embedded ONCE and each shard is searched by vector — a single
+    embeddings API call instead of one per shard, so even a cold start stays
+    fast enough for interactive use."""
     from src.core.data_ingestion import EmbeddingFactory
     from src.engines.vector_ops import VectorArchivist
     embedder = EmbeddingFactory.create_embedding_model(config)
+    try:
+        qvec = embedder.embed_query(query)
+    except Exception as exc:
+        print("[cases] query embedding failed:", repr(exc))
+        return []
+    wanted = {c.strip().lower() for c in (countries or []) if c.strip()}
     scored = []
     for path in _case_shard_paths():
+        shard_country = os.path.basename(path).split("_")[0].title()
+        if wanted and shard_country.lower() not in wanted:
+            continue
         vs = VectorArchivist.load_index(path, embedder)
         if vs is None:
             continue
         try:
-            for doc, score in vs.similarity_search_with_score(query, k=k):
+            for doc, score in vs.similarity_search_with_score_by_vector(qvec, k=k):
+                (doc.metadata or {}).setdefault("_shard_country", shard_country)
                 scored.append((score, doc))
         except Exception as exc:
             print(f"[source/view cases] shard {os.path.basename(path)} failed:", repr(exc))
@@ -407,8 +421,8 @@ def sources_json(q: str, k: int = 3, cases: int = 0):
     for d in docs:
         m = getattr(d, "metadata", {}) or {}
         if cases:
-            name = m.get("ID") or m.get("source_file") or "case"
-            country = m.get("State") or ""
+            name = os.path.splitext(str(m.get("ID") or m.get("source_file") or "case"))[0][:40]
+            country = m.get("State") or m.get("_shard_country") or ""
         else:
             name = m.get("filename") or os.path.basename(str(m.get("source", "") or "")) or "source"
             country = m.get("country") or ""
@@ -419,16 +433,48 @@ def sources_json(q: str, k: int = 3, cases: int = 0):
     return {"query": query, "cases": bool(cases), "sources": out}
 
 
+def _find_case_docs(case_id: str, limit: int = 4):
+    """All chunks of one case document, matched by metadata ID / source file."""
+    from src.core.data_ingestion import EmbeddingFactory
+    from src.engines.vector_ops import VectorArchivist
+    embedder = EmbeddingFactory.create_embedding_model(config)
+    want = (case_id or "").strip().lower()
+    found = []
+    for path in _case_shard_paths():
+        vs = VectorArchivist.load_index(path, embedder)
+        if vs is None:
+            continue
+        shard_country = os.path.basename(path).split("_")[0].title()
+        try:
+            for doc in vs.docstore._dict.values():
+                m = getattr(doc, "metadata", {}) or {}
+                mid = str(m.get("ID") or "").strip().lower()
+                mfile = os.path.splitext(str(m.get("source_file") or ""))[0].strip().lower()
+                if want and (mid == want or mfile == want):
+                    m.setdefault("_shard_country", shard_country)
+                    found.append(doc)
+                    if len(found) >= limit:
+                        return found
+        except Exception as exc:
+            print(f"[case lookup] shard {os.path.basename(path)} failed:", repr(exc))
+    return found
+
+
 @app.get("/source/view", response_class=HTMLResponse)
-def source_view(q: str, k: int = 4, cases: int = 0):
+def source_view(q: str = "", k: int = 4, cases: int = 0, case_id: str = ""):
     """Render the KB passages that ground an answer as a minimal responsive page.
 
     cases=1 renders case-law documents from the *_cases_* shards instead of the
     statute passages from the merged index.
     """
     query = (q or "").strip()
-    docs = (_retrieve_case_docs(query, max(1, min(k, 10))) if cases
-            else _retrieve_docs(query, max(1, min(k, 10))))
+    if case_id.strip():
+        cases = 1
+        query = query or case_id.strip()
+        docs = _find_case_docs(case_id)
+    else:
+        docs = (_retrieve_case_docs(query, max(1, min(k, 10))) if cases
+                else _retrieve_docs(query, max(1, min(k, 10))))
     if not docs:
         cards = '<div class="empty">No source passages were retrieved for this query.</div>'
     else:
@@ -436,8 +482,8 @@ def source_view(q: str, k: int = 4, cases: int = 0):
         for i, d in enumerate(docs, 1):
             meta = getattr(d, "metadata", {}) or {}
             if cases:
-                filename = meta.get("ID") or meta.get("source_file") or "case"
-                country = meta.get("State") or meta.get("country") or "—"
+                filename = os.path.splitext(str(meta.get("ID") or meta.get("source_file") or "case"))[0][:40]
+                country = meta.get("State") or meta.get("country") or meta.get("_shard_country") or "—"
                 domain = meta.get("Type") or ""
                 codes = meta.get("Law") or meta.get("law") or ""
             else:
@@ -473,36 +519,50 @@ def _case_shard_paths() -> List[str]:
         return []
 
 
-@app.get("/cases/retrieve")
-def cases_retrieve(q: str, k: int = 4):
-    """Top-k similar case documents across all jurisdictions' case shards."""
-    from src.core.data_ingestion import EmbeddingFactory
-    from src.engines.vector_ops import VectorArchivist
+def _warm_case_shards():
+    try:
+        from src.core.data_ingestion import EmbeddingFactory
+        from src.engines.vector_ops import VectorArchivist
+        embedder = EmbeddingFactory.create_embedding_model(config)
+        for path in _case_shard_paths():
+            VectorArchivist.load_index(path, embedder)
+        print(f"[warmup] case shards loaded: {len(_case_shard_paths())}")
+    except Exception as exc:
+        print("[warmup] case shard warmup failed:", repr(exc))
 
+
+@app.on_event("startup")
+def _startup_warmup():
+    import threading as _th
+    _th.Thread(target=_warm_case_shards, daemon=True).start()
+
+
+@app.get("/cases/retrieve")
+def cases_retrieve(q: str, k: int = 4, countries: str = ""):
+    """Top-k similar case documents across the case shards.
+
+    `countries` (comma-separated full names, e.g. "Italy,Estonia") restricts the
+    search to those jurisdictions' shards — the top-k is then drawn from the
+    RELEVANT countries instead of being filtered (possibly to nothing) afterwards.
+    """
     query = (q or "").strip()
     if not query:
         raise HTTPException(status_code=400, detail="q must not be empty")
     k = max(1, min(k, 8))
-
-    embedder = EmbeddingFactory.create_embedding_model(config)
-    scored = []
-    for path in _case_shard_paths():
-        vs = VectorArchivist.load_index(path, embedder)   # cached after first load
-        if vs is None:
-            continue
-        try:
-            for doc, score in vs.similarity_search_with_score(query, k=k):
-                scored.append((score, doc))
-        except Exception as exc:
-            print(f"[cases/retrieve] shard {os.path.basename(path)} failed:", repr(exc))
-    scored.sort(key=lambda t: t[0])          # FAISS L2: lower = more similar
+    clist = [c for c in (countries or "").split(",") if c.strip()]
+    docs = _retrieve_case_docs(query, k, countries=clist or None)
 
     out = []
-    for score, doc in scored[:k]:
+    for doc in docs:
         m = getattr(doc, "metadata", {}) or {}
+        raw_id = m.get("ID") or m.get("source_file") or "case"
+        raw_id = os.path.splitext(str(raw_id))[0][:40]
+        court = next((str(m[k]).strip() for k in ("Court", "Court_Name", "Tribunal", "court")
+                      if m.get(k) and str(m[k]).strip()), "")
         out.append({
-            "id": m.get("ID") or m.get("source_file") or "case",
-            "country": m.get("State") or m.get("country") or "",
+            "id": raw_id,
+            "court": court,
+            "country": m.get("State") or m.get("country") or m.get("_shard_country") or "",
             "type": m.get("Type") or "",
             "law": m.get("Law") or m.get("law") or "",
             "duration": m.get("Legal_Duration") or "",

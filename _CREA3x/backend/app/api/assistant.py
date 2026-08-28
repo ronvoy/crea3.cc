@@ -753,7 +753,7 @@ def kb_source_download(doc_id: int, _user: User = Depends(get_current_user), ses
 
 
 @router.get("/kb/source-view")
-def kb_source_view(q: str, cases: int = 0):
+def kb_source_view(q: str = "", cases: int = 0, case_id: str = ""):
     """Proxy the LexAI chatbot's /source/view page to the browser.
 
     Source links in chat answers open this in a NEW TAB, which cannot carry an
@@ -764,9 +764,11 @@ def kb_source_view(q: str, cases: int = 0):
     """
     from ..core import legal_ai as _legal_ai
     q = (q or "").strip()[:2000]
-    if not q:
-        raise HTTPException(status_code=400, detail="q must not be empty")
-    html = _legal_ai.fetch_source_page(q, k=4, cases=bool(cases))
+    case_id = (case_id or "").strip()[:120]
+    if not q and not case_id:
+        raise HTTPException(status_code=400, detail="q or case_id required")
+    html = _legal_ai.fetch_source_page(q or case_id, k=4, cases=bool(cases),
+                                       case_id=case_id or None)
     if html is None:
         html = (
             "<!doctype html><meta charset='utf-8'>"
@@ -1634,8 +1636,10 @@ Structure your answer with short **headed sections** and bullet points, covering
 2. **Likely outcome** — how it affects THIS party's value received and fairness
    relative to their entitlement.
 3. **Risks & benefits** — the trade-offs of the choice.
-4. **Similar past cases** — how comparable, anonymized CREA3 cases below typically
-   resolved (refer to parties as "Party A/B"; never reveal any personal data).
+4. **Similar past legal cases** — how the comparable case-law documents from the
+   LEGAL KNOWLEDGE BASE below resolved (cite their case IDs, e.g. ITD003). Use
+   ONLY those documents in this section — never any CREA3 platform dispute and
+   never any personal data.
 
 Be concise and concrete. This is general guidance, not legal advice.
 """
@@ -1670,10 +1674,39 @@ def _build_what_if_system(session: Session, dispute_id: int, user: User, context
     if (context or "").strip():
         system += ("\n\nCurrent proposed allocation and division statistics (the party's own "
                    "data):\n\n" + context.strip()[:8000])
-    pc, _src = _past_cases_context(session, user, "similar dispute resolution outcome",
-                                   current_dispute_id=dispute_id, limit=3)
-    if pc:
-        system += pc
+    # Past cases come ONLY from the LexAI legal knowledge base (never from CREA3
+    # platform disputes).
+    from ..core import legal_ai as _la
+    try:
+        d = session.get(Dispute, dispute_id)
+        case_query = f"{(d.title if d else '')} {(d.method if d else '')} division of assets dispute outcome"
+    except Exception:
+        case_query = "division of assets dispute outcome"
+    kb_cases = _la.similar_cases(case_query, k=3,
+                                 countries=sorted(_party_countries(session, dispute_id)) or None)
+    if kb_cases:
+        lines = []
+        for c in kb_cases:
+            cid = c.get("id") or "case"
+            link = f"[{cid}](/api/assistant/kb/source-view?cases=1&case_id={cid})"
+            head = " · ".join(x for x in (
+                cid, c.get("country"), c.get("type"), c.get("law"),
+                c.get("duration") and f"duration {c['duration']}",
+                c.get("costs") and f"costs {c['costs']}",
+            ) if x)
+            lines.append(f"[{head}]\nlink: {link}\n{(c.get('excerpt') or '').strip()}")
+        system += ("\n\nCASE-LAW DOCUMENTS from the LEGAL KNOWLEDGE BASE (the only "
+                   "material allowed in the 'Similar past legal cases' section):\n\n"
+                   + "\n\n".join(lines))
+        system += (
+            "\n\nRender the 'Similar past legal cases' section as a compact Markdown "
+            "TABLE with columns: Case | Country | Key principle | Application to this "
+            "dispute. In the Case column use EXACTLY the clickable Markdown link given "
+            "as 'link:' for that case (never a bare id, never an invented URL)."
+        )
+    else:
+        system += ("\n\nNo case-law documents are available right now — omit the "
+                   "'Similar past legal cases' section entirely.")
     system += CURRENCY_RULE + _lang_instruction(lang)
     return system
 
@@ -1683,22 +1716,67 @@ def _run_what_if(row_id: int, dispute_id: int, user_id: int, context: str, quest
 
     Runs in a thread so the HTTP request returns instantly — the model call can
     take longer than a proxy/tunnel would keep an idle request open.
+
+    Like the legal chat, the LexAI chatbot is the PRIMARY provider; OpenRouter
+    is the external secondary, and the stored row carries a `fallback` marker so
+    the UI shows the "external model" chip.
     """
     from ..core.config import settings
+    from ..core import legal_ai as _la
     from ..db import engine
     from ..models import WhatIfAnalysis
     try:
         with Session(engine) as s:
             user = s.get(User, user_id)
             system = _build_what_if_system(s, dispute_id, user, context, lang)
-            # Background task (not tunnel-bound): allow a full-length analysis so it
-            # is never truncated mid-way by the short chat cap.
-            result = llm.chat(system=system, user_message=question,
-                              openrouter_model=settings.legal_openrouter_model, max_tokens=2000)
+            row = s.get(WhatIfAnalysis, row_id)
+            # For a DIFFER scenario, take the party's pre-generated agree AND
+            # disagree analyses into account when reasoning about their custom
+            # position.
+            if row is not None and row.scenario == "differ":
+                prior_rows = s.exec(
+                    select(WhatIfAnalysis).where(
+                        WhatIfAnalysis.dispute_id == dispute_id,
+                        WhatIfAnalysis.user_id == user_id,
+                        WhatIfAnalysis.scenario.in_(("agree", "disagree")),  # type: ignore[attr-defined]
+                        WhatIfAnalysis.status == "done",
+                    )
+                ).all()
+                blocks = []
+                for pr in prior_rows:
+                    if (pr.answer or "").strip():
+                        label = "AGREE" if pr.scenario == "agree" else "DISAGREE"
+                        blocks.append(f"[{label} analysis]\n{pr.answer.strip()[:2500]}")
+                if blocks:
+                    system += (
+                        "\n\nThe party's pre-generated scenario analyses — weigh BOTH "
+                        "against their custom position and reference them where "
+                        "relevant:\n\n" + "\n\n".join(blocks)
+                    )
+
+            # PRIMARY: LexAI chatbot (its own RAG over the legal KB). The composed
+            # dispute context travels inside the question because /chat does not
+            # take a system prompt.
+            text: str | None = None
+            provider = ""
+            if _la.is_configured():
+                try:
+                    text = _la.ask(f"{system}\n\n---\n\nTASK: {question}", lang=lang)
+                    provider = "legal-ai"
+                except _la.LegalAIError as e:
+                    logger.info("what-if: LexAI unavailable (%s) — falling back to OpenRouter", e)
+            if not text:
+                # SECONDARY: hosted Mistral. Full-length analysis (not tunnel-bound).
+                result = llm.chat(system=system, user_message=question,
+                                  openrouter_model=settings.legal_openrouter_model, max_tokens=2000)
+                text = result.text
+                provider = result.provider
+
             row = s.get(WhatIfAnalysis, row_id)
             if row:
-                row.answer = result.text
+                row.answer = text
                 row.status = "done"
+                row.fallback = _la.is_configured() and provider != "legal-ai"
                 row.updated_at = _now_dt()
                 s.add(row)
                 s.commit()
@@ -1721,6 +1799,7 @@ def _run_what_if(row_id: int, dispute_id: int, user_id: int, context: str, quest
 def _what_if_out(r) -> dict:
     return {"id": r.id, "scenario": r.scenario, "title": r.title, "question": r.question,
             "answer": r.answer, "status": r.status,
+            "fallback": bool(getattr(r, "fallback", False)),
             "created_at": r.created_at.isoformat() if r.created_at else ""}
 
 
@@ -1831,6 +1910,92 @@ def what_if_regenerate(
         daemon=True,
     ).start()
     return {"id": row.id, "status": "generating"}
+
+
+_CC_NAME = {"IT": "Italy", "EE": "Estonia", "SI": "Slovenia", "BE": "Belgium",
+            "HR": "Croatia", "LT": "Lithuania"}
+
+
+def _party_countries(session: Session, dispute_id: int) -> set[str]:
+    """Full country names of the dispute's parties (agents + creator)."""
+    out: set[str] = set()
+    try:
+        d = session.get(Dispute, dispute_id)
+        emails = {a.email for a in session.exec(
+            select(DisputeAgent).where(DisputeAgent.dispute_id == dispute_id)).all() if a.email}
+        users = [session.exec(select(User).where(User.email == e)).first() for e in emails]
+        if d and d.created_by_id:
+            users.append(session.get(User, d.created_by_id))
+        for u2 in users:
+            raw = (getattr(u2, "country", "") or "").strip()
+            if raw:
+                out.add(_CC_NAME.get(raw.upper(), raw.title()))
+    except Exception:
+        logger.warning("party country lookup failed", exc_info=True)
+    return out
+
+# Court-reference results cached per dispute (10 min): the KB lookup fans out
+# across all case shards, so repeats — and a retry after a slow first call —
+# must be instant.
+_COURT_REF_CACHE: dict[int, tuple[float, dict]] = {}
+_COURT_REF_TTL = 600.0
+
+
+@router.get("/what-if/court-references")
+def what_if_court_references(
+    dispute_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Suggestive courts for a party who DISAGREES with the proposal, derived
+    from how the closest past legal cases in the LexAI knowledge base proceeded.
+
+    Data comes ONLY from the chatbot's case-law shards (never platform disputes).
+    Returns {available: False} when the legal KB service is unreachable so the
+    UI can say so instead of showing an empty table.
+    """
+    from ..core import legal_ai as _la
+    require_access(session, dispute_id, user)
+    cached = _COURT_REF_CACHE.get(dispute_id)
+    if cached and (_time.time() - cached[0] < _COURT_REF_TTL) and cached[1].get("courts"):
+        return cached[1]
+    if not (_la.is_configured() and _la.is_reachable()):
+        return {"available": False, "courts": []}
+
+    d = session.get(Dispute, dispute_id)
+    # Countries of origin of the dispute's parties (agents + creator): the KB
+    # search is SCOPED to those jurisdictions so the top hits are always
+    # relevant (never filtered down to an empty table afterwards).
+    party_countries = _party_countries(session, dispute_id)
+    query = (f"{(d.title if d else '')} {(d.method if d else '')} contested division of assets "
+             "court proceedings judgment in favour")
+    cases = _la.similar_cases(query, k=8, countries=sorted(party_countries) or None)
+    courts, seen = [], set()
+    for c in cases:
+        raw = (c.get("country") or "").strip()
+        # The KB returns either a 2-letter code (IT) or a full name (Estonia).
+        country = _CC_NAME.get(raw.upper(), raw.title() if raw else "—")
+        # Relevance filter: keep only the parties' countries (when known).
+        if party_countries and country not in party_countries:
+            continue
+        case_id = c.get("id") or ""
+        key = (country, case_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        courts.append({
+            "country": country,
+            "court_name": (c.get("court") or "").strip(),   # "" -> UI shows "unspecified"
+            "case_id": case_id,
+            "case_url": f"/api/assistant/kb/source-view?cases=1&case_id={case_id}",
+            "duration": c.get("duration") or "",
+            "costs": c.get("costs") or "",
+        })
+    courts = courts[:6]
+    out = {"available": True, "courts": courts}
+    if courts:
+        _COURT_REF_CACHE[dispute_id] = (_time.time(), out)
+    return out
 
 
 @router.delete("/what-if/{row_id}")

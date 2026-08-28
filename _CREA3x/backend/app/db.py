@@ -71,6 +71,11 @@ def init_db() -> None:
             if cm_cols and "fallback" not in cm_cols:
                 conn.exec_driver_sql("ALTER TABLE chat_message ADD COLUMN fallback BOOLEAN DEFAULT 0")
 
+            # WhatIfAnalysis.fallback — external-model marker for what-if results
+            wi_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(what_if_analysis)").fetchall()}
+            if wi_cols and "fallback" not in wi_cols:
+                conn.exec_driver_sql("ALTER TABLE what_if_analysis ADD COLUMN fallback BOOLEAN DEFAULT 0")
+
             # DisputeAgent.claimed_entitlement_share (party's own claimed share)
             agent_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(disputeagent)").fetchall()}
             if agent_cols and "claimed_entitlement_share" not in agent_cols:

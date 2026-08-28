@@ -137,7 +137,7 @@ def ask_stream(question: str, *, lang: str | None = None) -> Iterator[str]:
         yield from _chunk(ask(question, lang=lang))
 
 
-def similar_cases(question: str, *, k: int = 3) -> list[dict]:
+def similar_cases(question: str, *, k: int = 3, countries: list[str] | None = None) -> list[dict]:
     """Fetch similar case documents from the chatbot's legal knowledge base.
 
     Best-effort: returns [] when the chatbot is not configured/reachable so the
@@ -149,9 +149,13 @@ def similar_cases(question: str, *, k: int = 3) -> list[dict]:
     if base.endswith("/chat"):
         base = base[: -len("/chat")]
     try:
-        timeout = httpx.Timeout(connect=4.0, read=20.0, write=5.0, pool=4.0)
+        # Read allows for a cold chatbot (first call loads the case shards).
+        timeout = httpx.Timeout(connect=4.0, read=35.0, write=5.0, pool=4.0)
+        params: dict = {"q": question, "k": k}
+        if countries:
+            params["countries"] = ",".join(countries)
         with httpx.Client(timeout=timeout) as client:
-            res = client.get(f"{base}/cases/retrieve", params={"q": question, "k": k})
+            res = client.get(f"{base}/cases/retrieve", params=params)
         if res.status_code >= 400:
             return []
         cases = (res.json() or {}).get("cases") or []
@@ -191,17 +195,21 @@ def list_sources(question: str, *, k: int = 3, cases: bool = False) -> list[dict
         return []
 
 
-def fetch_source_page(question: str, *, k: int = 4, cases: bool = False) -> str | None:
+def fetch_source_page(question: str, *, k: int = 4, cases: bool = False,
+                      case_id: str | None = None) -> str | None:
     """Fetch the chatbot's /source/view HTML so the platform can proxy it to the
-    browser (the chatbot itself is not exposed through the public tunnel)."""
+    browser (the chatbot itself is not exposed through the public tunnel).
+    `case_id` fetches ONE specific case document instead of a query retrieval."""
     base = _service_base()
     if not base:
         return None
     try:
+        params: dict = {"q": question, "k": k, "cases": int(cases)}
+        if case_id:
+            params["case_id"] = case_id
         timeout = httpx.Timeout(connect=4.0, read=30.0, write=5.0, pool=4.0)
         with httpx.Client(timeout=timeout) as client:
-            res = client.get(f"{base}/source/view",
-                             params={"q": question, "k": k, "cases": int(cases)})
+            res = client.get(f"{base}/source/view", params=params)
         if res.status_code >= 400:
             return None
         return res.text

@@ -438,6 +438,10 @@ class ChatMessage(SQLModel, table=True):
     role: str = Field(default="user")                # user|bot
     text: str = Field(default="")
     intent: Optional[str] = Field(default=None)       # workflow|past_cases|legal_statutes
+    # True when the answer came from the external hosted model because the local
+    # legal AI service was unavailable — persisted so the "External model" chip
+    # renders consistently when a session is reopened.
+    fallback: bool = Field(default=False)
     sources_json: str = Field(default="[]")           # JSON list[str] of KB source filenames
     files_json: str = Field(default="[]")             # JSON list[str] of attached filenames
     transcript: Optional[str] = Field(default=None)   # STT transcript when input was voice

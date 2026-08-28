@@ -208,3 +208,26 @@ def fetch_source_page(question: str, *, k: int = 4, cases: bool = False) -> str 
     except Exception as exc:  # noqa: BLE001
         logger.info("fetch_source_page failed: %s", exc)
         return None
+
+
+_reach_cache: dict = {"ts": 0.0, "ok": False}
+
+
+def is_reachable(max_age: float = 15.0) -> bool:
+    """Cheap cached health probe of the chatbot (used to flag answers that had
+    to do without it — the UI's 'external model' marker)."""
+    import time as _t
+    now = _t.monotonic()
+    if now - _reach_cache["ts"] < max_age:
+        return _reach_cache["ok"]
+    ok = False
+    base = _service_base()
+    if base:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(connect=2.0, read=3.0, write=2.0, pool=2.0)) as client:
+                ok = client.get(f"{base}/health").status_code == 200
+        except Exception:
+            ok = False
+    _reach_cache["ts"] = now
+    _reach_cache["ok"] = ok
+    return ok

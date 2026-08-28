@@ -64,9 +64,10 @@ def _jsonable_sources(sources: list | None) -> list:
 def save_message(session: Session, sess: ChatSession, user: User, role: str, text: str,
                  *, intent: str | None = None, sources: list | None = None,
                  files: list[str] | None = None, transcript: str | None = None,
-                 audio_in_b64: str | None = None, audio_in_mime: str | None = None) -> ChatMessage:
+                 audio_in_b64: str | None = None, audio_in_mime: str | None = None,
+                 fallback: bool = False) -> ChatMessage:
     msg = ChatMessage(
-        session_id=sess.id, user_id=user.id, role=role, text=text, intent=intent,
+        session_id=sess.id, user_id=user.id, role=role, text=text, intent=intent, fallback=bool(fallback),
         sources_json=json.dumps(_jsonable_sources(sources)), files_json=json.dumps(files or []),
         transcript=transcript, audio_in_b64=audio_in_b64, audio_in_mime=audio_in_mime,
     )
@@ -92,6 +93,7 @@ class MessageOut(BaseModel):
     role: str
     text: str
     intent: str | None = None
+    fallback: bool = False        # answer came from the external hosted model
     sources: list[SourceRef] = Field(default_factory=list)
     files: list[str] = Field(default_factory=list)
     has_audio: bool = False       # bot answer has stored TTS audio
@@ -154,7 +156,8 @@ def get_session_detail(sid: int, user: User = Depends(get_current_user), session
         except Exception:
             files = []
         out.append(MessageOut(
-            id=m.id, role=m.role, text=m.text, intent=m.intent, sources=sources, files=files,
+            id=m.id, role=m.role, text=m.text, intent=m.intent, fallback=bool(getattr(m, "fallback", False)),
+            sources=sources, files=files,
             has_audio=bool(m.audio_out_b64), has_audio_in=bool(m.audio_in_b64), transcript=m.transcript,
             created_at=m.created_at.isoformat() if m.created_at else "",
         ))

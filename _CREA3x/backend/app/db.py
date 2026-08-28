@@ -67,6 +67,9 @@ def init_db() -> None:
             for col in ("transcript", "audio_in_b64", "audio_in_mime", "audio_out_b64", "audio_mime"):
                 if cm_cols and col not in cm_cols:
                     conn.exec_driver_sql(f"ALTER TABLE chat_message ADD COLUMN {col} TEXT")
+            # ChatMessage.fallback — external-model marker, persisted for history
+            if cm_cols and "fallback" not in cm_cols:
+                conn.exec_driver_sql("ALTER TABLE chat_message ADD COLUMN fallback BOOLEAN DEFAULT 0")
 
             # DisputeAgent.claimed_entitlement_share (party's own claimed share)
             agent_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(disputeagent)").fetchall()}

@@ -65,6 +65,17 @@ const INTENT_LABEL: Partial<Record<Intent, I18nKey>> = {
   legal_statutes: 'aiIntentLegalStatutes',
 }
 
+/** When the assistant asks a clarifying question it may end the message with
+ *  `OPTIONS: a | b | c` — split that into quick-reply choices for chips. */
+function splitOptions(text: string): { body: string; options: string[] } {
+  const lines = (text || '').trimEnd().split('\n')
+  const last = (lines[lines.length - 1] || '').trim()
+  const m = last.match(/^OPTIONS:\s*(.+)$/i)
+  if (!m) return { body: text, options: [] }
+  const options = m[1].split('|').map((s) => s.trim()).filter(Boolean).slice(0, 4)
+  return { body: lines.slice(0, -1).join('\n').trimEnd(), options }
+}
+
 /** Render assistant text as Markdown (headings, lists, code, links, GFM tables). */
 function Markdown({ text }: { text: string }) {
   return (
@@ -408,6 +419,7 @@ export default function AssistantWidget() {
         intent: m.intent || undefined,
         sources: Array.isArray(m.sources) && m.sources.length ? m.sources : undefined,
         files: Array.isArray(m.files) && m.files.length ? m.files : undefined,
+        fallback: !!m.fallback,
         msgId: m.id,
         voice: !!m.has_audio_in,
         hasAudioIn: !!m.has_audio_in,
@@ -847,9 +859,25 @@ export default function AssistantWidget() {
                     }}
                   >
                     {m.role === 'bot'
-                      ? <Markdown text={m.text} />
+                      ? <Markdown text={splitOptions(m.text).body} />
                       : <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{m.text}</Typography>}
+                    {m.role === 'bot' && m.fallback && m.text ? (
+                      <Tooltip title={t('aiExternalModelHint')}>
+                        <Typography variant="caption" component="div" sx={{ mt: 1, color: 'warning.main', fontWeight: 600 }}>
+                          ⚠ {t('aiExternalModel')}
+                        </Typography>
+                      </Tooltip>
+                    ) : null}
                   </Paper>
+                  {/* Quick-reply choices from an assistant clarifying question. */}
+                  {m.role === 'bot' && i === msgs.length - 1 && !sending && splitOptions(m.text).options.length ? (
+                    <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: 'wrap', rowGap: 0.75 }}>
+                      {splitOptions(m.text).options.map((opt) => (
+                        <Chip key={opt} size="small" clickable variant="outlined" color="primary"
+                          label={opt} onClick={() => ask(opt)} />
+                      ))}
+                    </Stack>
+                  ) : null}
                   {m.role === 'bot' && m.sources && m.sources.length ? (
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, maxWidth: full ? 'min(100%, 60rem)' : '92%' }}>
                       {t('aiSources')}:{' '}
@@ -898,7 +926,9 @@ export default function AssistantWidget() {
                       mid-sentence — sends a follow-up (with full history) that asks
                       the model to resume seamlessly in the same language/format. */}
                   {m.role === 'bot' && i === msgs.length - 1 && i > 0 && m.text && !sending ? (() => {
-                    const txt = m.text.trim()
+                    const parsed = splitOptions(m.text)
+                    if (parsed.options.length) return null   // clarifying question, not a cut-off
+                    const txt = parsed.body.trim()
                     const looksCut = txt.length > 180 && !/[.!?…)"'`’”|:]\s*$/.test(txt)
                     if (!looksCut) return null
                     return (

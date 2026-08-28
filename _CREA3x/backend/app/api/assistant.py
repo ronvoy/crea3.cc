@@ -525,7 +525,10 @@ Slovenian, Estonian, Croatian, Lithuanian). Classify by MEANING, never by the
 language. A question about how the law works in a country — e.g. "Come funziona
 la successione in Italia?", "Comment fonctionne l'héritage en Italie?" — is
 legal_statutes, NOT workflow. A question about the user's own data on the
-platform (my disputes, my case status) is workflow, NOT general.
+platform (my disputes, my case status) is workflow, NOT general. A request for a
+LINK / URL / page to the user's own dispute or any platform page ("link to my
+inheritance dispute", "open my case") is ALWAYS workflow, even if it contains
+legal words like inheritance or divorce.
 
 Reply with ONLY the single label word (workflow, past_cases, legal_statutes or
 general). No punctuation, no explanation.
@@ -598,8 +601,17 @@ def classify_intent(question: str, history: list[AssistantTurn] | None = None) -
     # multilingual keyword match (legal / past cases).
     if _is_small_talk(question):
         return "general"
+    # Platform-navigation / possessive phrasing ("link to MY inheritance dispute",
+    # "open my case") must NOT be captured by the legal keyword fast-path just
+    # because it contains a legal word — route those through the meaning-based
+    # LLM classification below instead.
+    q_low = (question or "").lower()
+    nav_kw = ("my dispute", "my case", "my inheritance", "my divorce", "link",
+              "hyperlink", "url", "open the", "show me the", "take me", "navigate",
+              "la mia", "il mio", "mon ", "ma ", "mijn ", "moj ", "moja ", "mano ")
+    is_navigational = any(k in q_low for k in nav_kw)
     heuristic = _heuristic_intent(question)
-    if heuristic != "workflow":
+    if heuristic != "workflow" and not is_navigational:
         return heuristic
     # Ambiguous (looks like workflow): confirm with the LLM, which routes by
     # meaning in any language and catches legal questions the keywords missed.
@@ -618,7 +630,8 @@ def classify_intent(question: str, history: list[AssistantTurn] | None = None) -
         pass
     except Exception:
         logger.warning("classify_intent failed; using heuristic", exc_info=True)
-    return heuristic
+    # Model unavailable: navigational phrasing beats the keyword heuristic.
+    return "workflow" if is_navigational else heuristic
 
 
 # ── User file attachments (chat) ─────────────────────────────────────────────
@@ -1025,12 +1038,17 @@ def _system_for_intent(
             own = [d for d in own if not getattr(d, "hidden_from_active", False)]
             if own:
                 lst = "\n".join(
-                    f"- #{d.id} “{d.title}” — method: {d.method}, status: {d.status}"
+                    f"- #{d.id} “{d.title}” — method: {d.method}, status: {d.status}, "
+                    f"link: [{d.title}](/app/disputes/{d.id})"
                     for d in own[:15]
                 )
                 system += (
                     f"\n\nTHE USER'S OWN DISPUTES ({len(own)} total — use this to "
-                    f"answer questions about their disputes):\n{lst}"
+                    f"answer questions about their disputes):\n{lst}\n\n"
+                    "When the user asks for a link/hyperlink to a dispute, reply "
+                    "briefly with the matching clickable Markdown link(s) from the "
+                    "list above (relative paths exactly as given — never invent a "
+                    "URL or domain). If several disputes could match, ask which one."
                 )
             else:
                 system += "\n\nTHE USER'S OWN DISPUTES: none yet."
@@ -1052,6 +1070,13 @@ def _system_for_intent(
         "**bold**, bullet lists, code blocks where relevant). Use a Markdown table "
         "ONLY when the user asks for one, or when the information is genuinely "
         "clearer as a table."
+        "\n\nAMBIGUITY: if the request is genuinely ambiguous (e.g. it is unclear "
+        "WHICH dispute or WHICH country the user means), do NOT guess a long "
+        "answer. Ask ONE short clarifying question instead, and end the message "
+        "with a single final line in exactly this form (2-4 short choices, in the "
+        "user's language):\nOPTIONS: first choice | second choice | third choice\n"
+        "The user will tap one of the choices (or type their own). Never output an "
+        "OPTIONS line otherwise."
     )
     system += CURRENCY_RULE
     return system + _lang_instruction(payload.lang), grounded, sources
@@ -1364,7 +1389,14 @@ def assistant_ask_stream(
                     cs = s.get(_ChatSession, session_id)
                     u = s.get(User, user_id)
                     if cs and u:
-                        m = chat_history.save_message(s, cs, u, "bot", text, intent=intent, sources=sources)
+                        from ..core import legal_ai as _la
+                        eff_fb = meta.get("provider") != llm.LEGAL_AI and (
+                            bool(meta.get("fallback"))
+                            or (intent == "legal_statutes" and meta.get("provider") == llm.OPENROUTER)
+                            or (_la.is_configured() and not _la.is_reachable())
+                        )
+                        m = chat_history.save_message(s, cs, u, "bot", text, intent=intent,
+                                                      sources=sources, fallback=eff_fb)
                         msg_id = m.id
                     else:
                         logger.warning("Bot message not saved: session=%s user=%s missing", session_id, user_id)
@@ -1376,9 +1408,14 @@ def assistant_ask_stream(
             # in a chat reply.
             logger.warning("assistant stream error: %s", err)
             yield _sse({"type": "error", "detail": "unavailable"})
+        from ..core import legal_ai as _la2
         yield _sse({"type": "done", "message_id": msg_id,
                     "provider": meta.get("provider"), "model": meta.get("model"),
-                    "fallback": bool(meta.get("fallback"))})
+                    "fallback": meta.get("provider") != llm.LEGAL_AI and (
+                        bool(meta.get("fallback"))
+                        or (intent == "legal_statutes" and meta.get("provider") == llm.OPENROUTER)
+                        or (_la2.is_configured() and not _la2.is_reachable())
+                    )})
 
     return StreamingResponse(
         event_stream(),
@@ -1487,20 +1524,32 @@ def _run_ask_job(job_id: str, payload: "AskIn", user_id: int) -> None:
             with job.lock:
                 text = job.text.strip()
 
+            # Authoritative external-model marker: any chatbot-dependent answer
+            # (legal statutes, past cases) produced while the local legal AI is
+            # unreachable counts as fallback — so the chip renders consistently
+            # whenever the service is down, regardless of the routing path.
+            from ..core import legal_ai as _la
+            eff_fallback = meta.get("provider") != llm.LEGAL_AI and (
+                bool(meta.get("fallback"))
+                or (intent == "legal_statutes" and meta.get("provider") == llm.OPENROUTER)
+                or (_la.is_configured() and not _la.is_reachable())
+            )
+
             msg_id = None
             if text:
                 try:
                     cs = session.get(_ChatSession, session_id)
                     u = session.get(User, user_id)
                     if cs and u:
-                        m = chat_history.save_message(session, cs, u, "bot", text, intent=intent, sources=sources)
+                        m = chat_history.save_message(session, cs, u, "bot", text, intent=intent,
+                                                      sources=sources, fallback=eff_fallback)
                         msg_id = m.id
                 except Exception as e:
                     logger.warning("ask job: failed to save bot message: %s", e)
 
             with job.lock:
                 job.provider = meta.get("provider")
-                job.fallback = bool(meta.get("fallback"))
+                job.fallback = eff_fallback
                 job.message_id = msg_id
                 job.status = "done" if text else "error"
     except Exception:

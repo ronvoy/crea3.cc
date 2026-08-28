@@ -64,9 +64,17 @@ def _model_candidates(override: str | None = None) -> list[str]:
         if m and m not in seen and ("mistral" in m.lower() or "ministral" in m.lower()):
             seen.add(m)
             out.append(m)
-    # Never end up with an empty list — fall back to the free Mistral instruct.
-    if not out:
-        out.append("mistralai/mistral-7b-instruct:free")
+    # Built-in Mistral alternates: OpenRouter retires/renames ids without notice
+    # (e.g. mistralai/ministral-8b -> mistralai/ministral-8b-2512), so always
+    # keep a few known-current fallbacks in the rotation after the configured id.
+    for alt in (
+        "mistralai/ministral-8b-2512",
+        "mistralai/mistral-small-3.2-24b-instruct",
+        "mistralai/mistral-nemo",
+    ):
+        if alt not in seen:
+            seen.add(alt)
+            out.append(alt)
     return out
 
 
@@ -249,7 +257,9 @@ def chat_stream(
                     if r.status_code in (401, 403):
                         raise OpenRouterError("OpenRouter rejected the API key (check OPENROUTER_API_KEY).")
                     if r.status_code in (402, 404):
-                        last_error = OpenRouterError(f"'{chosen}' is not available for free.")
+                        last_error = OpenRouterError(
+                            f"'{chosen}' is not available (retired/renamed id or payment required)."
+                        )
                         continue
                     if r.status_code == 429:
                         last_error = OpenRouterUnavailable(f"'{chosen}' is rate-limited upstream.")

@@ -1,0 +1,19 @@
+{
+    "content": "this is a summary of a civil case that took place in the kaunas district court the court resolved a matrimonial property case between the applicant and the defendant the court awarded the defendant ownership of an apartment and the applicant ownership of land with various structures the court also ordered the applicant to pay the defendant a financial compensation for the defendants greater share of the property the court declared the applicants obligation to a creditor and dismissed the remaining claims the court dissolved the marriage and made decisions regarding child custody and child maintenance the court ordered the applicant to pay the defendants costs and the defendant to pay the applicants costs",
+    "metadata": {
+        "CASE_ID": "e2-2542-1116/2022",
+        "civil_codes_used": [
+            "Art. 3.126 Guarantees of creditors' rights",
+            "Art. 3.127 Shareable property",
+            "Art. 3.123 Deviation from equal shares of the spouses' community property"
+        ],
+        "cost": "- \u20ac 1833,50 (professional fees) to be borne by the applicant \u20ac 122,70 (professional fees) to be borne by defendant",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "financial_support": "\u20ac500",
+        "duration_of_marriage": "5 years"
+    }
+}

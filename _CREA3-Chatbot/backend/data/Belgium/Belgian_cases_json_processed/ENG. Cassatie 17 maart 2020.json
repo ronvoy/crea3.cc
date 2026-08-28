@@ -1,0 +1,20 @@
+{
+    "content": "this is a summary of a legal text regarding a cassation case that took place on march 17th 2020 the case involves a divorcerelated dispute over the division of joint property the courts decision emphasizes the need for spouses to prove irreversible mixing of personal and joint funds in order to claim compensation for joint property the case was heard by the court of cassation and the court found in favor of the defendant ordering the plaintiff to pay the costs the judgment was delivered on march 17 2022",
+    "metadata": {
+        "CASE_ID": "cassation case",
+        "civil_codes_used": [
+            "Article 1434 of the Old Civil Code",
+            "Article 229 \u00a7 2 of the old Civil Code",
+            "Article 890 of the Civil Code",
+            "Articles 1349, 1353, 1399, 1426, 1434 and 1436 of the Old Civil Code",
+            "Article 1223 of the Judicial Code",
+            "Articles 8.1, 9\u00b0, and 8.29 of the Dutch Civil Code"
+        ],
+        "cost": "\u20ac1151",
+        "duration": "1 year, 3 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "community of property"
+    }
+}

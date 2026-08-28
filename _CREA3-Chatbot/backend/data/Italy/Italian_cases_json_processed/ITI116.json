@@ -1,0 +1,15 @@
+{
+  "content": "Facts: The sole heir under a holographic will sued the deceased’s niece, who had managed a joint bank account and received significant sums during the deceased’s lifetime, seeking an accounting, restitution of allegedly misappropriated funds, and nullity of a €50,000 transfer qualified as an invalid donation.\nLegal framework: Articles 588 and 769 Italian Civil Code; principles on interpretation of wills and distinction between heir and legatee; rules on burden of proof in actions for accounting and restitution; legal doctrine and case law on atypical maintenance contracts (contratto di mantenimento or welfare annuity).\nInterpretative issues: (i) Whether a subsequent testamentary disposition of a specific asset constituted an institution of heir or a mere legacy and affected the claimant’s standing; (ii) whether cash withdrawals and payments made by a joint account holder required restitution as unjustified appropriations; (iii) whether a substantial transfer of money to a relative assisting the elderly testator should be classified as a simulated donation lacking formal requirements or as an atypical maintenance contract, in light of the element of uncertainty.\nPrinciples applied: A testamentary attribution of specific assets amounts to an institution of heir only where the testator’s intent to dispose of the entire estate or a share thereof clearly emerges, such assessment being a matter of fact; a joint account holder entrusted with management does not owe restitution where withdrawals are credibly justified as reimbursements for documented or plausible expenses incurred in the exclusive interest of the deceased; a substantial transfer of assets to a caregiver relative does not constitute a donation where, at the time of the agreement, there existed objective uncertainty as to the beneficiary’s lifespan and future needs, so that the relationship is properly classified as an atypical maintenance contract rather than a simulated donation, notwithstanding the elderly age of the assisted person. ID: ITI116; Instance_Type: First instance; Legal_Duration: P2Y7M; Law: IT – Civil Code – 588(2); State: IT; Type: Succession; Costs: Heir 1 - 6713.00; Movable_Assets: Bank balances (26.000,00); Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI116",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P2Y7M",
+    "Law": "IT – Civil Code – 588(2)",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1 - 6713.00",
+    "Movable_Assets": "Bank balances (26.000,00)",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

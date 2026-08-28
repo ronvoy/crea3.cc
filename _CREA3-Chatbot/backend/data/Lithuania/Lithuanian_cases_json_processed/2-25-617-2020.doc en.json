@@ -1,0 +1,22 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius regional district court the court made a final decision regarding the division of matrimonial property between two parties referred to as defendant 2 and the applicant defendant 2 was ordered to pay \u20ac115 for stamp duty and \u20ac415 for legal fees the court awarded defendant 2 with a car called audi a6 but also ordered them to pay the applicant \u20ac500 as compensation for property acquired during the marriage both parties were declared jointly and severally liable for a consumer credit agreement with a creditor named b additionally defendant 2 was personally held liable for another consumer credit agreement with a creditor named uab s the legal text also references various articles in the civil code that deal with property and obligations between spouses the summary also mentions that the marriage between i l j and v j is being dissolved and outlines their requests for child custody maintenance payments and division of property the court partially granted both the application and the counterclaim awarding the car to defendant 2 and ordering equal shares of the outstanding credit to be paid by both parties the court also addressed the costs of the proceedings with defendant 2 being ordered to pay the applicants lawyers fees maintenance payments for the children were granted and defendant 2 was ordered to pay stamp duty and postage costs",
+    "metadata": {
+        "CASE_ID": "2-25-617/2020",
+        "civil_codes_used": [
+            "Art. 3.127 Shareable property",
+            "Art. 3.110 Spousal liability for obligations arising before the celebration of the marriage",
+            "Art. 3.111 Obligations arising from gift agreements and succession",
+            "Art. 3.115 Right to compensation",
+            "Art. 3.118 Establishing the asset balance"
+        ],
+        "cost": "- \u20ac 115 (stamp duty) + \u20ac 415 (legal fees) to be borne by the defendant",
+        "duration": "marriage",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "maintenance payments",
+        "duration_of_marriage": "during the marriage"
+    }
+}

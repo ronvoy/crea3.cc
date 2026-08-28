@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a legal case that took place in the vilnius regional district court the case involved a divorce and the division of matrimonial property between the parties the court awarded the immovable property including an apartment and a cellar to be divided equally between the parties the defendant was also awarded a toyota corolla vehicle the court considered the best interests of the child in determining custody and support arrangements the court also addressed outstanding credit obligations and the obligations of the spouses towards joint property a third party submitted a claim for outstanding services rendered and a bank indicated that both parties were jointly liable for a credit agreement the court upheld the obligations towards the creditors and divided the property accordingly the court also considered the costs of managing joint property and transactions that require the consent of both spouses the court concluded that the debt incurred was a personal obligation of the defendant and not a joint obligation with the spouse the court ordered the winning party to pay the costs incurred by the other party including legal aid costs and stamp duty the court also made various orders regarding maintenance payments property division and payment of costs",
+    "metadata": {
+        "CASE_ID": "e2-6358-1194/2023",
+        "civil_codes_used": [
+            "Art. 3.116(1) Methods of division of property",
+            "Art. 3.127 Shareable property",
+            "Art. 3.126 Guarantees of creditors' rights",
+            "At. 3.123 Deviation from equal shares of the spouses' community property principle",
+            "Art. 3.109 Obligations to be met out of the spouses' joint property"
+        ],
+        "cost": "- \u20ac 66,40 (court fees) to be borne by the defendant; \u20ac 529,00 (stamp duty) to be borne by the plaintiff.",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "financial_support": "maintenance payments"
+    }
+}

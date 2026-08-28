@@ -1,0 +1,16 @@
+{
+  "content": "This judgment addressed a long-standing dispute where neither party could produce definitive proof of the deceased’s ownership of the contested properties. The court framed the case as a petitory action requiring the \"rigorous proof\" of title under Article 2697 of the Civil Code. The central interpretive problem was whether cadastral records or inheritance tax returns (denuncia di successione) were sufficient to prove ownership for the purpose of division. The court rejected the claims, establishing the principle that cadastral data is merely fiscal and subsidiary, while an inheritance tax return is a unilateral declaration with no evidentiary value regarding property rights. Without a notary-certified twenty-year history or a written title ad substantiam proving the decedent’s ownership at the time of death, the judge cannot order a division, as the very existence of the common estate remains unproven. ID: ITI194; Instance_Type: First Instance; Legal_Duration: P12Y6M; Law: IT – Civil Code – 2697, 1150; State: IT; Type: Succession/Inheritance; Costs: Compensated; Immovable_Assets: Buildings, Lands\n\n; Movable_Assets: Money (2.324,06); Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI194",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P12Y6M",
+    "Law": "IT – Civil Code – 2697, 1150",
+    "State": "IT",
+    "Type": "Succession/Inheritance",
+    "Costs": "Compensated",
+    "Immovable_Assets": "Buildings, Lands\n\n",
+    "Movable_Assets": "Money (2.324,06)",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

@@ -1,0 +1,26 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court has made a final decision regarding the division of matrimonial property the movable property including a vehicle will be awarded to the applicant however the applicant is also ordered to pay the defendant a compensation of eur 150 there are also personal obligations towards the state tax inspectorate uab ji and pp that have been recognized the text discusses various articles of the civil code related to matrimonial property and the obligations of spouses the applicant has brought a legal action against the defendant requesting the dissolution of their marriage the court has considered the division of joint property and determined that the vehicle should be divided between the parties the court has also recognized certain debts as personal obligations of the applicant the court has upheld the action filed by the applicant to dissolve the marriage and has awarded the applicant a personal vehicle the defendant is ordered to pay the applicant a compensation of eur 150 additionally there are obligations towards the state tax office and other creditors the court has ordered the defendant to pay the costs of the proceedings and the costs of sending procedural documents",
+    "metadata": {
+        "CASE_ID": "e2-13284-869/2022",
+        "civil_codes_used": [
+            "Art. 3.88 Joint matrimonial property",
+            "Art. 3.89 Personal property of the spouses",
+            "Art. 3.100 Grounds for the termination of matrimonial community property",
+            "Art. 3.109 Obligations to be fulfilled out of the spouses' matrimonial property",
+            "Art. 3.110 Spousal liability for obligations arising before the celebration of the marriage",
+            "Art. 3.111 Obligations arising from gift agreements and succession",
+            "Art. 3.115 Right to compensation",
+            "Art. 3.118 Establishing the asset balance",
+            "Art. 3.127 Shareable property"
+        ],
+        "cost": "\u20ac 1139,95",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "marital_regime": "community of property",
+        "financial_support": "EUR 150",
+        "duration_of_marriage": "-"
+    }
+}

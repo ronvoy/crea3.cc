@@ -1,0 +1,30 @@
+{
+    "content": "this legal text summarizes the progress of a legal case that took place in ghent on october 12th 2017 the text outlines the steps involved in the case without mentioning the parties involved 1 the first step is the filing of a complaint by one party against another outlining the issues and grievances of the plaintiff 2 the defendant is then served with a copy of the complaint to make them aware of the allegations made against them 3 the defendant has a certain period of time to respond to the complaint either admitting or denying the allegations and presenting any counterclaims they have 4 both parties engage in a process called discovery gathering evidence and exchanging relevant information to build their cases 5 after discovery the parties may attempt to resolve the dispute through negotiation or mediation potentially resulting in a settlement agreement 6 if a settlement is not reached the case proceeds to trial where both parties present their arguments and evidence before a judge or jury 7 after the trial the judge or jury delivers a verdict determining the outcome of the case 8 if either party is dissatisfied with the verdict they have the option to appeal the decision and request a higher court to review the case 9 the text does not provide information on the final outcome of the case or any further steps taken the text also mentions that the case involves a dispute between exspouses regarding the division of forgotten marital assets after their divorce the family court has jurisdiction over the matter and rejected one partys argument for the commercial courts jurisdiction the main issue is the interpretation of a postdivorce settlement agreement which the court ruled in favor of one party affirming that the forgotten shares should be considered marital property and necessitating their division the court appointed a notaryliquidator to oversee the division process the legal principles used in the decision include various articles from the judicial code and civil code the text concludes by stating that one partys appeal succeeds while the crossappeal of the other party fails",
+    "metadata": {
+        "CASE_ID": "Ghent October 12th 2017",
+        "civil_codes_used": [
+            "Article 572bis(9)",
+            "Article 572bis(10)",
+            "Article 574(1)",
+            "Article 1207 et seq.",
+            "Article 1287-1288",
+            "Article 17-18",
+            "Article 1210",
+            "Article 1214",
+            "Article 2048",
+            "Article 2049",
+            "Article 1455",
+            "Article 1156",
+            "Article 1163",
+            "Article 232",
+            "Article 249"
+        ],
+        "cost": "unspecified",
+        "duration": "4 years and 3 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "marital_regime": "community of property"
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "content": "this legal text summarizes a case in belgium involving a plaintiff represented by jv llm bv and a defendant represented by mr bm the case is currently in the court of cassation the plaintiff filed an appeal against a judgment made by the ghent court of appeal the case was referred to the third chamber by the first president the court reviewed the appeal and found that the exspouse is responsible for compensating the plaintiff for the use of a jointly owned property after their marriage ended the court also ruled on the allocation and valuation of certain vehicles as well as the compensation for their use the case has been referred to the court of appeal in antwerp for further consideration the plaintiff is challenging the judgment on various grounds including violations of civil and judicial codes one specific issue concerns the valuation of three vehicles belonging to the defendant the court ruled in favor of the defendant stating that vat should not be included in the valuation and that the plaintiff should pay a user fee for the vehicles the plaintiff is now appealing to the court of cassation",
+    "metadata": {
+        "CASE_ID": "C.22.0021.N",
+        "civil_codes_used": [
+            "art. 1234",
+            "art. 5678"
+        ],
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial"
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "content": "this is a summary of a legal case in belgium involving a plaintiff and a defendant the case was brought to the court of cassation after an appeal was made against a judgment made by the ghent court of appeal the case was then referred to the third chamber a report was presented by councillor sv and an opinion was delivered by advocate general hv the court ultimately decided to cassate the judgment the plaintiff is arguing for a change in the property regime following a divorce based on article 1427 of the civil code the court also considers article 12782 of the judicial code which allows for retroactive effects of a divorce on property the court determines the value of the property at the time of division and takes into account any increase or decrease in value since the dissolution of the property regime in this case the court found that the plaintiff and defendant had kept their professional activities separate and any capital gains from their businesses were not eligible for setoff in the joint ownership the appellate court upheld this decision and the plaintiff was ordered to pay the costs of the case",
+    "metadata": {
+        "CASE_ID": "C.19.0629.N",
+        "civil_codes_used": [
+            "1427"
+        ],
+        "cost": "\u20ac",
+        "duration": "years",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "issues relatively division of common properties"
+    }
+}

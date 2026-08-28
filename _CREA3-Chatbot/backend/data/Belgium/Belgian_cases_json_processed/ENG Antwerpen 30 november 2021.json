@@ -1,0 +1,23 @@
+{
+    "content": "this legal text summarizes the progress of a legal case that took place in antwerp the case involved two parties but their names are not mentioned the steps of the case are as follows 1 one party filed a complaint against the other party outlining their issues and grievances 2 the other party was notified and given time to respond to the allegations 3 both parties engaged in the discovery process gathering evidence and exchanging information 4 they attempted to resolve the dispute through negotiation or mediation with the help of a neutral third party 5 if a settlement couldnt be reached the case proceeded to trial where both parties presented their arguments and evidence 6 after the trial a verdict was issued by the judge or jury determining the outcome of the case 7 if either party was dissatisfied with the verdict they had the option to appeal the decision to a higher court 8 the text doesnt provide information on the final outcome or any further steps taken in the case the case involved the valuation of shares in two companies formed during a marriage the court of appeal upheld the decision that the shares should be valued at the time of distribution when the marriage is dissolved the court rejected the husbands argument for new matrimonial property laws and emphasized that the old provisions still apply the husband may still claim a management fee the appeal was dismissed and the husband was ordered to cover the costs of the appeal proceedings the principles of law used in the decision include various articles from the old civil code the judicial code and the law of july 22 2018",
+    "metadata": {
+        "civil_codes_used": [
+            "Article 1430, \u00a7 2",
+            "Article 1401(5)",
+            "Article 566-2, \u00a7 2",
+            "Article 577-2, \u00a7 2 and \u00a7 8",
+            "Article 1430, \u00a7 1",
+            "890",
+            "Article 1278(2)",
+            "Article 1278(4)",
+            "Article 1278"
+        ],
+        "cost": "\u20ac400",
+        "duration": "2 years 6 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "community of property",
+        "duration_of_marriage": "10 years"
+    }
+}

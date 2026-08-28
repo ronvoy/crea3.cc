@@ -1,0 +1,19 @@
+{
+  "content": "The Court addressed the dissolution of the marital community and the subsequent division of the family home. A key legal issue resolved was the valuation of the property when assigned to the spouse already holding the judicial right of habitation. The judge ruled that no market value discount should be applied for such a right, as it would cause unjust enrichment upon a future sale. Additionally, the Court classified active balances on individual bank accounts as comunione de residuo. This means assets not consumed at the time of dissolution become common property to be split equally. The husband was ordered to pay a final settlement following the redistribution of these funds and vehicles. The effective date of dissolution was set as the day the separation judgment became fina. ID: ITD047; Instance_Type: First instance; Legal_Duration: P2Y11M; Law: IT – Civil Code – 191, 194, 177; State: IT; Type: Property adjustment within Legal separation; Costs: Both; Marital_Regime: Community of property; Immovable_Assets: House (69000), Garage; Movable_Assets: Car (19600), Money (95156); Nature_Separation: Judicial separation; Marriage_duration: P22Y3M; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD047",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P2Y11M",
+    "Law": "IT – Civil Code – 191, 194, 177",
+    "State": "IT",
+    "Type": "Property adjustment within Legal separation",
+    "Costs": "Both",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House (69000), Garage",
+    "Movable_Assets": "Car (19600), Money (95156)",
+    "Nature_Separation": "Judicial separation",
+    "Marriage_duration": "P22Y3M",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

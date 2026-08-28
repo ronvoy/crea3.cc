@@ -1,0 +1,15 @@
+{
+  "content": "Facts: Deceased donated building land to grandchildren who constructed buildings thereon; pretermitted heirs sought reduction, claiming donated property should be valued including improvements made by donees.\nLegal Framework: Art. 556 Civil Code (fictitious reunion); Art. 747-751 Civil Code (valuation of donations); Art. 936 Civil Code (works by third party); Art. 748 Civil Code (improvements).\nInterpretative Issues: Whether improvements and constructions made by donee on donated property should be included in property&#x2019;s value for fictitious reunion and reduction calculation; how to distinguish between assessing infringement and implementing reduction remedy.\nLegal Principles: For fictitious reunion purposes, donated property must be valued excluding improvements made by donee, as these would not have occurred had asset remained in estate. The estate was only depleted of asset&#x2019;s intrinsic original value, not improvements added by third party. Art. 748 Civil Code excludes improvement value from determination. However, when donated building land permanently acquired building potential through construction, valuation must account for consumed building capacity using building indices at donation time but values at succession opening. Art. 936 Civil Code applies only when asset returns to estate after reduction, protecting donee&#x2019;s right to reimbursement, not during preliminary valuation operations. ID: ITI160; Instance_Type: First instance; Legal_Duration: P7Y10M; Law: IT – Civil Code – 542, 553, 554, 555, 581, 748; State: IT; Type: Succession; Immovable_Assets: House (59.861,25), House (176.062,50), Land (26.250,00), Land (97.200,00), Land (97.200,00), Land (124.200,00), Land (31.360,00); Movable_Assets: Financial assets (27.026,66), Cash (28.061,14)\n\n; Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI160",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P7Y10M",
+    "Law": "IT – Civil Code – 542, 553, 554, 555, 581, 748",
+    "State": "IT",
+    "Type": "Succession",
+    "Immovable_Assets": "House (59.861,25), House (176.062,50), Land (26.250,00), Land (97.200,00), Land (97.200,00), Land (124.200,00), Land (31.360,00)",
+    "Movable_Assets": "Financial assets (27.026,66), Cash (28.061,14)\n\n",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

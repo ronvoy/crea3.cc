@@ -1,0 +1,16 @@
+{
+  "content": "Facts: An heir sought revocation of property and monetary donations under Article 803 ICC following the birth of a child, while the donees claimed prior acquisition of the donated property by testamentary legacy under a later will upheld by final judgment.\nLegal framework:\nArticles 649, 782, 783, 803, 1350 ICC; Articles 2668 and 295 CPC; principles on legacy acquisition, waiver of legacies, nullity of donations, set-off.\nIssue:\nWhether acceptance of a donation implies tacit waiver of a prior legacy, and whether donations of assets already owned by the donee or lacking formal requirements may be revoked.\nPrinciples applied:\nA testamentary legacy of immovable property is acquired automatically upon opening of the succession and may be waived only through an unequivocal written declaration meeting the requirements of Article 1350 ICC; acceptance of a subsequent donation does not constitute implicit renunciation where the legatee was unaware of the prior acquisition. A donation of property not owned by the donor is null for lack of cause and cannot be revoked, revocation presupposing a valid and effective donation. Monetary donations exceeding modest value require the notarial form and are null if made informally. Restitution obligations arising from null donations may be set off against the heir’s duty to fulfil monetary legacies, within the limits of reciprocal claims. ID: ITI121; Instance_Type: First instance; Legal_Duration: P4Y1M; Law: IT – Civil Code – 803, 782; State: IT; Type: Succession; Costs: Heir 1 - 11.282,40\n\n; Immovable_Assets: House, House; Movable_Assets: Cash (50.000,00); Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI121",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P4Y1M",
+    "Law": "IT – Civil Code – 803, 782",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1 - 11.282,40\n\n",
+    "Immovable_Assets": "House, House",
+    "Movable_Assets": "Cash (50.000,00)",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

@@ -1,0 +1,24 @@
+{
+    "content": "this is a summary of a civil case that took place in the kaunas district court the court resolved a divorce case between two parties referred to as lm the applicant and am the defendant the court decided to divide the matrimonial property with the apartment being divided equally between the parties and the defendant keeping a bmw vehicle as their personal property however the defendant was ordered to pay the applicant a financial compensation of \u20ac400 for their share of the vehicle the court also addressed the issue of obligations towards creditors making both parties independently liable for any obligations entered in their names the court ordered the defendant to pay various fees and costs including legal fees court fees and stamp duty the court also made decisions regarding the custody of the minor daughters visitation rights and monthly maintenance payments the court explained the legal principles and criteria used to determine the division of property in divorce cases the costs of the proceedings were allocated between the parties and the state",
+    "metadata": {
+        "CASE_ID": "e2-1569-840/2020",
+        "civil_codes_used": [
+            "art. 3.118",
+            "art. 3.100",
+            "art. 3.109",
+            "art. 3.123",
+            "art. 3.116",
+            "art. 3.117",
+            "art. 3.88",
+            "art. 3.89",
+            "art. 3.119"
+        ],
+        "cost": "- \u20ac 136,00 (legal fees + court fees) + \u20ac 52,00 (stamp duty) to be borne by the defendant \u20ac 70,00 (legal fees) to be borne by the applicant",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "\u20ac400"
+    }
+}

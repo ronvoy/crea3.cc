@@ -1,0 +1,18 @@
+{
+  "content": "This case involves spouses who withdrew funds from joint accounts for personal use before separation, the legal framework treats the marital community as a \"community without shares\" under Article 192 of the Italian Civil Code. The interpretative challenge concerns when reimbursements for withdrawals used for non-family purposes become enforceable. The principle established is that restitutions are due only upon dissolution of the community, when the regime transitions to an ordinary community with identifiable shares, rendering 50% of improperly withdrawn amounts repayable to the other spouse.\nDisputes frequently arise over personal savings and severance pay existing at the time of separation, which fall under the deferred community of unspent income regulated by Article 177(c) of the Civil Code. The interpretative difficulty concerns which residual assets must be included and which spouse bears the evidentiary burden. The applicable principle holds that personal income not consumed for family needs automatically falls into the community upon dissolution, with the holder bearing the burden of proving that contested funds were spent on family needs to exclude them from division.\nWhen spouses acquire securities or bonds using income from individual activity during marriage, the question arises whether these constitute immediate community purchases under Article 177(a) or deferred income. The legal principle distinguishes financial investments from mere income retention, establishing that such investments represent a qualitatively different asset that falls into immediate legal community regardless of the original income source, unless they qualify as strictly personal property under Article 179 of the Civil Code. ID: ITD001; Instance_Type: First instance; Legal_Duration: P2Y8M; Law: IT – Civil Code – 177,191,192,194; State: IT; Type: Property adjustment within separation; Costs: Both - 20000; Marital_Regime: Community of property; Immovable_Assets: Real estate property (54446); Movable_Assets: Joint bank account, Joint securities account, Partner 1 bank account, Partner 2 bank account (4695.40), Life insurance policy (40000), TFR; Nature_Separation: Judicial separation; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD001",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P2Y8M",
+    "Law": "IT – Civil Code – 177,191,192,194",
+    "State": "IT",
+    "Type": "Property adjustment within separation",
+    "Costs": "Both - 20000",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "Real estate property (54446)",
+    "Movable_Assets": "Joint bank account, Joint securities account, Partner 1 bank account, Partner 2 bank account (4695.40), Life insurance policy (40000), TFR",
+    "Nature_Separation": "Judicial separation",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

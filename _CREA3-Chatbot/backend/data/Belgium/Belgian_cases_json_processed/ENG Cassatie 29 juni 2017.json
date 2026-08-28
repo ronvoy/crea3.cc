@@ -1,0 +1,16 @@
+{
+    "content": "this legal text summarizes the progress of a legal case involving the division of assets in a marriage it explains that the court examined the interpretation of specific provisions in the civil code such as article 1405 which defines common income property and article 1401 which specifies personal rights to compensation pensions the court determined that spouses have discretion over their own labor but compensation for joint property is warranted if personal enrichment leads to community impoverishment the court examined a claim for compensation for the plaintiffs labor finding that it did impoverish the community however the court did not justify personal enrichment as grounds for joint compensation the court upheld the original claim for compensation in favor of the joint property considering the value of the husbands labor and its impact on the improvement of the property the case was appealed to the supreme court and the court of cassation the text discusses the statutory system of the civil code the distinction between income generated from a spouses professional activity and joint property income and the obligation to contribute to marriage costs the courts decision was to set aside the judgment and refer the case back to the court of appeal",
+    "metadata": {
+        "CASE_ID": "C.13.0376.F",
+        "civil_codes_used": [
+            "Article 1401",
+            "Article 1405",
+            "Article 1432",
+            "Article 1435"
+        ],
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "community of property"
+    }
+}

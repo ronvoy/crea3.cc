@@ -1,0 +1,22 @@
+{
+    "content": "this legal document provides a summary of a court case that took place in ghent it does not mention the specific details of the case but it states that the procedure lasted from march 1st 2018 to february 28th 2019 the case involves a deceased individual referred to as mcp and their surviving spouse referred to as rvp and two children the court decision is based on various articles of the civil code and the judicial code the court determined that the preliminary liquidation of the matrimonial property was necessary but the actual division was not required since the surviving spouse resided in the entirety of the property the court rejected the claim for annulment of the marriage contract and ordered the division of the matrimonial property the decision was appealed and the appeal is currently pending the case also involves parties referred to as wills mechelen kluwer and mc p the court of appeal agrees that an amendment made to the marriage contract is legally valid the court has ordered the liquidation of the former matrimonial property and the division of the estate assets there is also a request for the conversion of the usufruct into full ownership and the court has decided to grant this request",
+    "metadata": {
+        "CASE_ID": "Ghent (11th chamber) 28 February 2019",
+        "civil_codes_used": [
+            "Article 745 old Civil Code",
+            "Article 745bis, \u00a7 1 old Civil Code",
+            "Article 1461, 1477, \u00a7 3 old Civil Code",
+            "Article 877 Judicial Code",
+            "Article 1207 and 1223, \u00a7 4-5 Judicial Code"
+        ],
+        "cost": "unspecified",
+        "duration": "x months/ years (from march 1st 2018 until February 28th 2019)",
+        "law": "Inheritance",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "subject_of_succession": "Matrimonial property",
+        "disputed_issues": "division of matrimonial property",
+        "relationship_between_parties": "deceased individual and surviving spouse",
+        "number_of_persons_involved": 4
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "content": "this legal text summarizes the progress of a legal case that took place in ghent on june 1st 2017 the specific details of the case are not mentioned but it lasted for a total of 3 years and 4 months the text outlines the steps involved in the legal process 1 the first step is the filing of a complaint by one party against another party outlining the issues and grievances 2 the defendant is then served with a copy of the complaint to make them aware of the allegations 3 the defendant has a certain period of time to respond to the complaint admitting or denying the allegations and presenting any counterclaims 4 both parties engage in the discovery phase gathering evidence and exchanging relevant information 5 the parties may attempt to resolve the dispute through negotiation or mediation resulting in a settlement agreement 6 if a settlement is not reached the case proceeds to trial where both parties present their arguments and evidence before a judge or jury 7 after the trial a verdict is delivered determining the outcome of the case 8 if either party is dissatisfied with the verdict they have the option to appeal the decision to a higher court the text does not provide information on the final outcome of the case or any further steps taken it also mentions another separate dispute between a couple who got divorced and are now in a dispute over the division of their assets the court has decided that the wife is entitled to compensation for financing renovation and improvement works on the husbands home the husband has appealed the decision and the case has been remanded back to the first court for further proceedings",
+    "metadata": {
+        "CASE_ID": "Ghent June 1st 2017",
+        "civil_codes_used": [
+            "Article 221, paragraph 1",
+            "Article 1435",
+            "Article 1436",
+            "Article 1207 et seq.",
+            "Article 1216",
+            "Article 1213",
+            "Article 1278(2)"
+        ],
+        "cost": "unspecified",
+        "duration": "3 years, 4 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "community of property"
+    }
+}

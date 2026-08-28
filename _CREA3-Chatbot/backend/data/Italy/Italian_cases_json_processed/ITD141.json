@@ -1,0 +1,15 @@
+{
+  "content": "The litigation concerned the division of joint securities and accounts, complicated by the death of the defendant spouse during the trial. The legal framework centered on Article 177 and Article 191, regarding the effective date of dissolution and the nature of residuary assets. A key interpretive issue was whether accounts closed long before the legal separation could be subject to division. The court applied the principle that communion dissolves ope legis at the moment of judicial separation, making a spouse's subsequent death irrelevant to the vested right of the survivor to a 50% share. However, because the accounts in question were closed in 2000—seven years before the legal dissolution—they did not exist as \"residue\" and were thus excluded from the division. ID: ITD141; Instance_Type: First Instance; Legal_Duration: P10Y; Law: IT – Civil Code – 177, 191 (2); State: IT; Type: Property adjustment within legal separation; Marital_Regime: Community of property; Nature_Separation: Judicial separation; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD141",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P10Y",
+    "Law": "IT – Civil Code – 177, 191 (2)",
+    "State": "IT",
+    "Type": "Property adjustment within legal separation",
+    "Marital_Regime": "Community of property",
+    "Nature_Separation": "Judicial separation",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

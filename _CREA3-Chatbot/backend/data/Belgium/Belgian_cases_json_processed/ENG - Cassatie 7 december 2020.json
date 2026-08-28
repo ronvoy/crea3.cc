@@ -1,0 +1,25 @@
+{
+    "content": "this is a summary of a legal text regarding a court case the case involves the distribution of property after someones death the court ruled that half of the donated community property should be included in the estate and the largest available part of the estate belonged to the second defendant the defendants appealed the decision and the court of appeal partially reversed the judgment the plaintiff is now seeking support for their appeal to the court of cassation the plaintiff argues that the lower courts violated several articles of the civil code the plaintiff believes that the court of appeals decision is incorrect and seeks a reversal of the judgment the text also discusses various legal cases and sources related to matrimonial property law and the allocation of assets in the event of a spouses death the lawyer representing the plaintiff is requesting that the judgment appealed be set aside and the case be referred to another court for appeal",
+    "metadata": {
+        "CASE_ID": "C.19.0488.N",
+        "civil_codes_used": [
+            "Article 843",
+            "Article 850",
+            "Article 920",
+            "Article 922",
+            "Article 1445",
+            "Article 1461",
+            "Article 1465"
+        ],
+        "cost": "\u20ac1316.89",
+        "duration": "1 year 11 months",
+        "law": "Inheritance",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "succession_type": "testamentary",
+        "subject_of_succession": "matrimonial property",
+        "disputed_issues": "none",
+        "relationship_between_parties": "married couple",
+        "number_of_persons_involved": 2
+    }
+}

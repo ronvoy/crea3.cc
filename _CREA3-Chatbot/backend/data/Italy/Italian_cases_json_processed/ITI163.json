@@ -1,0 +1,14 @@
+{
+  "content": "Facts: The bankruptcy trustee of a partnership brought an action for judicial division of inherited real estate, seeking attribution of the bankrupt heir’s share and accrued income; after a prior judgment ordered sale due to indivisibility, further claims were raised when the sale proved impossible.\n\nLegal framework\nArticles 720, 728, 788–789 and 281-sexies CPC on division proceedings, sale of indivisible assets and final judgments; Articles 581–582 ICC on the surviving spouse’s reserved share and rights of habitation; Supreme Court case law on the ex lege nature of the spouse’s rights.\n\nInterpretative issue\nWhether, after a final judgment ordering the sale of indivisible inherited assets, the parties may introduce new or different claims in a subsequent phase, and how the surviving spouse’s right of habitation affects valuation and sale conditions.\n\nPrinciple applied\nA judgment ordering division and sale of indivisible assets definitively exhausts the thema decidendum, rendering inadmissible any subsequent claims that alter or expand it. Once sale is ordered, the only permissible outcome—absent agreement among the parties—is confirmation of the sale. The surviving spouse’s rights of habitation and use constitute ex lege pre-legacies and must be deducted from the estate’s value before division; consequently, assets encumbered by such rights are sold at a reduced price reflecting their capital value, which must be expressly indicated in the sale order. ID: ITI163; Instance_Type: First instance; Legal_Duration: P13Y11M; Law: IT – Civil Code – 581, 582; State: IT; Type: Succession; Immovable_Assets: House (169.754,00); Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI163",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P13Y11M",
+    "Law": "IT – Civil Code – 581, 582",
+    "State": "IT",
+    "Type": "Succession",
+    "Immovable_Assets": "House (169.754,00)",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

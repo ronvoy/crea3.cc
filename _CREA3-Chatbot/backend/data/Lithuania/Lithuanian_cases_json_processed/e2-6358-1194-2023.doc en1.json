@@ -1,0 +1,20 @@
+{
+    "content": "this is a summary of a legal case that took place in the vilnius regional district court the case involved a divorce and the division of matrimonial property the applicant requested a \u00bd share of the apartment and the defendant was allocated the vehicle the court referred to specific articles of the civil code in making its decision the court also addressed issues such as child custody child support and the defendants debts the court found that the defendants position was unfair and accepted the applicants claims the court determined that the property acquired during the marriage should be divided between the spouses taking into account the needs of the family and the specific characteristics of the property the court also considered the financial situation of the spouses and any minor children the court divided the apartment equally between the parties and awarded the vehicle to the defendant the court also addressed the division of other personal property and the obligations of the spouses the court considered the specific circumstances of the case and made a decision on how to divide the property and obligations the court also addressed the execution costs of a bailiff and determined that the defendant was responsible for certain costs the court ordered the dissolution of the marriage and made various orders regarding property and liabilities",
+    "metadata": {
+        "CASE_ID": "e2-6358-1194/2023",
+        "civil_codes_used": [
+            "art. 3.87",
+            "art. 3.127",
+            "art. 3.123",
+            "art. 3.116"
+        ],
+        "cost": "- \u20ac 66,40 (court fees) to be borne by the defendant; \u20ac 529,00 (stamp duty) to be borne by the plaintiff;",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "financial_support": "\u20ac500",
+        "duration_of_marriage": "5 years"
+    }
+}

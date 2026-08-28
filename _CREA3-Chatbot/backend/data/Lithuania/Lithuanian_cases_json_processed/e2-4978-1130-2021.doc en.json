@@ -1,0 +1,17 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius regional district court the case involves a plaintiff and a defendant but no further details about the parties or the nature of the case are provided the plaintiff is required to pay a stamp duty of \u20ac75 while the defendant is responsible for paying a stamp duty of \u20ac108 the court has decided to dissolve the marriage and the defendant has a personal obligation the applicant will acquire two cars an audi a6 and an opel vectra various articles from the civil code related to matrimonial property are discussed including the division of shares deviation from equal shares and shareable property the applicant is seeking to annul the marriage obtain a divorce and request custody of their minor children child support and a visitation schedule for the defendant the defendant denies some allegations and claims to have made efforts to support the children the court grants custody to the applicant establishes a visitation schedule and orders the defendant to pay child support the court also orders the division of property with the defendant being awarded certain personal assets the defendant is ordered to pay the costs of the proceedings and the state tax inspectorate has the right to collect personal debts from the defendant the marriage between the parties is being dissolved and the applicant will receive the vehicles audi a6 and opel",
+    "metadata": {
+        "CASE_ID": "e2-4978-1130/2021",
+        "civil_codes_used": [
+            "matrimonial property"
+        ],
+        "cost": "\u20ac 75 + \u20ac108",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "financial_support": "EUR 200 per child"
+    }
+}

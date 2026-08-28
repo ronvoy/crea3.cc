@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a civil case that took place in the kaunas district court the case involved a dissolution of marriage and the division of assets between two parties the defendant had to pay a stamp duty and court fees the immovable property including buildings and land plots will be divided equally between the parties the movable property specifically a car will be awarded to the defendant who will also have to pay the applicant a monetary compensation for their greater share of the property acquired during the marriage the court dismissed the action and ordered the defendant to pay a portion of the costs to the state budget the applicant was granted statefunded legal aid",
+    "metadata": {
+        "CASE_ID": "2-6509-1106/2023",
+        "civil_codes_used": [
+            "Art. 3.88(2)(1)(5) Joint matrimonial property",
+            "Art. 3.119 Determination of the value of assets",
+            "Art. 3.117(1)Shares in the matrimonial property",
+            "Art.3.118 Establishing the asset balance",
+            "art.3.127 Shareable property"
+        ],
+        "cost": "- \u20ac 265,00 (stamp duty) + \u20ac 13,28,00 (court fees) to be borne by the defendant",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": false,
+        "financial_support": "monetary compensation"
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "content": "this legal text summarizes the progress of a legal case that took place in ghent on january 13th 2022 the text outlines the steps involved in the case starting with the filing of a complaint by one party against another the court reviews the complaint and issues a summons to the defendant if it is found valid the defendant then has a certain period of time to respond to the complaint both parties may engage in the discovery process to gather evidence and exchange information settlement negotiations may also take place during this time if a settlement is not reached the case proceeds to trial where both parties present their arguments and evidence after the trial the court evaluates the evidence and makes a decision on the case the courts decision is communicated to both parties and further legal actions may be taken if necessary the text also discusses the process of distributing assets following a divorce between two parties mentioning the role of a notaryliquidator and the courts decisions on objections and appeals the text concludes with the mention of the chairman and the date of the document",
+    "metadata": {
+        "CASE_ID": "Ghent January 13th 2022",
+        "civil_codes_used": [
+            "Article 1223, \u00a7 1, \u00a7 2, and \u00a7 3",
+            "Article 1220(1)",
+            "Article 1223, \u00a7 4, second paragraph",
+            "Article 1432, second paragraph (old)"
+        ],
+        "cost": "unspecified",
+        "duration": "3 years, 7 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "conventional community regime",
+        "financial_support": "unspecified",
+        "duration_of_marriage": "unspecified"
+    }
+}

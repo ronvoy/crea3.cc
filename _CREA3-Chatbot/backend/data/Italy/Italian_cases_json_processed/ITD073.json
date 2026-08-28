@@ -1,0 +1,17 @@
+{
+  "content": "In the judgment adjudicated by the Court of Cagliari, the legal dispute centered on the validity of property transfers conducted during the transitional phase of a marital separation. Partner1 successfully challenged a donation made by Partner2 to his mother, which involved agricultural lands acquired after the initial separation request but before the final judgment. The court addressed a fundamental interpretative conflict regarding the effective moment of the legal community's dissolution. Under the governing framework of the Italian Civil Code, the judge ruled that the community remains legally active until the separation judgment becomes final, as previous provisional presidential measures do not terminate the regime. Consequently, since the land was purchased during this interim period, it automatically fell into the legal community. The unilateral donation was declared annullable under Article 184 because it lacked the spouse's consent and was challenged within the statutory one-year limit. Furthermore, the subsequent division of the land was rendered ineffective following the principle that a party cannot transfer more rights than they possess, effectively restoring the property to its status as a joint asset. ID: ITD073; Instance_Type: First instance; Legal_Duration: P10Y; Law: IT – Civil Code – 177, 180, 184, 191; State: IT; Type: Property adjustment within Legal separation; Costs: Partner 2 - 4000; Marital_Regime: Community of property; Immovable_Assets: Land, Land; Nature_Separation: Judicial separation; Marriage_duration: P11Y7M; law: Inheritance",
+  "metadata": {
+    "ID": "ITD073",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P10Y",
+    "Law": "IT – Civil Code – 177, 180, 184, 191",
+    "State": "IT",
+    "Type": "Property adjustment within Legal separation",
+    "Costs": "Partner 2 - 4000",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "Land, Land",
+    "Nature_Separation": "Judicial separation",
+    "Marriage_duration": "P11Y7M",
+    "law": "Inheritance"
+  }
+}

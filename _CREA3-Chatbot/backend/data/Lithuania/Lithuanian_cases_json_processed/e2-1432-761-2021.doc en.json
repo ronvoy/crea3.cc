@@ -1,0 +1,17 @@
+{
+    "content": "this is a summary of a legal case in the taurage district court the case involves the division of matrimonial property specifically a plot of land and a building the plaintiff inherited the land and informed the defendant that they wanted to sell part of it however the defendant sold the inheritance rights to someone else bypassing the plaintiffs right of first refusal the court declared the sale of inheritance rights null and void and ordered the plaintiff to compensate the defendant for their share of the land the defendant argued that the contract was valid but the court dismissed their claim the court also considered a counterclaim from another defendant but the details are not provided the court dismissed the plaintiffs action and upheld the counterclaim the case involves the sale of succession rights where the heir transfers their rights to assets and debts left by the deceased the court found that the defendant lawfully accepted the inheritance and sold the rights to another person the court also clarified the rules regarding the sale of inheritance rights and the division of inherited property among heirs the plaintiff was ordered to pay various costs related to the proceedings while the defendants and the supreme court of lithuania also incurred costs the total amount to be paid by the plaintiff is eur 142538",
+    "metadata": {
+        "CASE_ID": "e2-1432-761/2021",
+        "civil_codes_used": [
+            "Art. 5.79",
+            "Art. 5.60",
+            "Art. 5.61",
+            "Art. 6.426"
+        ],
+        "cost": "\u20ac 1415,00",
+        "law": "Inheritance",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "disputed_issues": "division of assets"
+    }
+}

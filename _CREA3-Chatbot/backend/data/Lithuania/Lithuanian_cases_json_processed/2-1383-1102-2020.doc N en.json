@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the case involved a divorce between two parties referred to as rs and js the court ordered the dissolution of the marriage and established the defendant js as the permanent residence for their minor daughter the court also set a monthly child support payment of \u20ac350 in terms of property division the court awarded rs a 12 share of a 2bedroom apartment and js an audi a6 allroad the court also determined that rs would keep a car registered under their name while js would keep a car registered under their name both parties were held jointly and severally liable for debts to various creditors the court considered the best interests of the child and the financial situation of the parties in making its decisions additionally the court allocated the costs of the proceedings between the parties and ordered js to pay a stamp duty cost to the state budget while rs had to pay a higher stamp duty cost for serving procedural documents",
+    "metadata": {
+        "CASE_ID": "2-1383-1102/2020",
+        "civil_codes_used": [
+            "Art. 3.127",
+            "Art. 3.126",
+            "Art. 3.98",
+            "Art. 3.115"
+        ],
+        "cost": "\u20ac 442,69",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "\u20ac350"
+    }
+}

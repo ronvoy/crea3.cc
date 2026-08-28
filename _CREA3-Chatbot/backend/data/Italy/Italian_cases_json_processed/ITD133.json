@@ -1,0 +1,16 @@
+{
+  "content": "The case involved a wife who claimed a property was her personal asset because she bought it while declaring herself \"fictitiously\" separated,. The court analyzed Articles 191 and 194 to verify the true status of the legal communion. The interpretive conflict was whether a notary's record of a spouse’s unilateral declaration could override the legal reality of an ongoing marriage. The court ruled that until a separation judgment is final, the legal communion persists; thus, any purchase made in that interval is common property, regardless of personal contributions or registry declarations. ID: ITD133; Instance_Type: First Instance; Legal_Duration: P2Y8M; Law: IT – Civil Code – 177(1), 191, 192 (3), 194 (1); State: IT; Type: Property adjustment within legal separation; Marital_Regime: Community of property; Immovable_Assets: House; Movable_Assets: Car; Furniture and household items; Bank account (€ 7.119,84); Nature_Separation: Judicial separation; law: Inheritance",
+  "metadata": {
+    "ID": "ITD133",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P2Y8M",
+    "Law": "IT – Civil Code – 177(1), 191, 192 (3), 194 (1)",
+    "State": "IT",
+    "Type": "Property adjustment within legal separation",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House",
+    "Movable_Assets": "Car; Furniture and household items; Bank account (€ 7.119,84)",
+    "Nature_Separation": "Judicial separation",
+    "law": "Inheritance"
+  }
+}

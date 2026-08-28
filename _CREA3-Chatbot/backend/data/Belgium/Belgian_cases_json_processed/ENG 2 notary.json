@@ -1,0 +1,33 @@
+{
+    "content": "this text is a legal document that explains the progress of a divorce settlement between two parties mr a and mrs e the procedure has been ongoing for almost 8 years and involves the division of assets and debts the document outlines the revenue received and expenses paid such as housing allowance legal costs and debt repayments it proposes a division of the remaining assets and provides a schematic overview of the proposed distribution the document also mentions the possibility of objections or disputes and states that a fee was paid and an official report was completed",
+    "metadata": {
+        "CASE_ID": "P22061/ 2200720-1",
+        "civil_codes_used": [
+            "747",
+            "1209",
+            "1213",
+            "1214",
+            "1216",
+            "1218",
+            "1223",
+            "1224",
+            "1447",
+            "1389/1",
+            "1389/2",
+            "1399",
+            "1405",
+            "1432",
+            "1434",
+            "1436",
+            "1449",
+            "1278",
+            "1385quater"
+        ],
+        "cost": "\u20ac10000",
+        "duration": "7 years, 11 months",
+        "law": "Inheritance",
+        "state": "BELGIUM",
+        "type": "extrajudicial",
+        "disputed_issues": "division of assets"
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "content": "The litigation focused on the division of a complex estate following the death of two parents, where issues arose regarding pre-death donations and the valuation of properties with building abuses. The legal framework involved collation (Art. 737 CC), the valuation of assets (Art. 726 CC), and the accounting of civil fruits. The court addressed two main problems: first, whether a donation could be exempt from collation without a written deed; second, how to value assets in a fluctuating market. The court established that without the original deed proving an exemption, a donation is presumed to be subject to collation. Furthermore, properties must be valued at their current market price at the time of the decision, not at the opening of the succession. Finally, the court clarified that the exclusive use of a common asset by one heir does not trigger an obligation to pay an indemnity unless the other heirs prove they were actively prevented from using the property. ID: ITI190; Instance_Type: First Instance; Legal_Duration: P13Y0M; Law: IT – Civil Code – 556, 726\n\n; State: IT; Type: Succession/Inheritance; Costs: Compensated; Immovable_Assets: Building ( 510.310),  Building (145.200), Building (148.841.40), Building (1 97.630.40), Building ( 28.000),  Building (28.000), Courtyard (8.093), Land (240.570),\n Land (3.881.95), Land (14.995.74), Rural building (5.453), Donated land ( 98.305,27), Donated building (101.453,40)\n; Movable_Assets: Money (263.234.05); Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI190",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P13Y0M",
+    "Law": "IT – Civil Code – 556, 726\n\n",
+    "State": "IT",
+    "Type": "Succession/Inheritance",
+    "Costs": "Compensated",
+    "Immovable_Assets": "Building ( 510.310),  Building (145.200), Building (148.841.40), Building (1 97.630.40), Building ( 28.000),  Building (28.000), Courtyard (8.093), Land (240.570),\n Land (3.881.95), Land (14.995.74), Rural building (5.453), Donated land ( 98.305,27), Donated building (101.453,40)\n",
+    "Movable_Assets": "Money (263.234.05)",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

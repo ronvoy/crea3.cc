@@ -1,0 +1,15 @@
+{
+  "content": "the proceedings focused on the dissolution of a legal community concerning a large garage purchased during marriage. A significant legal issue was whether the division request was admissible given that the separation had not yet reached finality at the start of the trial. The judge determined that the finality of the separation is a condition of the action rather than a procedural prerequisite; thus, since the judgment became final while the case was pending, the division could legally proceed. In terms of the physical distribution of the asset, the court prioritized division in nature as suggested by the technical expert's report. The garage was split into two distinct cadastral units, with one specific unit assigned to each former spouse to match their 50% shares. The judge also clarified that judicial division is essentially a declaratory act that formalizes existing ownership portions, making specific cadastral or regulatory compliance declarations from the parties unnecessary for the validity of the final decree. The case concluded with the full compensation of legal costs between the parties, reflecting the shared interest in resolving the joint ownership status. ID: ITD075; Instance_Type: First instance; Legal_Duration: P2Y5M; Law: IT – Civil Code – 177; State: IT; Type: Property adjustment within Legal separation; Marital_Regime: Community of property; Immovable_Assets: Garage; Nature_Separation: Judicial separation; law: Inheritance",
+  "metadata": {
+    "ID": "ITD075",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P2Y5M",
+    "Law": "IT – Civil Code – 177",
+    "State": "IT",
+    "Type": "Property adjustment within Legal separation",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "Garage",
+    "Nature_Separation": "Judicial separation",
+    "law": "Inheritance"
+  }
+}

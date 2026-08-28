@@ -1,0 +1,16 @@
+{
+  "content": "Functional Indivisibility and Judicial Sale of Estate Assets The heirs of Persona_1 initiated a lawsuit for the dissolution of an inheritance community involving a residential property and a camper. This case falls under the legal classification of \"scioglimento della comunione ereditaria\" and requires the assessment of \"comoda divisibilità\". The interpretative challenge was whether the 327 sqm building could be physically partitioned into four autonomous and functional units—one for the spouse (3/9) and three for the children (2/9 each)—without compromising its economic utility. The Court applied the principle that an asset is indivisible if partitioning prevents the creation of independent portions or burdens the participants with fragments unfit for the asset's original economic purpose. Consequently, in the absence of any request for full attribution (assignment) by the co-heirs, the Court ordered a judicial sale of the assets to distribute the monetary proceeds according to the legal quotas.\n Allocation of Judicial and Technical Costs in Division Proceedings The ruling also addressed the distribution of legal fees and technical expert (CTU) costs among the parties. The legal issue concerns the application of the \"soccombenza\" (loser pays) principle in a division suit where there is mutual interest in the dissolution. The interpretative problem is whether costs should be borne by a single party or shared when the procedure benefits the entire community. The Court ruled that legal costs should be compensated (split) because all parties share a common interest in the division. However, costs for the CTU are charged to the estate (\"massa\"), as the technical valuation is an essential step that serves the collective interest of all co-heirs by defining the value of the shares. ID: ITI177; Instance_Type: First Instance; Legal_Duration: P5Y; Law: IT – Civil Code – 581; State: IT; Type: Succession/Inheritance; Costs: Compensated ; Immovable_Assets: House with land ( 293.000,00); Movable_Assets: Camper; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI177",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P5Y",
+    "Law": "IT – Civil Code – 581",
+    "State": "IT",
+    "Type": "Succession/Inheritance",
+    "Costs": "Compensated ",
+    "Immovable_Assets": "House with land ( 293.000,00)",
+    "Movable_Assets": "Camper",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

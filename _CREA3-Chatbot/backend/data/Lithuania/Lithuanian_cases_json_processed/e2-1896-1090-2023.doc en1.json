@@ -1,0 +1,18 @@
+{
+    "content": "this is a summary of a legal case that took place in vilnius city district court the case involved the division of matrimonial property between an applicant and a defendant the court decided to divide the property in kind with the applicant receiving two cars and the defendant receiving a nonresidential premises and a car the court also addressed the dissolution of the marriage and discharged the personal obligations of both parties towards certain third parties the defendant was ordered to pay the applicants legal costs and a sum to the state budget",
+    "metadata": {
+        "CASE_ID": "e2-1896-1090/2023",
+        "civil_codes_used": [
+            "art. 3.127 Shared property",
+            "Art. 3.117 Shares in the matrimonial property",
+            "Art. 3.100 Grounds for the termination of matrimonial community property"
+        ],
+        "cost": "- \u20ac 100,00 (stamp duty) + \u20ac 500,00 (professional fees) + \u20ac 6,64 (court fees)",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "marital_regime": "community of property",
+        "financial_support": "legal costs"
+    }
+}

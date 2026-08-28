@@ -1,0 +1,15 @@
+{
+  "content": "Facts: Beneficiaries claimed testator erred believing certain family branch extinct when descendants existed, thus excluding them from inheritance.\nLegal Framework: Article 624(2) Italian Civil Code requiring error on grounds be both apparent from will and sole motivating cause for disposition.\nInterpretive Issue: Whether factual error regarding family branch extinction constitutes actionable mistake when collateral family line actually survived but received no testamentary provision.\nLegal Principle Applied: Under Article 624(2) Civil Code, error on grounds—whether factual or legal—justifies testamentary annulment only when: (1) error appears manifest from will's text itself, and (2) error constituted the exclusive determinant of testator's disposition. Factual extinction of direct family line satisfies both requirements where genealogical documentation confirms absence of descendants, rendering collateral survival irrelevant to testator's motivation. Burden rests on challenger to demonstrate error's sole causal role in testamentary choice. ID: ITI198; Instance_Type: First Instance; Legal_Duration: P5Y3M; Law: IT – Civil Code – 591, 624; State: IT; Type: Succession; Costs: Heir 1/2/3/4 - 11500,00; Movable_Assets: Financial assets (N/A)\n\n; Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI198",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P5Y3M",
+    "Law": "IT – Civil Code – 591, 624",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1/2/3/4 - 11500,00",
+    "Movable_Assets": "Financial assets (N/A)\n\n",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

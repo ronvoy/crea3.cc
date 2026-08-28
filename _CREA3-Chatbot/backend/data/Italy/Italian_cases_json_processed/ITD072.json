@@ -1,0 +1,17 @@
+{
+  "content": "La sentenza decide sulla delimitazione della massa da dividere a seguito della cessazione della comunione legale tra coniugi. Il problema centrale risiede nella qualificazione di alcuni beni immobili come comuni o personali. Per quanto riguarda la villa di Fisciano, il giudice applica rigorosamente il principio di accessione ex art. 934 c.c.: poiché l'edificio è stato costruito durante il matrimonio su un terreno di proprietà comune, esso ricade automaticamente nella comunione legale, indipendentemente dalla provenienza del denaro o del lavoro utilizzato per la costruzione. Relativamente all'immobile di Scalea, il tribunale riafferma la presunzione di acquisto comune ex art. 177 c.c., rigettando la tesi della \"donazione indiretta\" in favore del solo marito per mancanza di prova che il prezzo sia stato pagato esclusivamente dalla madre di quest'ultimo. Di particolare rilievo è la decisione sull'appartamento di Cava dè Tirreni: il giudice distingue tra una quota di 3/4, considerata bene personale dell'attrice in quanto derivante da un diritto acquisito per successione dal padre (che aveva già pagato le rate del bene prima del matrimonio), e una quota di 1/4, acquistata successivamente dalla sorella, che invece entra a far parte della comunione. Anche in questo caso, le pretese di rimborso per lavori di ristrutturazione vengono respinte per carenza probatoria. ID: ITD072; Instance_Type: First instance; Legal_Duration: P10Y7M; Law: IT – Civil Code – 177, 179, 190, 192, 934; State: IT; Type: Property adjustment within Legal separation; Marital_Regime: Community of property; Immovable_Assets: House 1, House 2, House 3; Movable_Assets: Car; Nature_Separation: Judicial separation; Marriage_duration: P37Y2M; law: Inheritance",
+  "metadata": {
+    "ID": "ITD072",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P10Y7M",
+    "Law": "IT – Civil Code – 177, 179, 190, 192, 934",
+    "State": "IT",
+    "Type": "Property adjustment within Legal separation",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House 1, House 2, House 3",
+    "Movable_Assets": "Car",
+    "Nature_Separation": "Judicial separation",
+    "Marriage_duration": "P37Y2M",
+    "law": "Inheritance"
+  }
+}

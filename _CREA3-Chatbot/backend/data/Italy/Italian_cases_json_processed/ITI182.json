@@ -1,0 +1,13 @@
+{
+  "content": "Principle of Universality in Inheritance Division In a lawsuit for the dissolution of an inheritance community, the plaintiffs sought to divide all real estate left by their deceased father, while the defendant argued that other assets from their mother’s estate should also be included. The legal classification involves the \"scioglimento della comunione ereditaria\" and the principle of universality. The interpretative challenge is whether a division claim is admissible if it only covers assets from one specific title when other communities exist between the same parties. The Court ruled that universality refers to the totality of assets deriving from the same legal title. Therefore, a division is admissible if it includes all assets from one succession, even if the parties share other assets originating from a different deceased parent.\nVerification of Ownership for Estate Composition The litigation also concerned a plot of land that the plaintiffs included in the inheritance mass, but which the defendant claimed belonged to a third party. This pertains to the identification of the inheritance mass and the burden of proof regarding ownership. The interpretative problem is whether an asset can be divided when official records contradict the deceased's ownership. Based on a notary report showing the land was registered to an external party, the Court applied the principle that assets not legally proven to belong to the common ancestor must be excluded from the division. ID: ITI182; Instance_Type: First Instance; Legal_Duration: P1Y11M; State: IT; Type: Succession/Inheritance; Immovable_Assets: House; House; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI182",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P1Y11M",
+    "State": "IT",
+    "Type": "Succession/Inheritance",
+    "Immovable_Assets": "House; House",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

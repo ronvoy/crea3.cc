@@ -1,0 +1,23 @@
+{
+    "content": "this is a summary of a legal case in vilnius city district court regarding a divorce between two parties the court made decisions regarding the division of matrimonial property child custody and maintenance payments the applicant was awarded certain personal belongings and a share of the marital funds while the defendant was awarded other personal belongings and a share of the marital funds the court also ordered the defendant to pay compensation to the applicant and cover the costs of the proceedings the court dissolved the marriage and made necessary property awards",
+    "metadata": {
+        "CASE_ID": "e2-956-1167/2023",
+        "civil_codes_used": [
+            "art. 3.87(2)",
+            "art. 3.127",
+            "art. 3.88",
+            "art. 3.118",
+            "art. 3.120",
+            "art. 3.117(1)"
+        ],
+        "cost": "-",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "compensation"
+    }
+}

@@ -1,0 +1,14 @@
+{
+  "content": "Facts: Creditor initiated enforcement proceedings on property jointly owned by debtor and non-debtor co-owners; surviving spouse claimed right of habitation over entire marital home under Art. 540(2) Civil Code, enforceable against creditors.\nLegal Framework: Art. 540(2) Civil Code (surviving spouse&#x2019;s right of habitation); Art. 600 Code of Civil Procedure (division in enforcement proceedings); Art. 649(2) Civil Code (legacies).\nInterpretative Issues: Whether surviving spouse&#x2019;s statutory right of habitation over marital home is enforceable against creditors and purchasers in enforcement proceedings; whether such right should be preserved in kind or monetized; how division proceedings must account for this right.\nLegal Principles: The right of habitation reserved to surviving spouse under Art. 540(2) Civil Code over the marital home constitutes a de lege legacy acquired immediately at succession opening pursuant to Art. 649(2) Civil Code, enforceable ex se without registration against heir&#x2019;s successors and creditors. The right protects moral interests tied to preservation of emotional ties with family home, not merely economic interests. This right must be preserved in kind, not monetized. For division purposes, its capital value is deducted as pre-legacy, then estate (minus this value) is divided among heirs, while bare ownership value remains in estate. In enforcement proceedings, only bare ownership is subject to attribution or sale. ID: ITI159; Instance_Type: First instance; Legal_Duration: P1Y; Law: IT – Civil Code – 540(2), 581, 582; IT – Civil Procedure Code – 600; State: IT; Type: Succession; Immovable_Assets: House ; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI159",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P1Y",
+    "Law": "IT – Civil Code – 540(2), 581, 582; IT – Civil Procedure Code – 600",
+    "State": "IT",
+    "Type": "Succession",
+    "Immovable_Assets": "House ",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

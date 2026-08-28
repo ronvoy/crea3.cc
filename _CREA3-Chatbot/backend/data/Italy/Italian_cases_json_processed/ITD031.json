@@ -1,0 +1,16 @@
+{
+  "content": "This judgment from the Court of Chieti Ortona concerns a dispute between separated spouses over the dissolution of legal community property regarding a residential property in Francavilla al Mare. The plaintiff spouse claimed the property fell within the legal community regime pursuant to Article 177(1)(a) of the Italian Civil Code as it was purchased during the marriage by the defendant spouse. The defendant argued the property was subject to an indirect donation from her parents who paid the full purchase price directly to the seller. The court held that indirect donations fall within the exclusion referred to in Article 179(1)(b) of the Civil Code without requiring express declaration by the purchasing spouse or participation of the non-purchasing spouse in the purchase deed, as these provisions are not applicable to indirect donations. The court distinguished between direct donation of money subsequently used by the beneficiary for purchase (where money remains the donation object) and giving money with the sole and specific purpose of purchasing property (which constitutes indirect donation of the asset itself). The necessary and sufficient requirement is proof of the link between the donation of money and the purchase. Based on credible witness testimony from the seller confirming that the purchase price was paid in full by the defendant's parents directly to the seller, the court found this established an indirect donation of the property itself rather than money. The property therefore never entered the legal community property pursuant to Article 179(1)(b) of the Italian Civil Code. The plaintiff's division request was rejected, and costs were compensated given the relationship between the parties and the lack of particular complexity in the case. ID: ITD031; Instance_Type: First instance; Legal_Duration: P1Y10M; Law: IT – Civil Code – 177, 179, 191; State: IT; Type: Property adjustment within Legal separation; Costs: Both; Marital_Regime: Community of property; Immovable_Assets: House; Nature_Separation: Judicial separation; law: Inheritance",
+  "metadata": {
+    "ID": "ITD031",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P1Y10M",
+    "Law": "IT – Civil Code – 177, 179, 191",
+    "State": "IT",
+    "Type": "Property adjustment within Legal separation",
+    "Costs": "Both",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House",
+    "Nature_Separation": "Judicial separation",
+    "law": "Inheritance"
+  }
+}

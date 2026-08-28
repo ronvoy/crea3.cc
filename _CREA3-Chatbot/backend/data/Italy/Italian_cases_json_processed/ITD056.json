@@ -1,0 +1,14 @@
+{
+  "content": "This judgment explored the intersection of marital property law and bankruptcy proceedings in Livorno. The Court clarified that the bankruptcy of one spouse automatically dissolves the legal community. This transformation turns the joint ownership into an ordinary co-ownership between the Trustee and the other spouse. The property was found technically indivisible, necessitating a judicial sale of the entire asset. A critical legal issue was the distribution of proceeds among the husband’s creditors and the co-owning wife. The court ruled that the husband’s half-share of the sale price would be assigned to the bankruptcy estate. However, because the wife was also a debtor to the mortgage bank, her share was prioritized for that bank. This ensured the bank’s privileged claim was satisfied before any liquid funds reached the wife. ID: ITD056; Instance_Type: First instance; Law: IT – Civil Code – 191(I); IT – Procedural Code – 786; State: IT; Type: Other civil asset division; Marital_Regime: Community of property; Immovable_Assets: Apartment ; Presence_of_children: No; law: Inheritance",
+  "metadata": {
+    "ID": "ITD056",
+    "Instance_Type": "First instance",
+    "Law": "IT – Civil Code – 191(I); IT – Procedural Code – 786",
+    "State": "IT",
+    "Type": "Other civil asset division",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "Apartment ",
+    "Presence_of_children": "No",
+    "law": "Inheritance"
+  }
+}

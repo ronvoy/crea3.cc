@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a legal case in taurage district court the case involves a divorce between two individuals referred to as pj and oj the plaintiff pj is seeking the dissolution of the marriage and the division of matrimonial property including vehicles the parties have differing views on access arrangements for their children and the amount of child support required the court has examined evidence regarding the ownership of vehicles and has awarded ownership to the defendant oj the court has also determined that the plaintiff is responsible for personal debts unrelated to the defendant the court has ordered the defendant to make monthly payments based on an agreement between the parties the court has allocated costs with the defendant being responsible for paying the costs of the proceedings the court has also recognized the plaintiffs obligations to the employment service ministry and the state tax inspectorate ministry for outstanding debts the remaining parts of the amended application have been dismissed and the costs of the proceedings will be borne by the state",
+    "metadata": {
+        "CASE_ID": "e2-3183-1178/2022",
+        "civil_codes_used": [
+            "art. 3.109",
+            "art. 3.118",
+            "art. 3.119",
+            "art. 3.123"
+        ],
+        "cost": "- \u20ac",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "EUR 150 per month",
+        "duration_of_marriage": "since 2016"
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "content": "Facts – A niece sought annulment of multiple wills and donations in favour of the deceased’s caregiver, alleging fraud, captatory conduct, and the testator’s incapacity to understand and intend.\nLegal framework – Arts. 591 and 624 Italian Civil Code; Art. 654 Italian Code of Criminal Procedure; effects of criminal judgments in civil proceedings.\nIssue – Whether a final criminal acquittal for circumvention of an incapacitated person precludes civil claims for annulment of wills based on incapacity or fraud.\nPrinciples applied – The Court affirmed that a final criminal acquittal has res judicata effect in civil proceedings when both concern the same material facts and subjective conditions. The criminal finding that the testator retained decision-making capacity excludes the stricter civil standard required for annulment under Art. 591 ICC. Likewise, fraud under Art. 624 ICC requires proof of specific fraudulent means capable of misleading the testator, exceeding mere influence or emotional closeness. Where criminal courts have definitively excluded inducement, deception, and manipulation, civil claims based on identical factual allegations must be rejected. In any event, criminal judgments may be used as atypical evidence to exclude captatory conduct. ID: ITI120; Instance_Type: First instance; Legal_Duration: P3Y5M; Law: IT – Civil Code – 591, 624; State: IT; Type: Succession; Costs: Heir 1 - 22.426,00; Immovable_Assets: House; Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI120",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P3Y5M",
+    "Law": "IT – Civil Code – 591, 624",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1 - 22.426,00",
+    "Immovable_Assets": "House",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

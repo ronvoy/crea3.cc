@@ -1,0 +1,20 @@
+{
+    "content": "this is a summary of a civil case that took place in the district court of utena the defendant was ordered to pay a total of \u20ac114750 which included various fees the court discussed three articles in the civil code related to matrimonial property the applicant sought to dissolve their marriage and requested various orders including the division of property and monthly maintenance for the children the court allowed the application in part and divided the community property equally between the spouses the defendant was found guilty of the divorce and ordered to pay the costs of the proceedings the court also ordered the defendant to take possession of certain assets including a vw passat car",
+    "metadata": {
+        "CASE_ID": "e2-846-1147/2022",
+        "civil_codes_used": [
+            "Art. 3.117",
+            "Art. 3.123",
+            "Art. 3.127"
+        ],
+        "cost": "- \u20ac 85,00 (stamp duty) + \u20ac 22,50 (court fees) + \u20ac 1 040,00 (professional fees)",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "monthly maintenance"
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the text does not provide specific details about the parties involved or the case itself however it mentions that there are two parties the defendant and the applicant the defendant is required to pay \u20ac68 for stamp duty and \u20ac331 for court fees while the applicant has to pay \u20ac139 for stamp duty \u20ac323034 for legal fees and \u20ac331 for court fees the court has made a final resolution in a matrimonial property case awarding the applicant a vehicle and a plot of land while the defendant gets to keep their own vehicle and personal property the text also discusses different aspects of property ownership in a marriage referring to specific articles from the civil code the applicant is seeking the dissolution of their marriage requesting nonpecuniary damages retaining their surname establishing residence for their minor children and requesting monthly maintenance payments from the defendant the applicant also seeks the division of property including a car family savings and loans as well as compensation the defendant has filed a defense and requests the dismissal of the application except for certain parts of the counterclaim both parties argue that the marriage should be dissolved due to constant conflicts the court will consider the evidence and arguments presented by both parties to make a decision in the end the court has decided to dissolve the marriage and has awarded specific assets to each party both parties are required to pay stamp duty and court fees and the applicant is also ordered to pay the costs of the proceedings additionally both parties are required to pay the state budget for the costs of serving procedural documents",
+    "metadata": {
+        "CASE_ID": "e2-318-897/2019",
+        "civil_codes_used": [
+            "Art. 3.127 Shareable property",
+            "Art. 3.88 Joint matrimonial property",
+            "Art. 3.123 Deviation from equal shares of the spouses' community property"
+        ],
+        "cost": "- \u20ac 68 (stamp duty) + \u20ac 3,31 (court fees) to be borne by the defendant\n\u20ac 139 (stamp duty) + \u20ac 3230,34 (legal fees) + \u20ac 3,31 (court fees) to be borne by the applicant",
+        "duration": "matrimonial property case",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "division of property",
+        "financial_support": "monthly maintenance payments"
+    }
+}

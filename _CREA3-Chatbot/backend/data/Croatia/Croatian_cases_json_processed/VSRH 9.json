@@ -1,0 +1,16 @@
+{
+    "content": "this text is about a legal case in the supreme court of croatia it provides a summary of the progress of the case without mentioning the names of the parties involved the case is about a legal procedure called cost procedure in the first instance the case involves a property registered under number 3052 in the cadastral municipality of d consisting of a house and a yard the plaintiff owns a 12 share of the property while the counterparty also owns a 12 share the property has been sold through a public auction and the proceeds will be divided proportionally based on each coowners share the text mentions specific laws that were used to make a decision in the case but does not provide further details about the parties or the progress of the case",
+    "metadata": {
+        "CASE_ID": "Rev 1463/2013-2",
+        "civil_codes_used": [
+            "Article 382 of Act on judicial procedure",
+            "Article 392 of Act on judicial procedure",
+            "Article 48 of Property act"
+        ],
+        "cost": "\u20ac",
+        "duration": "years",
+        "law": "Divorce",
+        "state": "CROATIA",
+        "type": "judicial"
+    }
+}

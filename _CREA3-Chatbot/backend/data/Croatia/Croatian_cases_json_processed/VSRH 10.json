@@ -1,0 +1,22 @@
+{
+    "content": "this text is about a legal case in the supreme court of croatia but it does not provide specific details about the parties involved or the case itself it discusses a legal procedure called cost procedure in the first instance which has been ongoing for a certain period of time the final judgment of the case resulted in the division of a joint property specifically an apartment located on the first floor of a building in a specific municipality the apartment has a total area of 4 units and consists of one room a kitchen a bathroom a hallway and a balcony the property was sold through a public auction and the proceeds were divided between the plaintiff and the defendant the decision in the case was based on various articles of the judicial procedure and property acts",
+    "metadata": {
+        "CASE_ID": "Rev 923/2016-2",
+        "civil_codes_used": [
+            "Article 382 of Act on judicial procedure",
+            "Article 392 of Act on judicial procedure",
+            "Article 395 of Act on judicial procedure",
+            "Article 356 of Act on judicial procedure",
+            "Article 393 of Act on judicial procedure",
+            "Article 50 of Property act",
+            "Article 267 of Act on extra judicial procedure",
+            "Article 268 of Act on extra judicial procedure"
+        ],
+        "cost": "\u20ac",
+        "duration": "years",
+        "law": "Divorce",
+        "state": "CROATIA",
+        "type": "judicial",
+        "marital_regime": "community of property"
+    }
+}

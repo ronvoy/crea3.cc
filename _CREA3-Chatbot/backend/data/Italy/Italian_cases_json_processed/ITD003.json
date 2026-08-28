@@ -1,0 +1,17 @@
+{
+  "content": "In the context of property division between ex-spouses, Art. 191 of the Italian Civil Code identifies personal separation or divorce as the grounds for dissolving the legal community. The interpretative issue concerns whether the finality of such judgments is a procedural prerequisite or a condition for the action; the court establishes that a final judgment of separation or divorce is a condition for the action, serving as the constitutive fact of the right to obtain division. Since the parties were already divorced at the time of the claim, the plaintiff was fully entitled to seek the dissolution of the joint ownership.\nRegarding the material division of real estate, the court assesses \"convenient divisibility\" based on technical and regulatory feasibility. The problem lies in determining whether a property can be split into autonomous portions without significant loss of economic value or utility. The principle applied is that an asset is deemed \"not easily divisible\" if the resulting portions cannot independently satisfy housing needs or if the fragmentation contradicts municipal size regulations. In such cases of confirmed indivisibility, and where no allocation is possible, the judge must order the sale of the asset through a delegated professional to divide the proceeds.\nConcerning the allocation of judicial expenses in division proceedings, the court must reconcile the general interest in division with the behavior of the litigants. While costs are often shared proportionally, the problem arises when one party hinders the proceedings; the principle applied is that a defendant’s resistance to a legitimate request for dissolution justifies charging them with costs proportional to their share and their opposition. Consequently, the defendant was ordered to pay 9/14 of the legal fees due to his larger ownership share and his unsuccessful resistance to the division. ID: ITD003; Instance_Type: First instance; Legal_Duration: P1Y; Law: IT - Civil Code - 191; State: IT; Type: Property adjustment within separation; Costs: Partner 2- 3800; Marital_Regime: Community of property; Immovable_Assets: House; Nature_Separation: Judicial separation; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD003",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P1Y",
+    "Law": "IT - Civil Code - 191",
+    "State": "IT",
+    "Type": "Property adjustment within separation",
+    "Costs": "Partner 2- 3800",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House",
+    "Nature_Separation": "Judicial separation",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

@@ -1,0 +1,21 @@
+{
+    "content": "this is a legal document summarizing the progress of a civil case heard in the vilnius city district court the document does not provide specific details about the parties or the nature of the case in the final resolution the court decided that both the claimant and defendant will receive a 12 share of the apartment the claimant will also receive compensation of eur 1000 for a car the document discusses various articles of the civil code related to matrimonial property and the division of assets the plaintiff filed for divorce citing differences in attitudes towards married life and the use of joint resources the other party agrees to the divorce and also requests the division of property claiming that the breakdown of the marriage was caused by the plaintiffs relationship with another person both parties agree to the division of property and the retention of their own surnames the court allows the action to proceed and decides to divide the apartment equally between the parties awarding the car to the plaintiff and ordering the defendant to pay 1000 euros in compensation the payment will be staggered over 10 months the court also orders the defendant to pay the costs incurred by the plaintiff",
+    "metadata": {
+        "CASE_ID": "e2-2690-1094/2020",
+        "civil_codes_used": [
+            "Art. 3.118",
+            "Art. 3.87",
+            "Art. 3.88",
+            "Art. 3.127"
+        ],
+        "cost": "EUR 1 000",
+        "duration": "10 months",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": false,
+        "marital_regime": "community of property",
+        "financial_support": "EUR 1000"
+    }
+}

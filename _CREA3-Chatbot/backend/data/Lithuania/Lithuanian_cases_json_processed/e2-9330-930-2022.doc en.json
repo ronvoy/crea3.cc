@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the case involved the division of matrimonial property between two parties referred to as nn and an the court determined that nn would be granted ownership of a volkswagen tiguan vehicle while an would be granted ownership of a mitsubishi pajero sport vehicle nn was also ordered to pay compensation of eur 500 to an for a greater share of the property the court referenced several articles from the civil code related to personal property and obligations between spouses the court also received requests for the dissolution of the marriage establishment of residence and access arrangements for minor children maintenance payments and division of assets and liabilities the court partially upheld the applicants action with approximately 90 of the claims being upheld the defendant was ordered to pay various costs including stamp duty legal aid costs and the costs of sending procedural documents",
+    "metadata": {
+        "CASE_ID": "e2-9330-930/2022",
+        "civil_codes_used": [
+            "Art. 3.89 Personal property of the spouses",
+            "Art. 3.109 Obligations to be fulfilled out of the spouses' matrimonial property",
+            "Art. 3.110 Spousal liability for obligations arising before the celebration of the marriage"
+        ],
+        "cost": "- \u20ac 533,70 (stamp duty) + \u20ac 533,70 (professional fees) + \u20ac 28,22 (court fees)",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "EUR 500",
+        "duration_of_marriage": "until December 2020"
+    }
+}

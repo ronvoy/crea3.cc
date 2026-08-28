@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a civil case that took place in the kaunas district court the court reached a final resolution regarding the division of matrimonial property between two parties the court awarded certain items to the applicant including a car household items and compensation the defendant was also awarded compensation and received various household items the court ordered the defendant to fulfill a credit agreement and declared certain items as personal property for each party the court also addressed issues related to the dissolution of the marriage residence and access arrangements for the children and maintenance payments the court divided the property based on its market value and allocated costs based on the outcome of the case both parties were ordered to pay each other additional compensation the court dismissed some claims and ordered the applicant to reimburse the state for legal aid costs",
+    "metadata": {
+        "CASE_ID": "e2-2519-1070/2021",
+        "civil_codes_used": [
+            "Art. 3.127 Shareable property",
+            "Art. 3.119 Determination of the value of assets",
+            "Art. 3.120 Indivisible assets",
+            "Art. 3.98 Right to compensation"
+        ],
+        "cost": "\u20ac 16,06",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "dissolution of marriage",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "EUR 250 per month"
+    }
+}

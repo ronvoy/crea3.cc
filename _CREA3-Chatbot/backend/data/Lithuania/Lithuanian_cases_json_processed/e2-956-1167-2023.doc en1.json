@@ -1,0 +1,18 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court proceedings were held on 22 may 2023 the defendant was responsible for paying the costs of the proceedings which amounted to \u20ac45294 as well as a stamp duty of \u20ac16284 the court made a final resolution in this legal case regarding matrimonial property the applicant was awarded several movable items while the defendant was granted ownership of curtains and a washerdryer the defendant was also ordered to pay the applicant a sum of \u20ac225 as financial compensation the court also granted the applicant the right to keep certain personal possessions and custody of specific items for the childrens use the court referred to several articles of the civil code that were relevant to the case the applicant brought a legal action for divorce against the defendant claiming that the divorce was the defendants fault the court decided to dissolve the marriage and made decisions regarding property division childrens residence maintenance and housing the court dismissed certain claims and counterclaims made by both parties the court considered the behavior and actions of both parties throughout the marriage and made decisions based on the evidence presented the court also addressed the allocation of costs in the case with the defendant being ordered to pay the applicants costs of proceedings and the stamp duty to the state",
+    "metadata": {
+        "CASE_ID": "e2-956-1167/2023",
+        "civil_codes_used": [
+            "Civil Code"
+        ],
+        "cost": "- \u20ac  452,94 (costs of proceedings) + \u20ac 162, 84 (stamp duty) to be borne by the defendant",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "contentious",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "EUR 225"
+    }
+}

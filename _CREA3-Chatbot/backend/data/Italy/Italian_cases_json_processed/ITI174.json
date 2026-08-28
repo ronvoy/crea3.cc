@@ -1,0 +1,15 @@
+{
+  "content": "Facts: Heirs challenged donations made to co-heirs seeking reduction; donated property subject to collation obligation without exemption.\nLegal Framework: Art. 737 Civil Code (collation); Art. 553-564 Civil Code (reduction); Art. 745-746 Civil Code (collation methods and calculation).\nInterpretative Issues: Whether reduction action is admissible when donations were made to co-heirs subject to collation; how collation operates versus reduction; when donee may choose collation method.\nLegal Principles: Reduction action against co-heir donee is inadmissible unless donee was exempted from collation, as collation mechanism alone suffices to enable each co-heir to obtain inheritance share without resorting to specific protection for legitimate portions. When property donated to co-heirs must be collated, donees may choose collation method under Art. 746 Civil Code: either returning property in kind or imputing its value to their share. For property subject to collation by imputation, civil fruits calculation differs: if restitution in kind, annual rental value from succession opening; if imputation, legal interest on sum corresponding to asset value at succession opening. Collation ensures balance among co-heirs by forming estate to be divided according to legitimate succession shares. ID: ITI174; Instance_Type: First instance; Legal_Duration: P9Y5M; Law: IT – Civil Code – 564, 2729, 746; State: IT; Type: Succession; Immovable_Assets: House (245000,00), House, Land ; Movable_Assets: Financial assets (21865,00), Financial assets (36926,66); Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI174",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P9Y5M",
+    "Law": "IT – Civil Code – 564, 2729, 746",
+    "State": "IT",
+    "Type": "Succession",
+    "Immovable_Assets": "House (245000,00), House, Land ",
+    "Movable_Assets": "Financial assets (21865,00), Financial assets (36926,66)",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

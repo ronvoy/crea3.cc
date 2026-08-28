@@ -1,0 +1,14 @@
+{
+  "content": "Facts: Heirs challenged testamentary dispositions infringing their legitimate share after a prior division proceeding where the same will was contested.\nLegal Framework: Action for reduction of testamentary dispositions (Art. 553-564 Italian Civil Code); res judicata principle (Art. 2909 Italian Civil Code).\nInterpretative Issues: Whether an action for reduction can be brought separately when the validity of testamentary dispositions was already addressed in prior proceedings between the same parties involving the same estate.\nLegal Principles Applied: When a legal situation is common to multiple proceedings between the same parties, the resolution of factual or legal questions in one case has binding effect on others where it is relevant. Res judicata covers not only issues expressly argued but also all possible claims that constitute logical, essential and necessary antecedents to the ruling. The action for reduction should have been exercised in the prior division proceeding where defendants claimed inheritance rights under the contested will. Final judgment on inheritance status precludes subsequent challenges. ID: ITI155; Instance_Type: First instance; Legal_Duration: P1Y10M; Law: IT – Civil Code; State: IT; Type: Succession; Immovable_Assets: Land, House ; Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI155",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P1Y10M",
+    "Law": "IT – Civil Code",
+    "State": "IT",
+    "Type": "Succession",
+    "Immovable_Assets": "Land, House ",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

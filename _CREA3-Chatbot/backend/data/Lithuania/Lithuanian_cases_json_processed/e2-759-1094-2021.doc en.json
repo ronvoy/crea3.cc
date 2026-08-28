@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court made a final decision regarding the division of matrimonial property between the applicant and defendant 1 the defendant 2 has been ordered to pay legal and court fees the text discusses various aspects of property division in a matrimonial case including shareable property deviation of equal shares joint matrimonial property and shares in matrimonial property the applicant filed for divorce seeking maintenance and the division of a jointly owned land plot the court tried to locate the defendant set a hearing date but the defendant did not appear the court proceeded with the case in the defendants absence and will address child custody spousal maintenance division of property and any claims for damages the court ordered the defendant to pay the applicants legal costs",
+    "metadata": {
+        "CASE_ID": "e2-759-1094/2021",
+        "civil_codes_used": [
+            "Art. 3.127",
+            "Art. 3.123",
+            "Art. 3.88",
+            "Art. 3.117"
+        ],
+        "cost": "- \u20ac 90,00 (legal fees) + \u20ac 14,40 (court fees)",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "maintenance"
+    }
+}

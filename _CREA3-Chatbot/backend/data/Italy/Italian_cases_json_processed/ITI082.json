@@ -1,0 +1,16 @@
+{
+  "content": "Facts: Pretermitted heir brought reduction action without completing mandatory pre-litigation mediation procedure; defendant objected to admissibility on procedural grounds.\nLegal Framework: Article 5, Legislative Decree 28/2010 (mandatory mediation for specified matters); Articles 537, 553-564 Italian Civil Code (action for reduction of testamentary dispositions infringing legitimate portion).\nInterpretive Issues: Whether reduction action falls within scope of matters requiring mandatory mediation as procedural prerequisite; whether reduction action can be considered independent from estate division for mediation purposes.\nPrinciples Applied: Reduction action constitutes autonomous claim distinct from estate division proceedings. Mandatory mediation requirements under Art. 5 D.Lgs. 28/2010 do not encompass reduction actions, which protect indefeasible succession rights. Reduction action admissible without prior mediation when not coupled with division claim. Procedural prerequisites apply only to matters expressly enumerated in statute. ID: ITI082; Instance_Type: First instance; Legal_Duration: P8Y4M; Law: IT – Civil Code – 726, 718, 727, 1284(1); State: IT; Type: Succession; Costs: Heir 1, Heir 2 - 7.051,50; Immovable_Assets: House (81.846,00), Portion of House (4.400,00); Movable_Assets: Liquid assets (49.343,16); Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI082",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P8Y4M",
+    "Law": "IT – Civil Code – 726, 718, 727, 1284(1)",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1, Heir 2 - 7.051,50",
+    "Immovable_Assets": "House (81.846,00), Portion of House (4.400,00)",
+    "Movable_Assets": "Liquid assets (49.343,16)",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

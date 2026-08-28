@@ -1,0 +1,18 @@
+{
+  "content": "A request for division of furnishings and furniture is inadmissible if it lacks an inventory or minimum identifying elements, resulting in the subject matter of the proceedings being indeterminate. Case law requires the nature, type and quantity of the assets to be specified in order to allow for their identification and valuation. In the absence of such allegations, the judge cannot ascertain the existence or joint ownership of the assets.\n A car purchased and registered in the name of only one spouse during the marriage falls within the scope of immediate joint ownership pursuant to Article 177(a) of the Italian Civil Code, even if it was paid for with income from that spouse's work. Exclusion from the joint property regime applies only if strict proof is provided of its use for strictly personal purposes or for professional purposes pursuant to Article 179 of the Italian Civil Code. For the purposes of division, the market value at the time of dissolution of the regime is taken into account.\n Sums deposited in current accounts, constituting credits towards the institution pursuant to Article 1834 of the Italian Civil Code, do not fall under immediate community property but under “residual” community property pursuant to Article 177(c) of the Italian Civil Code. These savings become joint only for the part not consumed at the time of dissolution of the property regime. Until that date, the spouse who is the account holder retains full availability of the sum for family or personal needs, with the other spouse having a mere de facto expectation.In joint current accounts, internal relations between spouses are governed by the presumption of equal shares pursuant to Article 1298 of the Italian Civil Code. If one spouse contests the illegality of a withdrawal made by the other before the separation, they have the burden of proving that the transaction exceeded the 50% share to which the disposer was entitled. In the absence of proof of the total balance at the time of the withdrawal, the claim for restitution must be rejected. ID: ITD002; Instance_Type: First instance; Legal_Duration: P1Y6M; Law: IT – Civil Code – 177,191,192,194; State: IT; Type: Property adjustment within separation; Costs: Both - 30000; Marital_Regime: Community of property; Immovable_Assets: Bank account (474615.28),\nCar (12000),\nJoint bank account (–15.89),\nPartner1 bank account – comunione de residuo (value not specified),\nPartner2 bank account – comunione de residuo (value not specified),\nPartner2 securities account (value not specified); Nature_Separation: Judicial separation; Marriage_duration: 11Y; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD002",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P1Y6M",
+    "Law": "IT – Civil Code – 177,191,192,194",
+    "State": "IT",
+    "Type": "Property adjustment within separation",
+    "Costs": "Both - 30000",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "Bank account (474615.28),\nCar (12000),\nJoint bank account (–15.89),\nPartner1 bank account – comunione de residuo (value not specified),\nPartner2 bank account – comunione de residuo (value not specified),\nPartner2 securities account (value not specified)",
+    "Nature_Separation": "Judicial separation",
+    "Marriage_duration": "11Y",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

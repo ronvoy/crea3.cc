@@ -1,0 +1,14 @@
+{
+    "content": "this legal text summarizes a case that occurred in liege on march 27th 2015 the case involves a marriage agreement and the unequal division of community assets the agreement included a clause stating that if one spouse were to die the surviving spouse would receive all of the communal assets the court determined that this clause constituted an indirect gift and a matrimonial advantage the court based its decision on various legal principles including articles from the civil code and the succession code the specific parties involved in the case are not mentioned the full details of the case can be found on the website of wolters kluwer",
+    "metadata": {
+        "CASE_ID": "Liege March 27th 2015",
+        "civil_codes_used": [
+            "Article 1461 of the Civil Code",
+            "Article 1464 of the Civil Code",
+            "Article 7 of the Succession Code"
+        ],
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial"
+    }
+}

@@ -1,0 +1,25 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court made a final decision regarding the division of matrimonial property the court declared that there was a debt owed to l bank for a housing credit agreement that both parties were responsible for the court dissolved the marriage and awarded each party with a 50 share of the apartment additionally one party was awarded a motor vehicle worth eur 6000 and the other party was awarded a vehicle worth eur 1000 the court ordered one party to pay the other eur 2000 as compensation for the more expensive vehicle both parties were also ordered to pay legal fees and stamp duty the court considered the best interests of the minor children in making decisions regarding custody access and division of property",
+    "metadata": {
+        "CASE_ID": "e2-1312-897/2021",
+        "civil_codes_used": [
+            "Art. 3.127 Shareable property",
+            "Art. 3.123 Deviation from equal shares of the spouses' community property",
+            "Art. 3.109 Obligations to be fulfilled out of the spouses' matrimonial property",
+            "Art. 3.110 Spousal liability for obligations arising before the celebration of the marriage",
+            "Art. 3.111 Obligations arising from gift agreements and succession",
+            "Art. 3.115 Right to compensation",
+            "Art. 3.88 Joint matrimonial property",
+            "Art. 3.118 Establishing the asset balance"
+        ],
+        "cost": "- \u20ac 225,00 (legal fees) + \u20ac 113,00 (stamp duty) to be borne by the defendant \u20ac 826,00 (legal fees) + \u20ac 3,54 (court fees) to be borne by the applicant",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "contentious",
+        "presence_of_children": true,
+        "financial_support": "EUR 300 per month for the maintenance of her daughter E.J. and EUR 350 per month for the maintenance of her son J.J.",
+        "duration_of_marriage": "-"
+    }
+}

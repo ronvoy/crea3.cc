@@ -1,0 +1,18 @@
+{
+    "content": "this is a summary of a legal case that took place in the vilnius regional district court the case involved a divorce between mr pk and mrs ak the applicant mr pk filed for divorce due to disagreements and the defendants alcohol abuse the court decided to dissolve the marriage and assigned fault to both parties the division of property was also addressed with the defendant being responsible for their personal debts and the applicant retaining their married name the court ordered the defendant to pay various fees and costs associated with the case",
+    "metadata": {
+        "CASE_ID": "e2-6751-1196/2023",
+        "civil_codes_used": [
+            "Art. 3.100",
+            "Art.3.118"
+        ],
+        "cost": "- \u20ac 55,00 (stamp duty) + \u20ac 276,67 (proffesional fees) + \u20ac 13,28 (court fees) to be borne by the defendant; \u20ac 175,00 (stamp duty) + \u20ac 266,67 (proffesional fees) + \u20ac 19,92 (court fees) to be borne by the plaintiff;",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "marital_regime": "community of property",
+        "financial_support": "various fees and costs"
+    }
+}

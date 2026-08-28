@@ -1,0 +1,16 @@
+{
+  "content": "Facts: Legitimate heirs brought multiple actions for reduction, alleging infringement of reserved shares through a simulated sale concealing a donation in favor of non-heirs and several prior donations in favor of heirs and third parties.\nLegal framework\nArticles 556, 560 and 564 of the Italian Civil Code on fictitious reconstitution, reduction and acceptance with benefit of inventory; rules on simulation of contracts; principles on standing and admissibility of reduction actions.\nInterpretative issue\nWhether actions for reduction against non-heir beneficiaries are admissible without prior acceptance of the inheritance with benefit of inventory, and whether earlier donations to co-heirs may be challenged when more recent donations are sufficient to restore the reserved share.\nPrinciple applied\nAcceptance of the inheritance with benefit of inventory under Article 564(1) ICC is a condition of admissibility of the action for reduction against beneficiaries who are not heirs and must be verified ex officio. Legitimate heirs who have accepted the inheritance purely and simply cannot seek reduction of donations in favor of non-heirs. Reduction against co-heirs is admissible without such acceptance only if more recent donations are insufficient to restore the reserved share. Earlier donations cannot be challenged when the alleged infringement could be remedied by reducing later dispositions. The mere loss of a reserved share does not give rise to compensable tort damages. ID: ITI128; Instance_Type: First instance; Legal_Duration: P5Y3M; Law: IT – Civil Code – 554, 557, 564; State: IT; Type: Succession; Costs: Heir 2 - 10.568,00; Immovable_Assets: House (165.000,00), Garage (7.500,00); Movable_Assets: Cash (1.892,99), Furniture (15.000,00); Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI128",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P5Y3M",
+    "Law": "IT – Civil Code – 554, 557, 564",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 2 - 10.568,00",
+    "Immovable_Assets": "House (165.000,00), Garage (7.500,00)",
+    "Movable_Assets": "Cash (1.892,99), Furniture (15.000,00)",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

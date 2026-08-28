@@ -1,0 +1,15 @@
+{
+    "content": "this legal text explains the progress of various legal cases in one case it discusses the divorce proceedings between mr v and mrs g they have agreed to proceed with a divorce by mutual consent and have made detailed statements about their assets debts and property rights they have also agreed on the division of property the exercise of parental authority and the maintenance of their children the text also mentions the preparation of a document called elaborat and the subsequent steps of serving it to the opposing party receiving a response and scheduling a hearing in another case the text outlines an agreement between two parties regarding property arrangements in the event of a divorce the agreement covers the use of joint property agreements concerning children and the repayment of debts it also mentions the jurisdiction of the court and includes a mediation clause for dispute resolution lastly the text discusses a case involving a real estate company and another party the notary informs the parties about inventories related to immovable heritage and their obligation to provide information it also mentions the application of the forest decree to the land area in question and the obligations related to wooded land areas the text further informs the parties about the property being located in flood risk zones and their obligation to create a postintervention file for certain works it also mentions the registration of patrimonial documentation and the parties tax registration the notary is granted power of attorney to submit tax documents and rectify any errors or omissions the parties confirm their understanding of the deed and agree to its terms",
+    "metadata": {
+        "CASE_ID": "123456789",
+        "duration": "divorce by mutual consent",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "extrajudicial",
+        "nature_of_separation": "consensual",
+        "presence_of_children": true,
+        "marital_regime": "general community of property",
+        "financial_support": "none",
+        "duration_of_marriage": "20 years"
+    }
+}

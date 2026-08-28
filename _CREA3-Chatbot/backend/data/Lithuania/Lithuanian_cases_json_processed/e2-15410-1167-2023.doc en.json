@@ -1,0 +1,16 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court made a final decision regarding the division of matrimonial property between two parties the applicant rt filed for divorce and requested the division of property including a car and 100 shares in a company the court awarded the applicant the shares as personal ownership and the defendant the car as personal property the court also ordered the defendant to pay the applicants costs and the state budget for serving procedural documents",
+    "metadata": {
+        "CASE_ID": "e2-15410-1167/2023",
+        "civil_codes_used": [
+            "Art. 3.118 Establishing the asset balance",
+            "Art. 3.127 Shareable property"
+        ],
+        "cost": "- \u20ac 110,00 (stamp duty) + \u20ac 21,21 (court fees) to be borne by the defendant",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "marital_regime": "community of property"
+    }
+}

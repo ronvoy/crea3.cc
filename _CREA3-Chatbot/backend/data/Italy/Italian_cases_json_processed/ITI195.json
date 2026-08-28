@@ -1,0 +1,15 @@
+{
+  "content": "Facts: Testator's holographic will dated \"26-3 (or 8) 2500\" appointed friends as heirs; sister challenged will claiming date impossibility due to year \"2500\" and month ambiguity.\nLegal Framework: Article 602(2) Italian Civil Code requiring holographic wills bear handwritten date as essential formal element; nullity consequences for date absence or impossibility.\nInterpretive Issue: Whether date impossibility rendering holographic will null encompasses both absolute chronological impossibility (future year) and interpretive uncertainty (illegible month indication); whether correction or interpretation can salvage defective date.\nLegal Principle Applied: Under Article 602(2) Civil Code, date constitutes essential element of holographic wills; absence or impossibility causes nullity. Date impossibility operates in absolute sense when chronological indication is objectively unrealizable (year \"2500\") or when uncertainty prevents definitive temporal determination. Generic indications, intrinsic references, or interpretive efforts cannot satisfy handwritten date requirement. Untruthful dates differ from impossible dates: false dates may allow collateral proof regarding capacity or revocation, while absolutely impossible dates vitiate will regardless of extrinsic circumstances. ID: ITI195; Instance_Type: First Instance; Legal_Duration: P5Y11M; Law: IT – Civil Code – 602, 606; State: IT; Type: Succession; Costs: Heir 1, Heir 2 - 13400,00; Immovable_Assets: House, Land; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI195",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P5Y11M",
+    "Law": "IT – Civil Code – 602, 606",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1, Heir 2 - 13400,00",
+    "Immovable_Assets": "House, Land",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

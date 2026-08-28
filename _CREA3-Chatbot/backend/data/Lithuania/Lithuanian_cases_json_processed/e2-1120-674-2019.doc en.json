@@ -1,0 +1,22 @@
+{
+    "content": "this is a summary of a civil case that took place in the \u0161iauliai district court the case involved two parties the defendant and the applicant the defendant was ordered to pay \u20ac11800 for stamp duty while the applicant was responsible for paying \u20ac478 for court fees the court decided to divide the matrimonial property equally between the spouses with one spouse being ordered to pay compensation to the other the defendant also had personal property including land and a portion of a farm building the court declared that the defendant owed a personal debt various articles from the civil code were mentioned which discussed the division of property between spouses the applicant requested the dissolution of their marriage and the court ordered maintenance payments and the division of property acquired during the marriage the court considered the interests of their minor children in making its decisions the court divided the property based on objective and subjective factors with the applicant receiving the dwelling house and the defendant receiving two plots of land the court also recognized the defendants personal property and held them liable for certain debts the court ordered both parties to pay legal costs in summary the court granted a divorce and divided the marital property equally with one spouse receiving a larger share of a specific property and the other spouse receiving compensation each spouse also received certain personal properties and debts and one spouse was ordered to pay the others costs and postage fees",
+    "metadata": {
+        "CASE_ID": "e2-1120-674/2019",
+        "civil_codes_used": [
+            "Art. 3.123",
+            "Art. 3.127",
+            "Art. 3.88",
+            "Art. 3.89",
+            "Art. 3.87"
+        ],
+        "cost": "- \u20ac 118,00 (stamp duty) + \u20ac 4,78 (court fees) to be borne by the defendant",
+        "duration": "divorce",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "maintenance payments",
+        "duration_of_marriage": "during the marriage"
+    }
+}

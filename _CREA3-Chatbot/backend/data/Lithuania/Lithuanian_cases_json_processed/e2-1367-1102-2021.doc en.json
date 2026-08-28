@@ -1,0 +1,19 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court made a final decision regarding the division of matrimonial property between the applicant referred to as jk and the defendant referred to as vk the court awarded jk with personal ownership of half of the apartment and vk with personal ownership of the other half of the apartment vk was also awarded personal ownership of a skoda octavia car the court declared that both parties are jointly and severally liable to a creditor for any obligations arising from a credit agreement the court ordered vk to pay \u20ac52236 for legal fees and \u20ac14836 for court fees the text references specific articles of the civil code related to shareable property shares of matrimonial property and joint matrimonial property jk brought the legal action seeking the dissolution of the marriage establishment of rights for their minor children division of matrimonial property and maintenance payments from vk the court granted jks requests and ordered vk to pay jks legal costs",
+    "metadata": {
+        "CASE_ID": "e2-1367-1102/2021",
+        "civil_codes_used": [
+            "Art. 3.127 Shareable property",
+            "Art. 3.117 Shares in the matrimonial property",
+            "Art. 3.88 Joint matrimonial property"
+        ],
+        "cost": "- \u20ac 522,36 (legal fees) + \u20ac 148,36 (court fees) to be borne by the defendant",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "\u20ac522.36"
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "content": "this is a summary of a civil case that took place in the alytaus district court the specific case number is e215132922023 in this case the defendant 2 has been ordered to pay various fees including stamp duty legal fees and court fees the court has also made a final resolution regarding the division of assets between the applicant and the defendant the applicant is awarded a share of a plot of land a residential house a wastewater treatment plant and two vehicles the defendant is awarded a share of the same properties but with different vehicles and a nonresidential premises the court has also ordered the applicant to pay the defendant compensation the text mentions several articles of the civil code related to property and assets in a marriage the applicant has brought a legal action to dissolve their marriage and is seeking various requests including the division of properties and maintenance payments for their child the defendant has agreed to some aspects but disputes the value of certain properties the court will consider the evidence and make a decision on the division of property and maintenance payments the court has allowed a party to dissolve their marriage due to fault on both sides the property acquired during the marriage will be divided between the spouses the court has ordered the applicant to pay the defendant compensation and has also specified the fees that the defendant needs to pay",
+    "metadata": {
+        "CASE_ID": "e2-1513-292/2023",
+        "civil_codes_used": [
+            "Art. 3.118 Establishing the asset balance",
+            "Art. 3.127 Shareable property",
+            "Art. 3.88 Joint matrimonial property",
+            "Art. 3.89 Personal property of the spouses",
+            "Art. 3.123 Deviation from equal shares of the spouses' community property",
+            "Art. 3.117 Shares in the matrimonial property"
+        ],
+        "cost": "- \u20ac 357,20 (stamp duty) + \u20ac 528,00 (legal fees) + \u20ac 470,00 (stamp duty) + \u20ac11,69 (court fees)",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "financial_support": "\u20ac",
+        "duration_of_marriage": "years"
+    }
+}

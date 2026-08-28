@@ -1,0 +1,17 @@
+{
+    "content": "this legal text summarizes a court appeal in antwerp regarding a debt and the valuation of shares in a company the procedure lasted for 5 months starting from march 9 2021 and ending on august 12 2021 the text explains that the debt owed exceeds the value of the shares and raises questions about the valuation of the shares in the context of liquidation unlawful acts and special circumstances are mentioned the court determines that the value of the shares should not be considered nil and includes fluctuations in the value in the management account the court also rules that the costs of the expert investigation should be borne by the masses the court orders the parties to submit a report from an audit firm and invites the diligent party to adjust the statement of liquidation within three months",
+    "metadata": {
+        "CASE_ID": "Court of Appeal Antwerp August 12 2021",
+        "civil_codes_used": [
+            "Article 890",
+            "Article 1382",
+            "Article 1408",
+            "Article 1430"
+        ],
+        "cost": "unspecified",
+        "duration": "5 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial"
+    }
+}

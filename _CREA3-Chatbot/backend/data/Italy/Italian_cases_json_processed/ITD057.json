@@ -1,0 +1,19 @@
+{
+  "content": "The Court of Reggio Calabria resolved a division involving a residential property and two life insurance policies. The judge addressed the legal requirement of drawing lots (sorteggio) under Article 729 of the Civil Code. The court ruled that this requirement is not absolute and can be derogated for subjective or objective reasons. In this case, the wife demonstrated a lower economic potential as she was the recipient of a divorce allowance. To ensure a fair distribution, the judge assigned the real estate to the husband. The wife was assigned the cash value of the insurance policies, which the husband had already liquidated. This effectively compensated her for her share of the property without requiring her to maintain an illiquid asset. The husband was ordered to pay a significant cash settlement to balance the unequal lot values. ID: ITD057; Instance_Type: First instance; Legal_Duration: P4Y5M; Law: IT – Civil Code – 191, 194, 727; State: IT; Type: Property adjustment within divorce; Marital_Regime: Community of property; Immovable_Assets: House and Land (84103.00); Movable_Assets: Insurance (31340.60); Financial_support: Spousal maintenance, 300.00, monthly; Nature_Separation: Judicial; Marriage_duration: P24Y; Presence_of_children: No; law: Inheritance",
+  "metadata": {
+    "ID": "ITD057",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P4Y5M",
+    "Law": "IT – Civil Code – 191, 194, 727",
+    "State": "IT",
+    "Type": "Property adjustment within divorce",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House and Land (84103.00)",
+    "Movable_Assets": "Insurance (31340.60)",
+    "Financial_support": "Spousal maintenance, 300.00, monthly",
+    "Nature_Separation": "Judicial",
+    "Marriage_duration": "P24Y",
+    "Presence_of_children": "No",
+    "law": "Inheritance"
+  }
+}

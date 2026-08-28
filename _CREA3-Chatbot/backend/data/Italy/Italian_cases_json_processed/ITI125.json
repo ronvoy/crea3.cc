@@ -1,0 +1,15 @@
+{
+  "content": "Facts: Legitimate heirs challenged a deed of sale executed by the deceased in favor of a close relative, alleging that the transaction was simulated and concealed a donation infringing their reserved share, and sought reduction.\nLegal framework\nArticles 553, 560 and 561 of the Italian Civil Code on reduction and restitution; rules on relative simulation; Article 183 of the Italian Code of Civil Procedure on amendment of claims.\nInterpretative issue\nWhether the declaration of payment contained in a notarial deed is sufficient proof of actual payment in a simulated sale, and whether reduction automatically entails restitution of the donated asset.\nPrinciple applied\nA legitimate heir challenging a sale allegedly concealing a donation acts as a third party and may prove relative simulation by presumptions and testimonial evidence without limitation. The declaration of payment in a public deed does not constitute proof of actual payment, which must be positively demonstrated by the purchaser. Where payment is not proven, the sale is deemed simulated and requalified as a donation subject to reduction. The action for reduction is autonomous from the action for restitution, which requires an express and specific claim; upon reduction, the property may remain with the donee under Article 560 ICC, subject to monetary compensation where physical separation is impracticable. ID: ITI125; Instance_Type: First instance; Legal_Duration: P4Y7M; Law: IT – Civil Code – 553, 560; State: IT; Type: Succession; Costs: Heir 3 - 7.658,00; Immovable_Assets: House (105.000,00)\n\n; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI125",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P4Y7M",
+    "Law": "IT – Civil Code – 553, 560",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 3 - 7.658,00",
+    "Immovable_Assets": "House (105.000,00)\n\n",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

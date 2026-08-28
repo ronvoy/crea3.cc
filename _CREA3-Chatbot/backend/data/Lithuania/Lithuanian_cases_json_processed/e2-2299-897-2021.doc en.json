@@ -1,0 +1,23 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the court decided to dissolve a marriage and awarded the applicant a motor vehicle the defendant was ordered to pay the applicant compensation the text discusses various articles in the civil code related to joint matrimonial property and the rights and obligations of spouses the applicant filed an amended application requesting the defendant to move out of their flat and impose a timelimit for reconciliation the applicant wants to retain their name while the defendant wants to keep their surname the couple owns a car which will become the personal property of the applicant after the divorce the defendant has a history of alcohol abuse and violence towards the applicant both parties are claiming maintenance from each other the court will determine the division of matrimonial property taking into account the value of assets and the interests of minor children the court has decided to divide the movable property equally awarding the car to the applicant and compensating the defendant for half of its value the costs of the proceedings will be determined based on the success of each partys claims the court has supported the request to end the marriage made by one of the parties involved the defendant is ordered to pay the state budget for the costs of serving procedural documents",
+    "metadata": {
+        "CASE_ID": "e2-2299-897/2021",
+        "civil_codes_used": [
+            "Art. 3.88",
+            "Art. 3.98",
+            "Art. 3.109",
+            "Art. 3.110",
+            "Art. 3.115",
+            "Art. 3.118",
+            "Art. 3.123",
+            "Art. 3.127"
+        ],
+        "cost": "\u20ac 6,97",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "marital_regime": "community of property",
+        "financial_support": "\u20ac500",
+        "duration_of_marriage": "5 years"
+    }
+}

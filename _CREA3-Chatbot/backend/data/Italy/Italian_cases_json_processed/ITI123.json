@@ -1,0 +1,15 @@
+{
+  "content": "Facts: A legatee challenged a later holographic will revoking prior testamentary dispositions, alleging lack of holography due to third-party intervention in the writing of the document.\nLegal framework:\nArticles 602 and 606 ICC; rules on burden of proof in challenges to holographic wills; principles on autography and third-party interference.\nIssue:\nWhether limited heterographic insertions invalidate a holographic will that is otherwise handwritten, dated and signed by the testator.\nPrinciples applied:\nThe party contesting a holographic will bears the burden of proving lack of autography. A will remains valid where the dispositive text and signature are entirely handwritten by the testator and third-party additions are marginal, neutral, and incapable of influencing testamentary intent. The assessment of holography requires evaluating the nature, content, and potential impact of heterographic elements, not merely their physical placement. Formal requirements serve to ensure authenticity and freedom of will, not to impose absolute nullity for irrelevant third-party annotations. In the absence of evidence of guided handwriting or external influence on the testator’s volition, minor apocryphal additions do not vitiate the testament. ID: ITI123; Instance_Type: First instance; Legal_Duration: P3Y1M; Law: IT – Civil Code – 606, 602; State: IT; Type: Succession; Costs: Heir 1 - 8.467,00; Immovable_Assets: House, House; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI123",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P3Y1M",
+    "Law": "IT – Civil Code – 606, 602",
+    "State": "IT",
+    "Type": "Succession",
+    "Costs": "Heir 1 - 8.467,00",
+    "Immovable_Assets": "House, House",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

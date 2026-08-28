@@ -1,0 +1,15 @@
+{
+  "content": "This judgment addressed the division of real estate and mutual claims of adverse possession (usucapione) between ex-spouses. The court relied on Articles 191, 2941, and 1165, which regulate the suspension of limitations during marriage. The central interpretive conflict was whether one spouse could legally claim exclusive ownership of a shared asset through long-term possession while the marriage was ongoing. The court ruled that adverse possession between spouses is legally impossible because the statute of limitations is suspended by law until the separation is finalized. Furthermore, the division was strictly limited to the real estate identified in the initial summons, rejecting broader investigations into business income that the plaintiff had previously waived. ID: ITD143; Instance_Type: First Instance; Legal_Duration: P1Y11M; Law: IT – Civil Code – 191(2), 1165, 2941(1); State: IT; Type: Property adjustment within legal separation; Marital_Regime: Community of property; Immovable_Assets: Real Estate Property; Nature_Separation: Judicial separation; law: Inheritance",
+  "metadata": {
+    "ID": "ITD143",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P1Y11M",
+    "Law": "IT – Civil Code – 191(2), 1165, 2941(1)",
+    "State": "IT",
+    "Type": "Property adjustment within legal separation",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "Real Estate Property",
+    "Nature_Separation": "Judicial separation",
+    "law": "Inheritance"
+  }
+}

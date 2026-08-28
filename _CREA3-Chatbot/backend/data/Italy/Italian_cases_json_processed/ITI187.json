@@ -1,0 +1,15 @@
+{
+  "content": "Mandatory Assignment of Indivisible Assets to the Majority Shareholder In a lawsuit for the dissolution of an inheritance community involving an immovable property in Sava, the plaintiff, holding a 4/6 majority share, requested the full attribution of the asset. The legal issue concerns the application of Art. 720 c.c. when co-heirs oppose the assignment. The interpretative challenge lies in determining the preferred method of division when a property is declared \"indivisible\" by a court-appointed expert. The Court ruled that, under Art. 720 c.c., an indivisible asset must be assigned to the co-heir holding the largest share who requests it, rather than being sold, provided the assignee pays a cash equalization (conguaglio) to the minor shareholders based on the expert's valuation.\nAllocation of Litigation and Technical Costs in Division Suits The litigation involved a dispute where the defendants agreed to the division but opposed the plaintiff's request for assignment. The legal issue involves the distribution of legal fees and technical expert (CTU) costs. The interpretative problem is whether to apply the \"soccombenza\" (loser pays) principle or the principle of common utility. The Court applied a hybrid approach: litigation costs were charged to the defendants based on their defeat regarding the contested assignment, while the costs for the CTU were shared proportionally among all parties according to their respective inheritance quotas (4/6 and 1/6), as the technical valuation benefited the entire community. ID: ITI187; Instance_Type: First Instance; Legal_Duration: P7Y; Law: IT – Civil Code – 720; State: IT; Type: Succession/Inheritance; Costs: Defendants - 3540; Immovable_Assets: House; Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI187",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P7Y",
+    "Law": "IT – Civil Code – 720",
+    "State": "IT",
+    "Type": "Succession/Inheritance",
+    "Costs": "Defendants - 3540",
+    "Immovable_Assets": "House",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

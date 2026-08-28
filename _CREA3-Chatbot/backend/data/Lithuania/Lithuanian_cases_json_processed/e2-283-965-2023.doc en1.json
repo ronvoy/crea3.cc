@@ -1,0 +1,20 @@
+{
+    "content": "this is a summary of a legal case that took place in the klaipeda district court the case involved the division of matrimonial property between the applicant and the defendant the court decided to divide the property in kind with the applicant receiving two cars and the defendant receiving a nonresidential premises and a car the court also addressed other issues related to the divorce such as child maintenance and financial compensation the court considered the best interests of the child and made decisions accordingly the court upheld some of the applicants requests and ordered the defendant to pay the costs of the proceedings the court ultimately dissolved the marriage and awarded certain assets to each party the court also addressed the parties obligations towards a bank and discharged one party from those obligations the court ordered the defendant to pay various fees and costs associated with the case",
+    "metadata": {
+        "CASE_ID": "e2-283-965/2023",
+        "civil_codes_used": [
+            "art. 3.127",
+            "art. 3.117",
+            "art. 3.100"
+        ],
+        "cost": "- \u20ac 100,00 (stamp duty) + \u20ac 500,00 (professional fees) + \u20ac 6,64 (court fees)",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "presence_of_children": true,
+        "marital_regime": "division of common properties",
+        "financial_support": "\u20ac",
+        "duration_of_marriage": "dissolved"
+    }
+}

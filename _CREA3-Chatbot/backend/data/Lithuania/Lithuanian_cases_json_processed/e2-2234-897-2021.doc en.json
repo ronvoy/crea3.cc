@@ -1,0 +1,26 @@
+{
+    "content": "this is a summary of a civil case heard in the vilnius city district court the court made a final decision regarding the division of matrimonial property in a divorce case between two parties referred to as db the applicant and vb the defendant the court awarded both parties half of an apartment and recognized that the debt associated with the apartment is a joint responsibility the text discusses various articles in the civil code related to matrimonial property and the obligations of spouses it outlines the steps taken in the case including the dissolution of the marriage division of property payment of costs and the involvement of children the court also ordered the payment of stamp duty professional fees and court fees by both parties",
+    "metadata": {
+        "CASE_ID": "e2-2234-897/2021",
+        "civil_codes_used": [
+            "art. 3.88",
+            "art. 3.109",
+            "art. 3.110",
+            "art. 3.111",
+            "art. 3.115",
+            "art. 3.118",
+            "art. 3.123",
+            "art. 3.127"
+        ],
+        "cost": "\u20ac 1057",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": true,
+        "marital_regime": "community of property",
+        "financial_support": "-",
+        "duration_of_marriage": "-"
+    }
+}

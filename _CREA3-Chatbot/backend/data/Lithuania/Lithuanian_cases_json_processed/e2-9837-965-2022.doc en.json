@@ -1,0 +1,22 @@
+{
+    "content": "this is a summary of a civil case that took place in the klaipeda district court the case involved a couple going through a divorce and needing to divide their shared property specifically an apartment the court determined that the apartment should be divided equally between the parties the court also modified the obligations of the credit agreement related to the apartment but both parties remain jointly responsible for it the court considered the applicants claims of violence and alcohol consumption by the defendant and granted the dissolution of the marriage the court ordered the defendant to pay the costs of the proceedings including stamp duty and legal fees the court also clarified the responsibilities of the parties regarding the loan for the apartment the defendant is ordered to pay the stamp duty to the state and the state will pay the defendant for the costs of the proceedings related to legal aid",
+    "metadata": {
+        "CASE_ID": "e2-9837-965/2022",
+        "civil_codes_used": [
+            "art. 3.118",
+            "art. 3.117(1)",
+            "art. 3.127",
+            "art. 3.116",
+            "art. 3.126"
+        ],
+        "cost": "- \u20ac 618,00 (stamp duty) + \u20ac 160,00 (professional fees)",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "presence_of_children": false,
+        "marital_regime": "community of property",
+        "financial_support": "costs of the proceedings"
+    }
+}

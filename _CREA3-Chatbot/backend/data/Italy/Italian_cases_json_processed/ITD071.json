@@ -1,0 +1,19 @@
+{
+  "content": "In this ruling, the Court addresses the dissolution of joint ownership of a property purchased by two spouses who, despite being under a separate property regime, had opted for a joint purchase. The dispute revolves around the convenient divisibility of the property and the financial claims arising from exclusive use and expenses incurred. The judge clarifies that, pursuant to Articles 720 and 1114 of the Italian Civil Code, a property is divisible if it can be divided into independent units without excessive technical costs or significant depreciation of the economic value of the shares. Accepting the findings of the court-appointed expert, the court orders the division in kind into two equal lots. A crucial issue concerns the burden of proof for reimbursements: the defendant's claims for purchase and renovation costs are rejected because the bank statements produced, which do not indicate the beneficiaries or the reasons for the payments, do not prove that the funds came exclusively from his personal assets. Finally, the court rejected the plaintiff's claim for compensation for exclusive occupation. It was established that the loss of enjoyment of the property is not compensable if it results from a voluntary choice by the co-owner, motivated by personal tensions following the separation, rather than from an actual physical impediment imposed by the other spouse. ID: ITD071; Instance_Type: First instance; Legal_Duration: P20Y; Law: IT – Civil Code – 718, 720, 726, 727, 784, 791, 1114, 1116; State: IT; Type: Other civil asset division; Costs: Both; Marital_Regime: Separation of property; Immovable_Assets: House; Movable_Assets: Furniture; Nature_Separation: Judicial separation; Marriage_duration: P13Y2M; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD071",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P20Y",
+    "Law": "IT – Civil Code – 718, 720, 726, 727, 784, 791, 1114, 1116",
+    "State": "IT",
+    "Type": "Other civil asset division",
+    "Costs": "Both",
+    "Marital_Regime": "Separation of property",
+    "Immovable_Assets": "House",
+    "Movable_Assets": "Furniture",
+    "Nature_Separation": "Judicial separation",
+    "Marriage_duration": "P13Y2M",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

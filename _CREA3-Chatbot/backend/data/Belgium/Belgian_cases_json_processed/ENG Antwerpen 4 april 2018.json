@@ -1,0 +1,19 @@
+{
+    "content": "this legal text summarizes the progress of a legal case that took place in antwerp the specific details about the cost and duration of the procedure are not mentioned but it lasted for 1 year and 10 months the text outlines the steps involved in the case 1 one party filed a complaint against another party outlining their issues and grievances 2 the defendant was served with a copy of the complaint to make them aware of the allegations 3 the defendant had a certain period of time to respond to the complaint admitting or denying the allegations and presenting counterclaims if necessary 4 both parties engaged in the discovery phase gathering evidence and exchanging information to build their cases 5 the parties attempted to resolve the dispute through negotiation or mediation potentially resulting in a settlement 6 if no settlement was reached the case proceeded to trial where both parties presented their arguments and evidence before a judge or jury 7 after the trial the judge or jury delivered a verdict determining the outcome of the case including any awards or damages 8 either party had the option to appeal the decision requesting a higher court to review the case and potentially overturn the verdict 9 the text does not provide information on the final outcome or any further steps taken the text also mentions a separate case involving a divorce and the division of assets a notaryliquidator was appointed by the court to handle the liquidation of the couples community property various issues were addressed such as ownership of funds property purchase asset transfer debt payment interest on accounts and a husbands request for compensation the court ultimately upheld the previous judgment and dismissed the husbands appeal",
+    "metadata": {
+        "CASE_ID": "2016/FA/496",
+        "civil_codes_used": [
+            "1235",
+            "1399",
+            "1402",
+            "1408",
+            "1436"
+        ],
+        "cost": "unspecified",
+        "duration": "1 year, 10 months",
+        "law": "Divorce",
+        "state": "BELGIUM",
+        "type": "judicial",
+        "marital_regime": "community of property"
+    }
+}

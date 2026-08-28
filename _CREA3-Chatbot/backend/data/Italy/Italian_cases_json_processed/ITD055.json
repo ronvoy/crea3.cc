@@ -1,0 +1,17 @@
+{
+  "content": "In this case, the Tribunal of Latina ruled on the procedural admissibility of a division action. The plaintiff sought to divide multiple real estate lots and company shares following a separation. The judge raised a preliminary objection based on the status of the underlying separation proceedings. It was established that a claim for the dissolution of the marital community is inadmissible while the separation is pending. Under Italian law, the right to divide the community only matures once the separation judgment is final. Because the parties provided no evidence that their separation had passed into res judicata, the claim was \"improponibile\". Consequently, all other substantive questions regarding the assets were declared moot and absorbed. Legal costs were offset between the parties due to the procedural nature of the dismissal. ID: ITD055; Instance_Type: First instance; Legal_Duration: P5Y9M; Law: IT – Civil Code – 191; State: IT; Type: Property adjustment within Legal separation; Costs: Both; Marital_Regime: Community of property; Immovable_Assets: House, Land, Office; Movable_Assets: Securities; Nature_Separation: Judicial separation; law: Inheritance",
+  "metadata": {
+    "ID": "ITD055",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P5Y9M",
+    "Law": "IT – Civil Code – 191",
+    "State": "IT",
+    "Type": "Property adjustment within Legal separation",
+    "Costs": "Both",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House, Land, Office",
+    "Movable_Assets": "Securities",
+    "Nature_Separation": "Judicial separation",
+    "law": "Inheritance"
+  }
+}

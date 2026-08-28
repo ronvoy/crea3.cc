@@ -1,0 +1,20 @@
+{
+    "content": "this is a summary of a civil case that took place in the vilnius city district court the document explains the progress of a legal case involving two parties whose names are not provided the applicant sought a divorce and requested ownership of a toyota yaris car without compensating the defendant the court agreed with the applicants request and awarded them ownership of the car while ordering the defendant to pay eur 250 as compensation the court also decided on the division of the parties joint property awarding the applicant half of the cars value and requiring the defendant to compensate them for the other half the court dissolved the marriage allowing both parties to retain their married names",
+    "metadata": {
+        "CASE_ID": "e2-1419-930/2022",
+        "civil_codes_used": [
+            "Art. 3.127",
+            "Art. 3.88",
+            "Art. 3.89"
+        ],
+        "cost": "-",
+        "duration": "-",
+        "law": "Divorce",
+        "state": "LITHUANIA",
+        "type": "judicial",
+        "nature_of_separation": "Judicial",
+        "marital_regime": "community of property",
+        "financial_support": "EUR 250",
+        "duration_of_marriage": "5 years"
+    }
+}

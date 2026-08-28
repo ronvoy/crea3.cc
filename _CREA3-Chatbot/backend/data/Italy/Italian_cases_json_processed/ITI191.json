@@ -1,0 +1,15 @@
+{
+  "content": "Following a decade of disputes, heirs sought the dissolution of their communion, disagreeing over the method of assignment. The court applied Articles 720 and 729 of the Civil Code, dealing with convenient divisibility and the lottery draw. The primary problem was whether the court must always follow the lottery draw (sorteggio) when shares are equal. The court determined that while the lottery is the standard under Art. 729, it is not absolute. The judge applied the principle of \"subjective and objective convenience,\" allowing for direct assignment of lots to heirs based on their current possession and use of specific portions of the estate. This approach was deemed more \"convenient\" and appropriate to the actual state of the property, bypassing the randomness of a draw to favor a stable and pacted distribution of assets. ID: ITI191; Instance_Type: First Instance; Legal_Duration: P7Y0M; Law: IT – Civil Code – 718, 720, 726, 727, 729; State: IT; Type: Succession/Inheritance; Immovable_Assets: Total estate ( 406.272,13):  Lot 1 (94.331,89),  Lot 2 (80.413,71), Lot 3 ( 112.445,30),  Lot 4 (119.081,23)\n; Movable_Assets: debt (52.320,00) debt (52.320,00); Type_of_succession: Legal succession; law: Divorce",
+  "metadata": {
+    "ID": "ITI191",
+    "Instance_Type": "First Instance",
+    "Legal_Duration": "P7Y0M",
+    "Law": "IT – Civil Code – 718, 720, 726, 727, 729",
+    "State": "IT",
+    "Type": "Succession/Inheritance",
+    "Immovable_Assets": "Total estate ( 406.272,13):  Lot 1 (94.331,89),  Lot 2 (80.413,71), Lot 3 ( 112.445,30),  Lot 4 (119.081,23)\n",
+    "Movable_Assets": "debt (52.320,00) debt (52.320,00)",
+    "Type_of_succession": "Legal succession",
+    "law": "Divorce"
+  }
+}

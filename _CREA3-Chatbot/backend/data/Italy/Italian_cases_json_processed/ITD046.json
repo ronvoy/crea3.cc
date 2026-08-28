@@ -1,0 +1,18 @@
+{
+  "content": "In a dispute between separating spouses concerning joint ownership of residential property, the defendant occupied the marital home after the court revoked its assignment. The plaintiff sought dissolution of co-ownership and compensation for exclusive occupation, while the defendant counterclaimed for dissolution of residual marital community property including bank accounts and securities.\nThe case involved application of Articles 1116, 718, 720, and 1102 of the Italian Civil Code regarding co-ownership dissolution, Articles 177 and 191 concerning marital property regime, and Article 820 on civil fruits. The interpretative issues concerned whether auction sale is mandatory when no co-owner requests allocation of the entire property, whether compensation is due for exclusive occupation preventing the other's enjoyment, whether residual community property claims are admissible in co-ownership dissolution proceedings, and how to value civil fruits from exclusive occupation.\nThe court established that auction constitutes the last resort in judicial division, applicable when neither party requests full allocation with compensation to the other. Exclusive occupation violating Article 1102 entitles the excluded co-owner to compensation for lost enjoyment calculated on market rental value pursuant to Article 820. Residual community dissolution is admissible in the same proceedings where undisputed documentary evidence exists, with compensation offsets between reciprocal debts applied and final cost allocation deferred. ID: ITD046; Instance_Type: First instance; Legal_Duration: P3Y5M; Law: IT – Civil Code – 191, 177, 720; State: IT; Type: Property adjustment within Divorce; Marital_Regime: Community of property; Immovable_Assets: House, Garage; Movable_Assets: Money (5005.80), Securities; Nature_Separation: Judicial separation; Marriage_duration: P32Y3M; Presence_of_children: Yes; law: Inheritance",
+  "metadata": {
+    "ID": "ITD046",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P3Y5M",
+    "Law": "IT – Civil Code – 191, 177, 720",
+    "State": "IT",
+    "Type": "Property adjustment within Divorce",
+    "Marital_Regime": "Community of property",
+    "Immovable_Assets": "House, Garage",
+    "Movable_Assets": "Money (5005.80), Securities",
+    "Nature_Separation": "Judicial separation",
+    "Marriage_duration": "P32Y3M",
+    "Presence_of_children": "Yes",
+    "law": "Inheritance"
+  }
+}

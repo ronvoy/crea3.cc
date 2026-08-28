@@ -1,0 +1,15 @@
+{
+  "content": "Facts: Heirs disputed two holographic wills concerning the estates of spouses, alleging forgery of the first will and invalidity of the second due to incapacity, undue influence, and infringement of forced heirship shares; counterclaims included unworthiness to inherit and restitution of sums allegedly misappropriated through joint bank accounts.\nLegal framework:\nArticles 602–606, 591, 624, 463, 467, 537 and 556 et seq. of the Italian Civil Code; Article 118 of the Italian Code of Civil Procedure; principles on burden of proof in will challenges and on the civil effects of criminal proceedings.\nIssue:\nWhether the authenticity of holographic wills may be conclusively established through technical expert evidence and whether the finding of forgery entails nullity of the will, exclusion from succession for unworthiness, and precedence over all other succession-related claims.\nPrinciple applied:\nIn inheritance disputes, the verification of the authenticity of a holographic will constitutes a preliminary and decisive issue, as its falsity entails absolute nullity of the testamentary disposition. Where a court-appointed graphological expert, through a technically sound and comprehensive examination, establishes that the will is entirely apocryphal, the civil court must adhere to such findings in the absence of specific and reasoned objections. Criminal proceedings concluded without a full trial lack res judicata effect in civil matters and do not preclude an autonomous assessment of authenticity. The ascertainment of forgery may ground the application of unworthiness to succeed under Article 463 of the Civil Code against the author of the falsification and, in principle, against those who knowingly rely on it. The resolution of these issues is logically prior to the identification of heirs, the assessment of forced shares, reduction actions, restitution claims, and the division of the estate. ID: ITI118; Instance_Type: First instance; Legal_Duration: P3Y4M; Law: IT – Civil Code – 463(1)(6), 591(3)\n\n; State: IT; Type: Succession; Immovable_Assets: House; Movable_Assets: Bank balances (88.500,00); Type_of_succession: Testamentary; law: Divorce",
+  "metadata": {
+    "ID": "ITI118",
+    "Instance_Type": "First instance",
+    "Legal_Duration": "P3Y4M",
+    "Law": "IT – Civil Code – 463(1)(6), 591(3)\n\n",
+    "State": "IT",
+    "Type": "Succession",
+    "Immovable_Assets": "House",
+    "Movable_Assets": "Bank balances (88.500,00)",
+    "Type_of_succession": "Testamentary",
+    "law": "Divorce"
+  }
+}

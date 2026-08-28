@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import { Box, Paper, Typography, Chip, Stack, Container } from '@mui/material'
+import { Box, Paper, Typography, Stack, Container } from '@mui/material'
 import SiteFooter from './site-footer'
 import SkipLink from './skip-link'
 import HelpWidget from './help-widget'
@@ -45,17 +45,12 @@ export default function AuthLayout({
               <Typography variant="caption" color="text.secondary">
                 {t('authTagline')}
               </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 600, lineHeight: 1.1, color: 'text.primary' }}>
                 CREA3
               </Typography>
             </Box>
           </Stack>
           <Box sx={{ flexGrow: 1 }} />
-          <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }} aria-hidden>
-            <Chip label={t('authBids')} size="small" variant="outlined" />
-            <Chip label={t('authRates')} size="small" variant="outlined" />
-            <Chip label={t('authMediation')} size="small" variant="outlined" />
-          </Stack>
         </Stack>
 
         <Box

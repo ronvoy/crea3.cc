@@ -13,6 +13,9 @@ import { Chart as ChartJS, ArcElement, Tooltip as ChartTooltip, Legend as ChartL
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+// Support address (build-time env; falls back to the current mailbox).
+const SUPPORT_EMAIL = (import.meta as any).env?.VITE_SUPPORT_EMAIL || 'support@crea3.cc'
+
 ChartJS.register(ArcElement, ChartTooltip, ChartLegend)
 
 const CHART_PALETTE = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2', '#dc2626', '#65a30d', '#ea580c', '#4f46e5']
@@ -1385,7 +1388,7 @@ export default function DisputeDetail() {
               <div className="text-sm font-semibold text-slate-900">{t('helpSupportTitle')}</div>
               <div className="text-sm text-slate-600 mt-1">{t('helpSupportSubtitle')}</div>
               <div className="mt-2 text-sm text-slate-700">
-                <span className="font-semibold">{t('helpSupportEmailLabel')}:</span> support@crea3.eu
+                <span className="font-semibold">{t('helpSupportEmailLabel')}:</span> {SUPPORT_EMAIL}
               </div>
               <div className="mt-1 text-sm text-slate-700">{t('helpSupportFaqHint')}</div>
               <div className="mt-1 text-xs text-slate-600">{t('helpSupportKeyboardHint')}</div>

@@ -139,12 +139,17 @@ def delete_user(user_id: int, _admin: str = Depends(require_admin_panel), sessio
     u = session.get(User, user_id)
     if not u:
         raise HTTPException(status_code=404, detail="User not found.")
-    # Purge the user's notifications: SQLite may reuse this integer id for a
-    # future account, and orphaned rows would then surface as "old notifications"
-    # for a brand-new user.
-    from ..models import Notification
+    # Purge the user's notifications and unlink their dispute-agent rows:
+    # SQLite may reuse this integer id for a future account, and stale rows
+    # bound to it would surface as "old notifications" / "unrelated disputes"
+    # for a brand-new user. (The agent row itself stays — invitations bind by
+    # EMAIL by design — only the account linkage is cleared.)
+    from ..models import Notification, DisputeAgent
     for n in session.exec(select(Notification).where(Notification.user_id == user_id)).all():
         session.delete(n)
+    for a in session.exec(select(DisputeAgent).where(DisputeAgent.user_id == user_id)).all():
+        a.user_id = None
+        session.add(a)
     session.delete(u)
     session.commit()
     return {"ok": True}

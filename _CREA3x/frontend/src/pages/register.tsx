@@ -71,7 +71,11 @@ export default function RegisterPage() {
       }
     } catch (err: any) {
       const status = err?.status
-      if (status === 409) setError(t('registerErrExists'))
+      if (status === 409) {
+        // Backend distinguishes the two 409s — mirror it in the UI.
+        const msg = String(err?.message || '')
+        setError(/username/i.test(msg) ? t('registerErrUsernameTaken') : t('registerErrExists'))
+      }
       else if (status === 422) setError(t('registerErrPasswordPolicy'))
       else if (status === 503) {
         setError(t('registerUnavailable'))

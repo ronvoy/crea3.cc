@@ -129,7 +129,7 @@ export default function NotificationsBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-2rem)] max-h-[420px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 shadow-xl z-[60]">
+        <div className="fixed left-2 right-2 top-16 w-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[340px] sm:max-w-[calc(100vw-2rem)] max-h-[420px] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 shadow-xl z-[60]">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <div className="text-sm font-semibold">{t('ntfTitle')}</div>
             <span className="text-xs text-slate-400">{t('ntfLive')}</span>

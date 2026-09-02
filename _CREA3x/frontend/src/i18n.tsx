@@ -697,6 +697,7 @@ const strings = {
     registerGoToLogin: "Go to sign in",
     registerErrGeneric: "We couldn’t create your account. Please try again.",
     registerErrExists: "An account with this email already exists.",
+    registerErrUsernameTaken: "This username is already taken — please choose another.",
     registerErrMismatch: "The passwords do not match.",
     registerErrPassword: "Use at least 8 characters for your password.",
     registerErrRequired: "Please fill in all fields.",
@@ -1053,6 +1054,7 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    registerErrUsernameTaken: "Questo nome utente è già in uso — per favore scegli un altro.",
     resendWaitSeconds: "Rinvia disponibile tra {s}s",
     verifyFirstSendFailed: "Non siamo riusciti a inviare la tua email di verifica al primo tentativo. Premi \"Invia nuovamente il codice\" per riceverne una nuova.",
     courtUnspecified: "non specificato",
@@ -2084,6 +2086,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    registerErrUsernameTaken: "To uporabniško ime je že zasedeno — prosimo, izberite drugo.",
     resendWaitSeconds: "Ponovno pošlji na voljo čez {s}s",
     verifyFirstSendFailed: "Na prve poskuse nismo mogli poslati vašega potrditvenega e-poštnega sporočila. Prosimo, pritisnite \"Ponovno pošlji kodo\", da prejmete novo.",
     courtUnspecified: "neopredeljeno",
@@ -3115,6 +3118,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    registerErrUsernameTaken: "See kasutajanimi on juba kasutusel — palun vali teine.",
     resendWaitSeconds: "Uuesti saatmine saadaval {s}s pärast",
     verifyFirstSendFailed: "Me ei suutnud teie kinnituse e-kirja esimesel katsel saata. Palun vajutage \"Saada kood uuesti\", et saada uus.",
     courtUnspecified: "määramata",
@@ -4146,6 +4150,7 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    registerErrUsernameTaken: "Ce nom d'utilisateur est déjà pris — veuillez en choisir un autre.",
     resendWaitSeconds: "Renvoyer disponible dans {s}s",
     verifyFirstSendFailed: "Nous n'avons pas pu envoyer votre e-mail de vérification lors de la première tentative. Veuillez appuyer sur \"Renvoyer le code\" pour en recevoir un nouveau.",
     courtUnspecified: "non spécifié",
@@ -5177,6 +5182,7 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    registerErrUsernameTaken: "Šis vartotojo vardas jau užimtas — prašome pasirinkti kitą.",
     resendWaitSeconds: "Pakartotai siųsti galima po {s}s",
     verifyFirstSendFailed: "Pirmą kartą nepavyko išsiųsti jūsų patvirtinimo el. pašto. Prašome paspausti \"Siųsti kodą iš naujo\", kad gautumėte naują.",
     courtUnspecified: "nepatikslinta",
@@ -6208,6 +6214,7 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    registerErrUsernameTaken: "Ovo korisničko ime je već zauzeto — molimo odaberite drugo.",
     resendWaitSeconds: "Ponovno slanje dostupno za {s}s",
     verifyFirstSendFailed: "Nismo mogli poslati vaš verifikacijski email pri prvom pokušaju. Molimo pritisnite \"Ponovno pošalji kod\" da biste primili novi.",
     courtUnspecified: "neodređeno",
@@ -7243,6 +7250,7 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    registerErrUsernameTaken: "Deze gebruikersnaam is al in gebruik — kies een andere.",
     resendWaitSeconds: "Opnieuw verzenden beschikbaar in {s}s",
     verifyFirstSendFailed: "We konden uw verificatie-e-mail niet bij de eerste poging verzenden. Druk alstublieft op \"Code opnieuw verzenden\" om een nieuwe te ontvangen.",
     courtUnspecified: "onbepaald",

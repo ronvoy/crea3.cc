@@ -222,8 +222,14 @@ _reach_cache: dict = {"ts": 0.0, "ok": False}
 
 
 def is_reachable(max_age: float = 15.0) -> bool:
-    """Cheap cached health probe of the chatbot (used to flag answers that had
-    to do without it — the UI's 'external model' marker)."""
+    """Cheap cached liveness probe of the chatbot (used to flag answers that had
+    to do without it — the UI's 'external model' marker).
+
+    Not every deployment of the chatbot exposes /health (other builds serve a
+    hint on GET /chat instead), so the probe accepts EITHER: /health == 200, or
+    any HTTP response from GET /chat (200 hint / 405 method-not-allowed both
+    prove the service is alive). Only a transport failure counts as down.
+    """
     import time as _t
     now = _t.monotonic()
     if now - _reach_cache["ts"] < max_age:
@@ -231,9 +237,19 @@ def is_reachable(max_age: float = 15.0) -> bool:
     ok = False
     base = _service_base()
     if base:
+        timeout = httpx.Timeout(connect=2.0, read=3.0, write=2.0, pool=2.0)
         try:
-            with httpx.Client(timeout=httpx.Timeout(connect=2.0, read=3.0, write=2.0, pool=2.0)) as client:
-                ok = client.get(f"{base}/health").status_code == 200
+            with httpx.Client(timeout=timeout) as client:
+                try:
+                    ok = client.get(f"{base}/health").status_code == 200
+                except httpx.RequestError:
+                    ok = False
+                if not ok:
+                    try:
+                        r = client.get(f"{base}/chat")
+                        ok = r.status_code < 500   # 200 hint / 404 / 405 → server is up
+                    except httpx.RequestError:
+                        pass
         except Exception:
             ok = False
     _reach_cache["ts"] = now

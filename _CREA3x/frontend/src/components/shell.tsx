@@ -112,9 +112,24 @@ export default function Shell() {
               sx={{ height: 36, width: 36, borderRadius: 1.5, objectFit: 'contain', bgcolor: 'action.hover', flexShrink: 0 }}
               onError={(e: any) => { e.currentTarget.style.display = 'none' }}
             />
-            <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0 }}>
+            <Box sx={{ display: { xs: 'none', md: 'block' }, minWidth: 0, overflow: 'hidden' }}>
               <Typography noWrap sx={{ fontWeight: 700, lineHeight: 1.1, color: 'text.primary' }}>CREA3</Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>{t('sbTagline')}</Typography>
+              {/* Tagline WRAPS inside the brand box (long translations, e.g. the
+                  Italian one, must never overflow into the page-title block). */}
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  overflowWrap: 'break-word',
+                  lineHeight: 1.25,
+                }}
+              >
+                {t('sbTagline')}
+              </Typography>
             </Box>
           </Stack>
 

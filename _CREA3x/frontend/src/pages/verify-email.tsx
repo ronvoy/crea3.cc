@@ -4,6 +4,7 @@ import { Stack, TextField, Button, Alert, Typography, Link as MuiLink, Box } fro
 import AuthLayout from '../components/auth-layout'
 import { api } from '../api/client'
 import { useI18n } from '../i18n'
+import { useCooldown, cooldownFromError } from '../use-cooldown'
 
 type ResendState = 'idle' | 'sending' | 'sent' | 'already' | 'error'
 
@@ -18,6 +19,15 @@ export default function VerifyEmailPage() {
   const [done, setDone] = useState(false)
   const [resend, setResend] = useState<ResendState>('idle')
   const [resendMsg, setResendMsg] = useState<string | null>(null)
+  // sent=0 → the first verification email failed to send during registration.
+  const firstSendFailed = params.get('sent') === '0'
+  // A code was just sent at registration (unless that send failed), so the
+  // resend button starts on the server's 60s cooldown, counting down visibly.
+  const { left: waitLeft, start: startWait } = useCooldown(firstSendFailed ? 0 : 60)
+
+  const firstSendWarning = firstSendFailed && resend === 'idle' ? (
+    <Alert severity="warning">{t('verifyFirstSendFailed')}</Alert>
+  ) : null
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -57,11 +67,13 @@ export default function VerifyEmailPage() {
       } else {
         setResend('sent')
         setResendMsg(t('loginResendSent'))
+        startWait(60)   // mirror the server's resend cooldown
       }
     } catch (e: any) {
       // Surface the real reason (e.g. the "please wait Ns" cooldown).
       setResend('error')
       setResendMsg(e?.detail || e?.message || t('loginResendError'))
+      if (e?.status === 429) startWait(cooldownFromError(e))
     }
   }
 
@@ -81,6 +93,7 @@ export default function VerifyEmailPage() {
   return (
     <AuthLayout title={t('verifyEmailTitle')} subtitle={t('verifyEmailSubtitle')}>
       <Stack component="form" spacing={2.5} onSubmit={submit}>
+        {firstSendWarning}
         {error ? <Alert severity="error">{error}</Alert> : null}
 
         <TextField
@@ -101,8 +114,12 @@ export default function VerifyEmailPage() {
             fullWidth
           />
           <Box sx={{ textAlign: 'right', mt: 0.75 }}>
-            <Button size="small" onClick={resendCode} disabled={resend === 'sending'}>
-              {resend === 'sending' ? t('loginResendSending') : t('loginResend')}
+            <Button size="small" onClick={resendCode} disabled={resend === 'sending' || waitLeft > 0}>
+              {resend === 'sending'
+                ? t('loginResendSending')
+                : waitLeft > 0
+                  ? t('resendWaitSeconds', { s: waitLeft })
+                  : t('loginResend')}
             </Button>
           </Box>
         </Box>

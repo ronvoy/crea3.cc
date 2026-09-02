@@ -162,11 +162,24 @@ def register(payload: RegisterIn, request: Request, session: Session = Depends(g
 
     code_sent = False
     if verification_required:
-        try:
-            send_verification_code_email(to_email=email, code=code)
-            code_sent = True
-        except Exception as exc:
-            logger.warning("Verification email failed for %s: %s", email, exc)
+        # The FIRST send to a brand-new recipient is the most failure-prone one
+        # (SMTP greylisting, transient connect errors) — retry once before
+        # giving up, and if both attempts fail, clear the resend cooldown so
+        # the user can request a new code IMMEDIATELY instead of hitting the
+        # 60-second 429 on a code that was never delivered.
+        import time as _time
+        for attempt in (1, 2):
+            try:
+                send_verification_code_email(to_email=email, code=code)
+                code_sent = True
+                break
+            except Exception as exc:
+                logger.warning("Verification email attempt %d failed for %s: %s", attempt, email, exc)
+                if attempt == 1:
+                    _time.sleep(1.5)
+        if not code_sent:
+            user.email_verification_sent_at = None   # resend allowed right away
+            session.add(user)
 
     _log(session, request, "register", user=user)
     session.commit()

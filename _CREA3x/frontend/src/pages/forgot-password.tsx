@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/auth-layout'
 import { Button, Input, ErrorBox } from '../components/ui'
 import { useI18n } from '../i18n'
+import { useCooldown, cooldownFromError } from '../use-cooldown'
 import { api } from '../api/client'
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -14,6 +15,7 @@ export default function ForgotPasswordPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const { left: waitLeft, start: startWait } = useCooldown(0)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -28,7 +30,11 @@ export default function ForgotPasswordPage() {
       setSent(true)
     } catch (err: any) {
       if (err?.status === 503) setError(t('forgotUnavailable'))
-      else setError(t('forgotErrGeneric'))
+      else if (err?.status === 429) {
+        // Server resend cooldown — show a live countdown instead of an error.
+        startWait(cooldownFromError(err))
+        setError(null)
+      } else setError(t('forgotErrGeneric'))
       setBusy(false)
     }
   }
@@ -66,8 +72,8 @@ export default function ForgotPasswordPage() {
 
         <ErrorBox message={error} />
 
-        <Button type="submit" className="w-full justify-center" disabled={busy}>
-          {busy ? t('forgotSending') : t('forgotSubmit')}
+        <Button type="submit" className="w-full justify-center" disabled={busy || waitLeft > 0}>
+          {busy ? t('forgotSending') : waitLeft > 0 ? t('resendWaitSeconds', { s: waitLeft }) : t('forgotSubmit')}
         </Button>
 
         <div className="text-sm text-slate-600">

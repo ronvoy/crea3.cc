@@ -29,6 +29,8 @@ const strings = {
     verifyInfo: 'Didn\'t get the code? Check your spam folder, or use "Resend" above. Prefer a link? Open the verification email and click the link instead — either method activates your account.',
     verifyAlreadyQ: 'Already verified?',
     verifySignIn: 'Sign in',
+    resendWaitSeconds: 'Resend available in {s}s',
+    verifyFirstSendFailed: 'We could not send your verification email on the first try. Please press "Resend code" to receive a new one.',
     verifyFailed: 'Verification failed. Please check the code and try again.',
     summaryParticipants: 'Participants',
     dashboardCreateTitle: 'Create New Dispute',
@@ -1051,6 +1053,8 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    resendWaitSeconds: "Rinvia disponibile tra {s}s",
+    verifyFirstSendFailed: "Non siamo riusciti a inviare la tua email di verifica al primo tentativo. Premi \"Invia nuovamente il codice\" per riceverne una nuova.",
     courtUnspecified: "non specificato",
     durYear: "anno",
     durYears: "anni",
@@ -2080,6 +2084,8 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    resendWaitSeconds: "Ponovno pošlji na voljo čez {s}s",
+    verifyFirstSendFailed: "Na prve poskuse nismo mogli poslati vašega potrditvenega e-poštnega sporočila. Prosimo, pritisnite \"Ponovno pošlji kodo\", da prejmete novo.",
     courtUnspecified: "neopredeljeno",
     durYear: "leto",
     durYears: "leta",
@@ -3109,6 +3115,8 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    resendWaitSeconds: "Uuesti saatmine saadaval {s}s pärast",
+    verifyFirstSendFailed: "Me ei suutnud teie kinnituse e-kirja esimesel katsel saata. Palun vajutage \"Saada kood uuesti\", et saada uus.",
     courtUnspecified: "määramata",
     durYear: "aasta",
     durYears: "aastat",
@@ -4138,6 +4146,8 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    resendWaitSeconds: "Renvoyer disponible dans {s}s",
+    verifyFirstSendFailed: "Nous n'avons pas pu envoyer votre e-mail de vérification lors de la première tentative. Veuillez appuyer sur \"Renvoyer le code\" pour en recevoir un nouveau.",
     courtUnspecified: "non spécifié",
     durYear: "an",
     durYears: "ans",
@@ -5167,6 +5177,8 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    resendWaitSeconds: "Pakartotai siųsti galima po {s}s",
+    verifyFirstSendFailed: "Pirmą kartą nepavyko išsiųsti jūsų patvirtinimo el. pašto. Prašome paspausti \"Siųsti kodą iš naujo\", kad gautumėte naują.",
     courtUnspecified: "nepatikslinta",
     durYear: "metai",
     durYears: "metai",
@@ -6196,6 +6208,8 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    resendWaitSeconds: "Ponovno slanje dostupno za {s}s",
+    verifyFirstSendFailed: "Nismo mogli poslati vaš verifikacijski email pri prvom pokušaju. Molimo pritisnite \"Ponovno pošalji kod\" da biste primili novi.",
     courtUnspecified: "neodređeno",
     durYear: "godina",
     durYears: "godine",
@@ -7229,6 +7243,8 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    resendWaitSeconds: "Opnieuw verzenden beschikbaar in {s}s",
+    verifyFirstSendFailed: "We konden uw verificatie-e-mail niet bij de eerste poging verzenden. Druk alstublieft op \"Code opnieuw verzenden\" om een nieuwe te ontvangen.",
     courtUnspecified: "onbepaald",
     durYear: "jaar",
     durYears: "jaren",

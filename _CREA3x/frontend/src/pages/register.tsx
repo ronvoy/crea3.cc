@@ -64,7 +64,10 @@ export default function RegisterPage() {
       if (data?.email_verification_required === false) {
         navigate('/login')
       } else {
-        navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`)
+        // code_sent=false → the first email failed server-side; the verify page
+        // shows a warning and the resend button (cooldown is already cleared).
+        const sent = data?.code_sent === false ? '&sent=0' : ''
+        navigate(`/verify-email?email=${encodeURIComponent(email.trim())}${sent}`)
       }
     } catch (err: any) {
       const status = err?.status

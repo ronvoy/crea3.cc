@@ -90,7 +90,7 @@ def send_verification_code_email(to_email: str, code: str) -> None:
         "Thank you for registering with the CREA3 platform.\n\n"
         f"Your 6-digit verification code is: {code}\n\n"
         "Enter this code on the verification page to activate your account. "
-        "The code expires in 30 minutes.\n\n"
+        "The code expires in 15 minutes.\n\n"
         "If you did not create a CREA3 account, please ignore this message.\n\n"
         "— CREA3"
     )

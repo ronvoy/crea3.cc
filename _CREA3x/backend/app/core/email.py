@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+import os
 import smtplib
 from email.message import EmailMessage
 from email.mime.text import MIMEText
 from email.utils import formataddr
 
 from .config import settings
+
+# Public site links used in OUTBOUND emails. Recipients open these from their
+# own inbox, so they must always point at the main public domain — never at a
+# localhost / dev / tunnel address the deployment happens to run on. An explicit
+# PUBLIC_INVITE_LINK / PUBLIC_REGISTER_LINK in .env still wins.
+_MAIN_APP_LINK = "https://crea3.cc/app"
+_MAIN_REGISTER_LINK = "https://crea3.cc/register"
+
+
+def _public_links() -> tuple[str, str]:
+    """(app_link, register_link) for emails: explicit env override or crea3.cc."""
+    app_link = (os.getenv("PUBLIC_INVITE_LINK") or "").strip() or _MAIN_APP_LINK
+    register_link = (os.getenv("PUBLIC_REGISTER_LINK") or "").strip() or _MAIN_REGISTER_LINK
+    return app_link, register_link
 
 
 def _deliver(msg) -> None:
@@ -130,8 +145,10 @@ def send_dispute_invitation_email(
     invited_by_email: str,
     entitlement_share: float | None = None,
 ) -> None:
-    app_link = settings.public_invite_link  # platform entry point
-    register_link = settings.public_register_link  # registration page
+    # Always the public site (crea3.cc) unless PUBLIC_*_LINK is set explicitly —
+    # settings.public_*_link can resolve to a localhost/dev address that the
+    # invited person cannot open from their inbox.
+    app_link, register_link = _public_links()
 
     share_line = ""
     if entitlement_share is not None:

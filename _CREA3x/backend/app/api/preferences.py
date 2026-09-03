@@ -12,6 +12,17 @@ from .deps import get_current_user, can_access_dispute
 router = APIRouter(prefix="/api/disputes/{dispute_id}/preferences", tags=["preferences"])
 
 
+def star_budget(n_goods: int) -> int:
+    """Total stars a party may distribute: 5, +3, +4, +3, +4, … per extra good.
+    (1→5, 2→8, 3→12, 4→15, 5→19, 6→22 …)"""
+    if n_goods <= 0:
+        return 0
+    total = 5
+    for i in range(2, n_goods + 1):
+        total += 3 if i % 2 == 0 else 4
+    return total
+
+
 def _ensure_unlocked(dispute: Dispute) -> None:
     if dispute.status not in ("draft", "collecting"):
         raise HTTPException(status_code=400, detail="Dispute is locked for edits in the current stage")
@@ -128,6 +139,28 @@ def upsert_preference(
     stars = int(payload.stars)
     if stars < 0 or stars > 5:
         raise HTTPException(status_code=400, detail="stars must be between 0 and 5")
+
+    # ── Star BUDGET: the total stars a party may spread across all goods is
+    # capped by how many goods exist — 1 good: 5, 2: 5+3=8, 3: 5+3+4=12,
+    # 4: 5+3+4+3=15, then +4, +3 alternating. Prevents "everything 5 stars".
+    n_goods = len(session.exec(select(Good).where(Good.dispute_id == dispute_id)).all())
+    budget = star_budget(n_goods)
+    others = session.exec(
+        select(Preference).where(
+            Preference.dispute_id == dispute_id,
+            Preference.agent_id == participant.id,
+            Preference.good_id != payload.good_id,
+            Preference.stars != None,  # noqa: E711
+        )
+    ).all()
+    used_elsewhere = sum(int(p.stars or 0) for p in others)
+    if used_elsewhere + stars > budget:
+        left = max(0, budget - used_elsewhere)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Star budget exceeded: {used_elsewhere + stars}/{budget} "
+                   f"(you can give this good at most {left} star{'s' if left != 1 else ''}).",
+        )
     # The party's own valuation of the good (optional) is stored in bid_amount.
     own_value = payload.value_amount if payload.value_amount is not None else payload.bid_amount
 

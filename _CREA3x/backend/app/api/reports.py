@@ -154,6 +154,19 @@ def _render(session: Session, dispute: Dispute, proposal: AllocationProposal, *,
         lang=(getattr(user, "locale", None) or "en"),
     )
 
+    # TAMPER-EVIDENT NAMING: rename the generated file so its own name carries
+    # the generation timestamp AND (a prefix of) its sha256 content hash —
+    # `CREA3_dispute_<id>_<kind>_<UTC-timestamp>_<hash12>.pdf`. Any change to the
+    # file's bytes no longer matches the hash in its filename, the Report row,
+    # or the DocumentSignature chain, so tampering is detectable at a glance.
+    stamp = utcnow().strftime("%Y%m%d-%H%M%S")
+    sealed = REPORT_DIR / f"CREA3_dispute_{dispute.id}_{suffix}_{stamp}_{report_hash[:12]}.pdf"
+    try:
+        pdf_path.replace(sealed)
+        pdf_path = sealed
+    except OSError:
+        pass  # keep the unsealed name rather than failing the render
+
     # Upsert the Report row (one row per dispute; tracks the most recent render).
     existing = session.exec(select(Report).where(Report.dispute_id == dispute.id)).first()
     if existing:

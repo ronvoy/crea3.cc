@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, apiBlob, API_BASE, getAccessToken } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
@@ -98,7 +98,17 @@ export default function DisputeDetail() {
   const [meParticipation, setMeParticipation] = useState<Agent | null>(null)
 
   const [err, setErr] = useState<string | null>(null)
-  const [tab, setTab] = useState<TabKey>('agents')
+  // Active tab persists in the URL (?tab=…): refreshing the page — e.g. on the
+  // reconciliation step while waiting for the other party — stays on that step
+  // instead of falling back to the first tab.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const TAB_KEYS: TabKey[] = ['agents', 'goods', 'prefs', 'reconcile', 'proposals', 'mediation', 'room']
+  const urlTab = searchParams.get('tab') as TabKey | null
+  const [tab, setTabState] = useState<TabKey>(urlTab && TAB_KEYS.includes(urlTab) ? urlTab : 'agents')
+  const setTab = (t2: TabKey) => {
+    setTabState(t2)
+    setSearchParams((prev) => { const p = new URLSearchParams(prev); p.set('tab', t2); return p }, { replace: true })
+  }
 
   // Forms
   const [aname, setAname] = useState('')
@@ -133,6 +143,17 @@ export default function DisputeDetail() {
   // (dispute.status === 'accepted'). Downloads and re-generation unlock only then.
   const proposalRejected = (latestProposal as any)?.rejected === true
   const proposalDecided = !!latestProposal && (dispute?.status === 'accepted' || proposalRejected)
+  // Proposals stay LOCKED (red tab) until every agent finished reconciliation —
+  // i.e. the dispute has moved past the 'reconciling' stage.
+  const proposalsLocked = ['draft', 'collecting', 'validating', 'reconciling'].includes((dispute?.status || '').toLowerCase())
+  const myAcceptedProposal = (latestProposal as any)?.my_decision === true
+  // One-shot "Generate proposal": once pressed (final report built) it stays
+  // greyed — persisted per proposal so a refresh keeps it idempotent.
+  const genKey = latestProposal ? `crea3_prop_gen:${disputeId}:${latestProposal.id}` : ''
+  const [reportGenerated, setReportGenerated] = useState(false)
+  useEffect(() => {
+    try { setReportGenerated(!!genKey && localStorage.getItem(genKey) === '1') } catch { setReportGenerated(false) }
+  }, [genKey])
 
   const isMediator = useMemo(() => {
     const invitedAsMediator = (meParticipation?.role_in_dispute || '').toLowerCase() === 'mediator'
@@ -283,12 +304,17 @@ export default function DisputeDetail() {
         blockedReason: proposed ? null : t('stepReconcileHint'),
         actionLabel: t('tabProposals'),
         onAction: () => setTab('proposals'),
-        actionDisabled: false,
+        actionDisabled: proposalsLocked,
         secondaryLabel: null, onSecondary: undefined,
       }
     }
     return null
   }, [tab, agents, pendingCount, lockStatus, goods.length, myPrefs, joinedNonMediatorAgents, readyCount, meParticipation, dispute?.status, proposals.length, canEditWorkflow]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (proposalsLocked && tab === 'proposals') setTab('reconcile')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalsLocked, tab])
 
   async function loadAll() {
     setErr(null)
@@ -363,7 +389,7 @@ export default function DisputeDetail() {
 
   // Force mediator view: proposals (and read-only reconciliation)
   useEffect(() => {
-    if (isMediator && tab !== 'proposals' && tab !== 'reconcile') setTab('proposals')
+    if (isMediator && tab !== 'proposals' && tab !== 'reconcile') setTab(proposalsLocked ? 'reconcile' : 'proposals')
   }, [isMediator, tab])
 
   async function addAgent() {
@@ -498,6 +524,16 @@ export default function DisputeDetail() {
       setErr(e.message)
     }
   }
+
+  // Total-star budget by number of goods: 1→5, 2→8, 3→12, 4→15, 5→19 …
+  function starBudget(nGoods: number): number {
+    if (nGoods <= 0) return 0
+    let total = 5
+    for (let i = 2; i <= nGoods; i++) total += i % 2 === 0 ? 3 : 4
+    return total
+  }
+  const starsUsed = myPrefs.reduce((a, p) => a + (p.stars != null ? Number(p.stars) : 0), 0)
+  const starsTotal = starBudget(goods.length)
 
   function myStarsFor(goodId: number): number {
     const p = myPrefs.find((x) => x.good_id === goodId)
@@ -844,7 +880,7 @@ export default function DisputeDetail() {
             <Tab label={t('tabGoods')} active={tab === 'goods'} status={stepStatus('goods')} onClick={() => setTab('goods')} />
             <Tab label={t('tabPreferences')} active={tab === 'prefs'} status={stepStatus('prefs')} onClick={() => setTab('prefs')} />
             <Tab label={t('tabReconcile')} active={tab === 'reconcile'} status={stepStatus('reconcile')} onClick={() => setTab('reconcile')} />
-            <Tab label={t('tabProposals')} active={tab === 'proposals'} status={stepStatus('proposals')} onClick={() => setTab('proposals')} />
+            <Tab label={t('tabProposals')} active={tab === 'proposals'} status={stepStatus('proposals')} onClick={() => setTab('proposals')} danger={proposalsLocked} dangerHint={t('proposalsLockedHint')} />
             <Tab label={t('tabMediation')} active={tab === 'mediation'} status={stepStatus('mediation')} onClick={() => setTab('mediation')} />
             <span className="mx-1 hidden h-6 w-px shrink-0 self-center bg-slate-200 sm:block" aria-hidden />
             <Tab label={t('tabRoom')} active={tab === 'room'} status={stepStatus('room')} onClick={() => setTab('room')} />
@@ -1153,6 +1189,13 @@ export default function DisputeDetail() {
                   </div>
                 ) : (
                   <div className="mt-4 space-y-5">
+                    {/* Star budget banner */}
+                    {!isMediator ? (
+                      <div className={`rounded-xl border px-3 py-2 text-sm flex items-center justify-between gap-2 flex-wrap ${starsUsed >= starsTotal ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+                        <span>⭐ {t('starBudgetLabel', { used: starsUsed, total: starsTotal })}</span>
+                        <span className="text-xs opacity-80">{t('starBudgetHint')}</span>
+                      </div>
+                    ) : null}
                     {/* Goods list with inline star rating */}
                     <div className="grid gap-2">
                       {goods.map((g) => {
@@ -1169,18 +1212,23 @@ export default function DisputeDetail() {
                               <span className="text-xs text-slate-500">{t('yourRatingWord')}:</span>
                               <HelpTip text={t('helpStars')} />
                               <div className="flex items-center gap-1" role="group" aria-label={`Rate ${g.name}`}>
-                                {[1, 2, 3, 4, 5].map((s) => (
+                                {[1, 2, 3, 4, 5].map((s) => {
+                                  // Stars still available for THIS good = budget left + its current stars.
+                                  const maxForGood = Math.min(5, starsTotal - starsUsed + current)
+                                  const overBudget = s > maxForGood
+                                  return (
                                   <button
                                     key={s}
                                     type="button"
-                                    disabled={!canEditWorkflow || meParticipation?.ready}
+                                    disabled={!canEditWorkflow || meParticipation?.ready || overBudget}
+                                    title={overBudget ? t('starBudgetHint') : undefined}
                                     onClick={() => ratePreference(g.id, s)}
                                     aria-label={`${s} star${s > 1 ? 's' : ''}`}
-                                    className={`text-lg leading-none ${s <= current ? 'text-amber-500' : 'text-slate-300'} ${(canEditWorkflow && !meParticipation?.ready) ? 'hover:text-amber-400 cursor-pointer' : 'cursor-not-allowed'}`}
+                                    className={`text-lg leading-none ${s <= current ? 'text-amber-500' : 'text-slate-300'} ${overBudget ? 'opacity-30 cursor-not-allowed' : (canEditWorkflow && !meParticipation?.ready) ? 'hover:text-amber-400 cursor-pointer' : 'cursor-not-allowed'}`}
                                   >
                                     ★
                                   </button>
-                                ))}
+                                )})}
                               </div>
                               {current > 0 ? <span className="text-xs text-emerald-600">{current}/5</span> : <span className="text-xs text-slate-400">{t('notRatedWord')}</span>}
                             </div>
@@ -1215,26 +1263,44 @@ export default function DisputeDetail() {
                   </div>
 
                   {(() => {
-                    const canGenerate =
-                      !isMediator &&
-                      stepStatus('proposals') !== 'blocked' &&
-                      (!latestProposal || proposalDecided)
-                    if (canGenerate) {
-                      return (
-                        <div className="flex items-center gap-2">
-                          <Button onClick={generateProposal}>{t('generateProposalWord')}</Button>
-                          <HelpTip text={t('helpGenerateProposal')} />
-                        </div>
-                      )
+                    if (isMediator) return null
+                    // Flow: the proposal is auto-created at reconciliation finalize.
+                    // "Generate proposal" stays GREYED until this agent has AGREED
+                    // to it; one click builds the final report (PDF & downloads
+                    // unlock) and the button greys again permanently (idempotent).
+                    // A REJECTED proposal instead re-enables it to regenerate a
+                    // fresh allocation.
+                    const enabled =
+                      (!latestProposal && !proposalsLocked) ||
+                      (proposalRejected && proposalDecided) ||
+                      (!!latestProposal && myAcceptedProposal && !reportGenerated)
+                    const hint = reportGenerated
+                      ? t('proposalGeneratedHint')
+                      : !latestProposal
+                        ? ''
+                        : proposalRejected
+                          ? ''
+                          : myAcceptedProposal ? '' : t('generateNeedsAcceptHint')
+                    const onClick = async () => {
+                      if (!enabled) return
+                      if (!latestProposal || proposalRejected) {
+                        await generateProposal()
+                        return
+                      }
+                      await generateProposalReport()
+                      try { if (genKey) localStorage.setItem(genKey, '1') } catch {}
+                      setReportGenerated(true)
                     }
-                    if (!isMediator && latestProposal && !proposalDecided) {
-                      return (
-                        <div className="w-full max-w-[240px] text-right text-xs leading-snug text-slate-500 sm:w-auto">
-                          {t('generateAfterDecisionHint')}
-                        </div>
-                      )
-                    }
-                    return null
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span title={hint}>
+                          <Button onClick={onClick} disabled={!enabled} className={!enabled ? 'opacity-50 cursor-not-allowed' : ''}>
+                            {reportGenerated ? `✓ ${t('generateProposalWord')}` : t('generateProposalWord')}
+                          </Button>
+                        </span>
+                        <HelpTip text={t('helpGenerateProposal')} />
+                      </div>
+                    )
                   })()}
                 </div>
 
@@ -1264,8 +1330,8 @@ export default function DisputeDetail() {
                               <button
                                 type="button"
                                 onClick={downloadReport}
-                                disabled={!proposalDecided}
-                                title={proposalDecided ? '' : t('downloadAfterDecisionHint')}
+                                disabled={!(reportGenerated || proposalDecided)}
+                                title={(reportGenerated || proposalDecided) ? '' : t('downloadAfterGenerateHint')}
                                 className="px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 PDF
@@ -1273,8 +1339,8 @@ export default function DisputeDetail() {
                               <button
                                 type="button"
                                 onClick={downloadExcel}
-                                disabled={!proposalDecided}
-                                title={proposalDecided ? '' : t('downloadAfterDecisionHint')}
+                                disabled={!(reportGenerated || proposalDecided)}
+                                title={(reportGenerated || proposalDecided) ? '' : t('downloadAfterGenerateHint')}
                                 className="px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 Excel
@@ -1282,8 +1348,8 @@ export default function DisputeDetail() {
                               <button
                                 type="button"
                                 onClick={downloadAuditLog}
-                                disabled={!proposalDecided}
-                                title={proposalDecided ? '' : t('downloadAfterDecisionHint')}
+                                disabled={!(reportGenerated || proposalDecided)}
+                                title={(reportGenerated || proposalDecided) ? '' : t('downloadAfterGenerateHint')}
                                 className="px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 {t('auditWord')}
@@ -1924,7 +1990,12 @@ function ProposalDecision({
 
 // Professional, human-readable view of an allocation proposal: who receives what
 // (with divisible splits), each party's own valuation, and the cash settlement.
-function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: any; t: (k: any) => string; agents?: { id: number; name: string }[]; disputeId?: number; lang?: string }) {
+function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: any; t: (k: any) => string; agents?: { id: number; name: string; entitlement_share?: number }[]; disputeId?: number; lang?: string }) {
+  // Per-asset expandable detail rows (initializer / divisibility / set values /
+  // per-asset balancing).
+  const [openRows, setOpenRows] = useState<Set<number>>(new Set())
+  const entByAid: Record<string, number> = Object.fromEntries((agents || []).map((a) => [String(a.id), Number(a.entitlement_share ?? 0)]))
+  const toggleRow = (i: number) => setOpenRows((prev) => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n })
   const out = proposal?.outputs || {}
   const allocations: any[] = out.allocations || []
   const comp: Record<string, number> = out.compensation_by_agent || {}
@@ -1938,46 +2009,120 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
 
   return (
     <div className="mt-4 space-y-5">
-      {/* Who gets what */}
+      {/* Allocation table: Asset | common reconciled price | per-agent reconciled
+          price | per-agent allocation %. Each asset row expands (▸) to show who
+          it is assigned to and whether it is divisible. */}
       <div>
         <div className="text-sm font-semibold text-slate-900 mb-2">{t('whoGetsWhat')}</div>
-        <div className="overflow-hidden rounded-xl border border-slate-200">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="text-left font-medium px-3 py-2">{t('assetWord')}</th>
-                <th className="text-left font-medium px-3 py-2">{t('assignedToWord')}</th>
-                <th className="text-right font-medium px-3 py-2">{t('estimatedValueWord')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocations.map((a, i) => {
-                const isSplit = a.divisible && a.fraction_by_name && Object.keys(a.fraction_by_name).length > 1
-                return (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-slate-800">{a.good_name}</td>
-                    <td className="px-3 py-2 text-slate-700">
-                      {isSplit ? (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(a.fraction_by_name).map(([name, frac]: any, j) => (
-                            <span key={j} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                              {name} {Math.round(Number(frac) * 100)}%
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        a.assigned_agent_name || '—'
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right text-slate-700">{money(a.estimated_value)}</td>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          {(() => {
+            const ids = new Set<string>()
+            allocations.forEach((a) => Object.keys(a.party_valuations || {}).forEach((k) => ids.add(k)))
+            Object.keys(comp).forEach((k) => ids.add(k))
+            const agentIds = Array.from(ids).sort()
+            const nCols = 2 + agentIds.length * 2
+            return (
+              <table className="w-full min-w-[640px] text-xs sm:text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th rowSpan={2} className="text-left font-medium px-3 py-2 align-bottom sticky left-0 bg-slate-50 z-10">{t('assetWord')}</th>
+                    <th rowSpan={2} className="text-right font-medium px-3 py-2 align-bottom border-l border-slate-200">{t('priceCommonCol')}</th>
+                    <th colSpan={agentIds.length} className="text-center font-semibold px-2 py-1.5 border-l border-slate-200">{t('priceReconciledCol')}</th>
+                    <th colSpan={agentIds.length} className="text-center font-semibold px-2 py-1.5 border-l border-slate-200">{t('allocationCol')}</th>
                   </tr>
-                )
-              })}
-              {allocations.length === 0 ? (
-                <tr><td colSpan={3} className="px-3 py-3 text-slate-500">—</td></tr>
-              ) : null}
-            </tbody>
-          </table>
+                  <tr className="text-[11px]">
+                    {agentIds.map((aid) => (
+                      <th key={`r${aid}`} className="font-medium px-2 py-1 text-right border-l border-slate-200">{nameByAid[aid] || `#${aid}`}</th>
+                    ))}
+                    {agentIds.map((aid) => (
+                      <th key={`p${aid}`} className="font-medium px-2 py-1 text-center border-l border-slate-200">{nameByAid[aid] || `#${aid}`}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allocations.map((a, i) => {
+                    const common = a.perceived_value ?? a.reconciled_value ?? a.estimated_value
+                    const isOpen = openRows.has(i)
+                    return (
+                      <React.Fragment key={i}>
+                        <tr className="border-t border-slate-100">
+                          <td className="px-3 py-2 font-medium text-slate-800 sticky left-0 bg-white z-10">
+                            <button type="button" onClick={() => toggleRow(i)}
+                              className="inline-flex items-center gap-1.5 hover:text-blue-700"
+                              aria-expanded={isOpen}>
+                              <span className={`transition-transform ${isOpen ? 'rotate-90' : ''}`}>▸</span>
+                              {a.good_name}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-slate-800 border-l border-slate-100">{money(Number(common || 0))}</td>
+                          {agentIds.map((aid) => {
+                            // What this agent RECORDED during reconciliation (their
+                            // mean/keep/other choice); '—' when the asset had no
+                            // value disagreement to reconcile.
+                            const rv = a.party_reconciled?.[aid]
+                            return (
+                              <td key={`rv${aid}`} className="px-2 py-2 text-right text-slate-700 border-l border-slate-100">
+                                {rv != null ? money(Number(rv)) : '—'}
+                              </td>
+                            )
+                          })}
+                          {agentIds.map((aid) => {
+                            let pct: number | null = null
+                            if (a.divisible && a.fractions) pct = Math.round(Number(a.fractions[aid] || 0) * 100)
+                            else pct = String(a.assigned_agent_id) === aid ? 100 : 0
+                            return (
+                              <td key={`al${aid}`} className={`px-2 py-2 text-center border-l border-slate-100 ${pct ? 'font-semibold text-emerald-700' : 'text-slate-400'}`}>
+                                {pct ? `${pct}%` : '—'}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        {isOpen ? (
+                          <tr className="border-t border-slate-100 bg-slate-50/70">
+                            <td colSpan={nCols} className="px-4 py-2.5 text-xs text-slate-600">
+                              <div className="flex flex-col gap-y-1.5">
+                                <span><b>{t('initializedByLabel')}:</b> {a.initialized_by_name || '—'}</span>
+                                {/* Indivisible is PARAMOUNT: one party marking it
+                                    indivisible makes the asset indivisible. */}
+                                <span><b>{t('divisibleLabel')}:</b> {a.divisible ? t('yesShort') : t('noShort')}</span>
+                                <span>
+                                  <b>{t('setValuesLabel')}:</b>{' '}
+                                  {agentIds.map((aid, k) => (
+                                    <span key={aid}>{k > 0 ? ' · ' : ''}{nameByAid[aid] || `#${aid}`}: {a.party_set_values?.[aid] != null ? money(Number(a.party_set_values[aid])) : '—'}</span>
+                                  ))}
+                                </span>
+                                <span>
+                                  <b>{t('assetBalancingLabel')}:</b>{' '}
+                                  {(() => {
+                                    const common = Number(a.perceived_value ?? a.reconciled_value ?? a.estimated_value ?? 0)
+                                    const parts: string[] = []
+                                    agentIds.forEach((aid) => {
+                                      const ent = entByAid[aid] ?? (agentIds.length ? 1 / agentIds.length : 0)
+                                      const frac = a.divisible && a.fractions
+                                        ? Number(a.fractions[aid] || 0)
+                                        : (String(a.assigned_agent_id) === aid ? 1 : 0)
+                                      const delta = (frac - ent) * common
+                                      if (Math.abs(delta) > 0.5) {
+                                        parts.push(`${nameByAid[aid] || `#${aid}`} ${delta > 0 ? t('paysWord') : t('receivesWord')} ${money(Math.abs(delta))}`)
+                                      }
+                                    })
+                                    return parts.length ? parts.join(' · ') : t('noCashNeeded')
+                                  })()}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    )
+                  })}
+                  {allocations.length === 0 ? (
+                    <tr><td colSpan={nCols} className="px-3 py-3 text-slate-500">—</td></tr>
+                  ) : null}
+                </tbody>
+              </table>
+            )
+          })()}
         </div>
       </div>
 
@@ -2006,37 +2151,6 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
         )}
         {anyCash && compNote ? <div className="mt-2 text-xs text-slate-500">{compNote}</div> : null}
       </div>
-
-      {/* Per-party valuation transparency */}
-      <details className="rounded-xl border border-slate-200 bg-slate-50">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-slate-700">{t('valuationDetailsTitle')}</summary>
-        <div className="px-3 pb-3 overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="text-slate-500">
-              <tr>
-                <th className="text-left font-medium px-2 py-1">{t('assetWord')}</th>
-                <th className="text-right font-medium px-2 py-1">{t('estimatedValueWord')}</th>
-                <th className="text-right font-medium px-2 py-1">{t('valuationsWord')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocations.map((a, i) => (
-                <tr key={i} className="border-t border-slate-200">
-                  <td className="px-2 py-1 text-slate-700">{a.good_name}</td>
-                  <td className="px-2 py-1 text-right text-slate-600">{money(a.estimated_value)}</td>
-                  <td className="px-2 py-1 text-right text-slate-600">
-                    {a.party_valuations
-                      ? Object.entries(a.fraction_by_name ? a.fraction_by_name : a.party_valuations).length > 0
-                        ? Object.entries(a.party_valuations).map(([aid, v]: any) => money(v)).join(' · ')
-                        : '—'
-                      : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
 
       {/* Division statistics — two interactive pie charts */}
       <AllocationCharts allocations={allocations} money={money} t={t} />
@@ -2379,14 +2493,18 @@ function Tab({
   active,
   status,
   onClick,
+  danger,
+  dangerHint,
 }: {
   label: string
   active: boolean
   status: StepStatus
   onClick: () => void
+  danger?: boolean
+  dangerHint?: string
 }) {
-  const disabled = status === 'blocked'
-  const dot = dotClass(status)
+  const disabled = status === 'blocked' || !!danger
+  const dot = danger ? 'bg-rose-500' : dotClass(status)
 
   return (
     <button
@@ -2394,10 +2512,10 @@ function Tab({
       disabled={disabled}
       className={[
         'rounded-xl px-3 py-2 text-sm border flex items-center gap-2',
-        active ? 'bg-blue-50 text-slate-900 border-blue-500 ring-2 ring-blue-400 font-semibold' : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-50',
+        active && !disabled ? 'bg-blue-50 text-slate-900 border-blue-500 ring-2 ring-blue-400 font-semibold' : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-50',
         disabled ? 'opacity-60 cursor-not-allowed' : '',
       ].join(' ')}
-      title={disabled ? 'Blocked / not authorized' : ''}
+      title={danger ? (dangerHint || '') : disabled ? 'Blocked / not authorized' : ''}
     >
       <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
       {label}

@@ -65,6 +65,8 @@ def _load_dispute_inputs(session: Session, dispute_id: int) -> Dict[str, Any]:
                 "estimated_value": float(g.estimated_value or 0.0),
                 "indivisible": bool(g.indivisible),
                 "divisible": bool(getattr(g, "divisible", False)),
+                "party_divisible": dict((g.meta or {}).get("party_divisible") or {}),
+                "created_by_agent_id": (g.meta or {}).get("created_by_agent_id"),
             }
             for g in goods
         ],
@@ -183,6 +185,10 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
 
     prefs_by_ag: Dict[Tuple[int, int], Dict[str, Any]] = {
         (int(p["agent_id"]), int(p["good_id"])): p for p in prefs
+    }
+    # Raw pre-reconciliation valuations ("set values") per (agent, good).
+    pref_bid: Dict[Tuple[int, int], Any] = {
+        k: v.get("value_amount") for k, v in prefs_by_ag.items()
     }
 
     # Which parties acknowledged each good, and whether ANY party did.
@@ -313,12 +319,44 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
                 reconciled_to_mean = True
                 reconciled_value = _it.get("settled_value")
 
+        # RAW "set values": each party's own pre-reconciliation valuation
+        # (Preference.bid_amount; None when they never priced this good).
+        raw_set_vals = {
+            str(aid): (round(float(pref_bid[(aid, gid)]), 2) if pref_bid.get((aid, gid)) is not None else None)
+            for aid in agent_ids
+        }
+        # PERCEIVED value: the value both parties agreed during reconciliation —
+        # a common settled value if they converged, otherwise the mean of the
+        # conflicting valuations (the default), otherwise the single/ref value.
+        if reconciled_to_mean and reconciled_value is not None:
+            perceived = round(float(reconciled_value), 2)
+        elif gid in value_items_index and value_items_index[gid].get("mean") is not None:
+            perceived = round(float(value_items_index[gid]["mean"]), 2)
+        else:
+            _raw = [v for v in raw_set_vals.values() if v is not None]
+            perceived = round(sum(_raw) / len(_raw), 2) if _raw else float(good.get("estimated_value") or 0.0)
+
+        # Who first entered this asset in the Goods section.
+        _init_aid = good.get("created_by_agent_id")
+        if _init_aid is None:
+            _init_aid = creator_by.get(gid)
+        # The price each agent RECORDED during the reconciliation step (their
+        # mean/keep/other choice); None when the good had no value disagreement.
+        _recon_resp = (value_items_index.get(gid) or {}).get("responses") or {}
+        party_reconciled = {str(aid): _recon_resp.get(str(aid)) for aid in agent_ids}
+
         allocations.append({
             "good_id": gid,
             "good_name": good.get("name"),
             "assigned_agent_id": best_aid,
             "assigned_agent_name": agents_by_id[best_aid]["name"] if best_aid in agents_by_id else None,
+            "initialized_by_id": _init_aid,
+            "initialized_by_name": agents_by_id.get(_init_aid, {}).get("name") if _init_aid is not None else None,
             "estimated_value": float(good.get("estimated_value") or 0.0),
+            "party_set_values": raw_set_vals,
+            "party_reconciled": party_reconciled,
+            "party_divisible": {str(aid): (good.get("party_divisible") or {}).get(str(aid)) for aid in agent_ids},
+            "perceived_value": perceived,
             # winner's own valuation of this good
             "assigned_value": round(value[(best_aid, gid)], 2) if best_aid is not None else 0.0,
             # full transparency on how each party valued it (NOT their stars)

@@ -244,12 +244,16 @@ def reconciled_valuation(
             return float(good.estimated_value or 0.0)
         return 0.0  # declined to value -> unclaimed
 
-    # Value-disagreement case: if ALL acknowledgers agreed to the mean, use the
-    # mean for everyone; otherwise each party keeps their own value (spread kept).
+    # Value-disagreement case: if ALL acknowledgers converged on a common value,
+    # use it. Otherwise the PERCEIVED value defaults to the MEAN of the
+    # conflicting valuations DIRECTLY (both parties' final value becomes the
+    # mean — the spread never survives into the proposal).
     if gid in value_items_index:
         item = value_items_index[gid]
         if item.get("settled_to_mean") and item.get("settled_value") is not None:
             return float(item["settled_value"])
+        if item.get("mean") is not None:
+            return float(item["mean"])
         v = item.get("valuations", {}).get(str(agent_id))
         if v is not None:
             return float(v)

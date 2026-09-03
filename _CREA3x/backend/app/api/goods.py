@@ -192,10 +192,35 @@ def set_my_valuation(
             dispute_id=dispute_id, agent_id=participant.id, good_id=good_id,
             method="rates", stars=None, bid_amount=val,
         ))
+    # ── Keep the good's REFERENCE in sync with the parties' latest opinions ──
+    # value: mean of all saved party valuations (a single party's edit simply
+    #        moves the reference to their latest value);
+    # divisibility: indivisible is PARAMOUNT — the good stays divisible only
+    #        while every party who expressed an opinion says divisible.
+    # This makes the reference line reflect edits immediately and feeds the
+    # up-to-date value into validation/reconciliation/proposal defaults instead
+    # of freezing the creation-time entry.
+    session.flush()
+    all_bids = session.exec(
+        select(Preference).where(
+            Preference.dispute_id == dispute_id,
+            Preference.good_id == good_id,
+            Preference.bid_amount.is_not(None),  # type: ignore[attr-defined]
+        )
+    ).all()
+    if all_bids:
+        good.estimated_value = round(sum(float(p.bid_amount) for p in all_bids) / len(all_bids), 2)
+    pd_map = (good.meta or {}).get("party_divisible") or {}
+    if pd_map:
+        good.divisible = all(bool(v) for v in pd_map.values())
+        good.indivisible = not good.divisible
+    session.add(good)
+
     session.add(AuditEvent(dispute_id=dispute_id, actor_user_id=user.id,
                            event_type="GoodValuationSet", payload={"good_id": good_id, "value": val, "divisible": payload.divisible}))
     session.commit()
-    return {"ok": True, "good_id": good_id, "value_amount": val, "divisible": payload.divisible}
+    return {"ok": True, "good_id": good_id, "value_amount": val, "divisible": payload.divisible,
+            "reference_value": float(good.estimated_value or 0.0), "reference_divisible": bool(good.divisible)}
 
 
 @router.post("")

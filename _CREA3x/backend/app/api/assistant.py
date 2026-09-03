@@ -252,6 +252,9 @@ class ReportTurn(BaseModel):
 class ChatReportIn(BaseModel):
     session_id: int | None = None
     messages: list[ReportTurn] = Field(default_factory=list, max_length=400)
+    # Optional reporter note, entered in the report modal before sending.
+    title: str | None = Field(default=None, max_length=150)
+    note: str | None = Field(default=None, max_length=2000)
 
 
 @router.post("/report")
@@ -273,7 +276,9 @@ def report_chat(payload: ChatReportIn, user: User = Depends(get_current_user)):
             lines.append(f"{who}:\n{body_txt}")
     transcript = "\n\n".join(lines) if lines else "(the conversation was empty)"
 
-    subject = f"[legal-ai-report]-{user.username}"
+    rep_title = (payload.title or "").strip()
+    rep_note = (payload.note or "").strip()
+    subject = f"[legal-ai-report]-{user.username}" + (f" — {rep_title}" if rep_title else "")
     body = (
         "A Legal AI conversation was flagged for review from the CREA3 platform.\n\n"
         "FROM\n"
@@ -282,6 +287,7 @@ def report_chat(payload: ChatReportIn, user: User = Depends(get_current_user)):
         f"  - Role: {user.role}\n"
         f"  - User ID: {user.id}\n"
         + (f"  - Session ID: {payload.session_id}\n" if payload.session_id else "")
+        + ((f"\nREPORTER NOTE\n  {rep_note}\n") if rep_note else "")
         + "\nCONVERSATION TRANSCRIPT\n\n"
         + transcript
         + "\n\n—\nSent automatically by the Legal AI report button.\n"

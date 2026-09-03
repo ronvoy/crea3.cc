@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box, Paper, Stack, Typography, IconButton, TextField, Fab, Tooltip, Avatar, Chip, Button, Link as MuiLink,
-  Snackbar, Alert,
+  Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material'
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined'
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
@@ -697,15 +697,30 @@ export default function AssistantWidget() {
 
   const showLegalDisclaimer = msgs.some((m) => m.intent === 'legal_statutes' || m.intent === 'past_cases')
 
-  // Email the whole conversation to support for admin review.
+  // Report modal: optional title + note, confirmed with Send / Cancel.
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportTitle, setReportTitle] = useState('')
+  const [reportNote, setReportNote] = useState('')
+
+  // Email the whole conversation (plus the reporter's optional note) to support.
   async function reportChat() {
     if (reporting) return
     const turns = msgs.filter((m) => (m.text || '').trim()).map((m) => ({ role: m.role, text: m.text }))
-    if (!turns.length) return
+    if (!turns.length) { setReportOpen(false); return }
     setReporting(true)
     try {
-      await api('/api/assistant/report', { method: 'POST', body: { session_id: sessionId, messages: turns } })
+      await api('/api/assistant/report', {
+        method: 'POST',
+        body: {
+          session_id: sessionId,
+          messages: turns,
+          title: reportTitle.trim() || undefined,
+          note: reportNote.trim() || undefined,
+        },
+      })
       setReport({ text: t('aiReportSent'), ok: true })
+      setReportOpen(false)
+      setReportTitle(''); setReportNote('')
     } catch {
       setReport({ text: t('aiReportFailed'), ok: false })
     } finally {
@@ -800,7 +815,7 @@ export default function AssistantWidget() {
               </Tooltip>
               <Tooltip title={t('aiReport')} placement="bottom">
                 <span>
-                  <IconButton size="small" onClick={reportChat} disabled={reporting || msgs.length <= 1} aria-label={t('aiReport')} color="warning">
+                  <IconButton size="small" onClick={() => setReportOpen(true)} disabled={reporting || msgs.length <= 1} aria-label={t('aiReport')} color="warning">
                     <ReportProblemOutlinedIcon fontSize="small" />
                   </IconButton>
                 </span>
@@ -1122,6 +1137,56 @@ export default function AssistantWidget() {
           </Fab>
         </Tooltip>
       ) : null}
+
+      {/* Report-to-support modal: optional title + message, Send / Cancel. */}
+      <Dialog
+        open={reportOpen}
+        onClose={() => (!reporting ? setReportOpen(false) : null)}
+        fullWidth
+        maxWidth="sm"
+        sx={{
+          zIndex: (th) => th.zIndex.modal + 100,
+          '& .MuiDialog-paper': { m: { xs: 1, sm: 4 }, width: { xs: 'calc(100% - 16px)', sm: '100%' }, borderRadius: 3 },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <ReportProblemOutlinedIcon color="warning" fontSize="small" />
+            <span>{t('aiReportModalTitle')}</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('aiReportModalHint')}
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label={t('aiReportTitleLabel')}
+              value={reportTitle}
+              onChange={(e) => setReportTitle(e.target.value.slice(0, 150))}
+              fullWidth
+              size="small"
+              autoFocus
+            />
+            <TextField
+              label={t('aiReportMessageLabel')}
+              value={reportNote}
+              onChange={(e) => setReportNote(e.target.value.slice(0, 2000))}
+              fullWidth
+              size="small"
+              multiline
+              minRows={3}
+              maxRows={8}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: 'wrap' }}>
+          <Button onClick={() => setReportOpen(false)} disabled={reporting}>{t('cancelWord')}</Button>
+          <Button variant="contained" color="warning" onClick={reportChat} disabled={reporting}>
+            {reporting ? t('aiReportSending') : t('aiReportSend')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={!!report}

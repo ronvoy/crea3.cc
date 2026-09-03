@@ -246,7 +246,7 @@ def assistant_public(payload: PublicAssistantIn, session: Session = Depends(get_
 
 class ReportTurn(BaseModel):
     role: str = Field(max_length=16)
-    text: str = Field(default="", max_length=8000)
+    text: str = Field(default="", max_length=40000)
 
 
 class ChatReportIn(BaseModel):
@@ -275,6 +275,12 @@ def report_chat(payload: ChatReportIn, user: User = Depends(get_current_user)):
         if body_txt:
             lines.append(f"{who}:\n{body_txt}")
     transcript = "\n\n".join(lines) if lines else "(the conversation was empty)"
+    # Long conversations travel as a FILE attachment: a huge inline body can
+    # exceed SMTP size/line limits and made long-chat reports fail.
+    from datetime import datetime, timezone as _tz2
+    stamp = datetime.now(_tz2.utc).strftime("%Y%m%d-%H%M%S")
+    attach_name = f"CREA3-chat-report-{user.username}-{stamp}.txt"
+    attach_bytes = transcript.encode("utf-8")[: 4 * 1024 * 1024]  # 4 MB hard cap
 
     rep_title = (payload.title or "").strip()
     rep_note = (payload.note or "").strip()
@@ -288,12 +294,16 @@ def report_chat(payload: ChatReportIn, user: User = Depends(get_current_user)):
         f"  - User ID: {user.id}\n"
         + (f"  - Session ID: {payload.session_id}\n" if payload.session_id else "")
         + ((f"\nREPORTER NOTE\n  {rep_note}\n") if rep_note else "")
-        + "\nCONVERSATION TRANSCRIPT\n\n"
-        + transcript
-        + "\n\n—\nSent automatically by the Legal AI report button.\n"
+        + f"\nThe full conversation transcript ({len(payload.messages)} messages) is attached as\n"
+        + f"  {attach_name}\n"
+        + "\n—\nSent automatically by the Legal AI report button.\n"
     )
     try:
-        _send_email(to_email=to_email, subject=subject, body_text=body)
+        from ..core.email import send_email_with_attachments
+        send_email_with_attachments(
+            to_email=to_email, subject=subject, body_text=body,
+            attachments=[(attach_name, "text/plain", attach_bytes)],
+        )
     except Exception as exc:
         logger.warning("legal-ai report email failed: %s", exc)
         raise HTTPException(status_code=502, detail="Could not send the report.")

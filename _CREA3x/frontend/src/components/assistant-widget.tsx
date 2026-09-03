@@ -705,7 +705,7 @@ export default function AssistantWidget() {
   // Email the whole conversation (plus the reporter's optional note) to support.
   async function reportChat() {
     if (reporting) return
-    const turns = msgs.filter((m) => (m.text || '').trim()).map((m) => ({ role: m.role, text: m.text }))
+    const turns = msgs.filter((m) => (m.text || '').trim()).map((m) => ({ role: m.role, text: (m.text || '').slice(0, 40000) }))
     if (!turns.length) { setReportOpen(false); return }
     setReporting(true)
     try {

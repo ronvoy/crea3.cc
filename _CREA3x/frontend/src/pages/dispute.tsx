@@ -1206,9 +1206,6 @@ export default function DisputeDetail() {
                           <div key={g.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex items-center justify-between gap-3 flex-wrap">
                             <div className="min-w-[180px]">
                               <div className="font-medium">{g.name}</div>
-                              <div className="text-xs text-slate-600">
-                                {t('estimatedValueWord')}: €{Number(g.estimated_value).toLocaleString()} · {g.divisible ? t('divisibleLabel').toLowerCase() : t('indivisibleWord')}
-                              </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-slate-500">{t('yourRatingWord')}:</span>

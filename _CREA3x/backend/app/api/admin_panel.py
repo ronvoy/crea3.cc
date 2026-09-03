@@ -349,6 +349,13 @@ def mail_sync(
         raise HTTPException(status_code=503, detail=f"No mailbox credentials configured for the '{account}' account.")
     socket.setdefaulttimeout(40)
     new = updated = removed = 0
+    # TIME BUDGET: each sync call stays well under a reverse-proxy/tunnel
+    # request cap; when the budget runs out mid-fetch we return more=True and
+    # the client simply calls sync again until the mailbox is drained.
+    import time as _t_mod
+    _t0 = _t_mod.monotonic()
+    _BUDGET_S = 8.0
+    more = False
     try:
         M = _imap_connect(account)
         M.select(mailbox, readonly=True)
@@ -388,6 +395,9 @@ def mail_sync(
                 continue
 
             # New message: fetch full body once.
+            if _t_mod.monotonic() - _t0 > _BUDGET_S:
+                more = True
+                break
             _t2, fd = M.fetch(i, "(BODY.PEEK[])")
             full = email_lib.message_from_bytes(fd[0][1]) if fd and fd[0] else hdr
             body, atts = _parse_body_attachments(full)
@@ -421,7 +431,7 @@ def mail_sync(
                     removed += 1
 
         session.commit()
-        return {"ok": True, "new": new, "updated": updated, "removed": removed}
+        return {"ok": True, "new": new, "updated": updated, "removed": removed, "more": more}
     except imaplib.IMAP4.error as e:
         raise HTTPException(status_code=502, detail=f"IMAP error: {str(e)[:150]}")
     except Exception as e:

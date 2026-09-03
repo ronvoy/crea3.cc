@@ -461,8 +461,17 @@ function MailTab({ c, refreshTick }: { c: C; refreshTick: number }) {
     setErr(null); setNote(null); setBusy(true);
     try {
       const ds = box === "junk" ? "&default_status=junk" : "";
-      const r = await adminApi(`/api/admin/mail/sync?account=${account}&limit=${fetchN}&mailbox=${encodeURIComponent(serverMailbox)}${ds}`, { method: "POST" });
-      setNote(`Synced ${box} — ${r.new} new, ${r.updated} updated, ${r.removed} removed.`);
+      // The backend time-budgets each sync call (tunnel-safe); keep calling
+      // while it reports more pending, so a large mailbox drains in short hops.
+      let tot = { new: 0, updated: 0, removed: 0 };
+      let guard = 0;
+      let r: any;
+      do {
+        r = await adminApi(`/api/admin/mail/sync?account=${account}&limit=${fetchN}&mailbox=${encodeURIComponent(serverMailbox)}${ds}`, { method: "POST" });
+        tot = { new: tot.new + (r.new || 0), updated: tot.updated + (r.updated || 0), removed: tot.removed + (r.removed || 0) };
+        setNote(`Syncing ${box}… ${tot.new} new so far`);
+      } while (r?.more && ++guard < 30);
+      setNote(`Synced ${box} — ${tot.new} new, ${tot.updated} updated, ${tot.removed} removed.`);
       await loadDb();
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }

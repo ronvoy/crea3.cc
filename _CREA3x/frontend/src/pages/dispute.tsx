@@ -629,11 +629,31 @@ export default function DisputeDetail() {
     }
   }
 
+  // Authenticated file download: fetches with the Bearer token (window.open
+  // cannot send it -> 401) and saves under the server's sealed filename.
+  async function downloadAuthedFile(path: string, fallbackName: string) {
+    const token = getAccessToken()
+    const res = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) throw new Error(`Download failed (${res.status})`)
+    const cd = res.headers.get('content-disposition') || ''
+    const m = /filename="?([^";]+)"?/i.exec(cd)
+    const name = (m && m[1]) || fallbackName
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = name
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  }
+
   async function generateReport() {
     try {
-      await api(`/api/disputes/${disputeId}/report`, { method: 'POST' })
+      await api(`/api/disputes/${disputeId}/report?lang=${lang}`, { method: 'POST' })
       await loadAll()
-      window.open(`${API_BASE}/api/disputes/${disputeId}/report`, '_blank')
+      await downloadAuthedFile(`/api/disputes/${disputeId}/report`, `CREA3_allocation_dispute_${disputeId}.pdf`)
     } catch (e: any) {
       setErr(e.message)
     }
@@ -645,9 +665,9 @@ export default function DisputeDetail() {
     setErr(null)
     setReportBusy(true)
     try {
-      await api(`/api/disputes/${disputeId}/report/proposal`, { method: 'POST' })
-      // Open the freshly generated PDF (download endpoint streams the latest).
-      window.open(`${API_BASE}/api/disputes/${disputeId}/report`, '_blank')
+      await api(`/api/disputes/${disputeId}/report/proposal?lang=${lang}`, { method: 'POST' })
+      // Download the freshly generated PDF (authenticated; sealed filename).
+      await downloadAuthedFile(`/api/disputes/${disputeId}/report`, `CREA3_allocation_dispute_${disputeId}.pdf`)
     } catch (e: any) {
       setErr(e.message)
     } finally {
@@ -658,12 +678,7 @@ export default function DisputeDetail() {
   async function downloadAuditLog() {
     setErr(null)
     try {
-      const blob = await apiBlob(`/api/disputes/${disputeId}/report/audit.csv`, { method: 'GET' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url; a.download = `CREA3_audit_dispute_${disputeId}.csv`
-      document.body.appendChild(a); a.click(); a.remove()
-      URL.revokeObjectURL(url)
+      await downloadAuthedFile(`/api/disputes/${disputeId}/report/audit.csv`, `CREA3_audit_dispute_${disputeId}.csv`)
     } catch (e: any) {
       setErr(e?.message || 'Could not export the audit log')
     }
@@ -675,18 +690,12 @@ export default function DisputeDetail() {
       // "Download PDF" button work in one click even if no report was generated
       // yet (it 404s otherwise).
       try {
-        await api(`/api/disputes/${disputeId}/report/proposal`, { method: 'POST' })
+        await api(`/api/disputes/${disputeId}/report/proposal?lang=${lang}`, { method: 'POST' })
       } catch {
         // If proposal-report generation isn't applicable, fall through and try
         // to download whatever report exists.
       }
-      const blob = await apiBlob(`/api/disputes/${disputeId}/report`, { method: 'GET' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `CREA3_allocation_dispute_${disputeId}.pdf`
-      document.body.appendChild(a); a.click(); a.remove()
-      URL.revokeObjectURL(url)
+      await downloadAuthedFile(`/api/disputes/${disputeId}/report`, `CREA3_allocation_dispute_${disputeId}.pdf`)
     } catch (e: any) {
       setErr(e?.message || 'Could not download the report')
     }
@@ -697,13 +706,7 @@ export default function DisputeDetail() {
     try {
       // The backend builds the workbook from the latest proposal on demand, so
       // it always reflects the current allocation and the accept/reject decisions.
-      const blob = await apiBlob(`/api/disputes/${disputeId}/report/xlsx`, { method: 'GET' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `CREA3_allocation_dispute_${disputeId}.xlsx`
-      document.body.appendChild(a); a.click(); a.remove()
-      URL.revokeObjectURL(url)
+      await downloadAuthedFile(`/api/disputes/${disputeId}/report/xlsx?lang=${lang}`, `CREA3_allocation_dispute_${disputeId}.xlsx`)
     } catch (e: any) {
       setErr(e?.message || 'Could not download the Excel file')
     }
@@ -1264,29 +1267,21 @@ export default function DisputeDetail() {
 
                   {(() => {
                     if (isMediator) return null
-                    // Flow: the proposal is auto-created at reconciliation finalize.
-                    // "Generate proposal" stays GREYED until this agent has AGREED
-                    // to it; one click builds the final report (PDF & downloads
-                    // unlock) and the button greys again permanently (idempotent).
-                    // A REJECTED proposal instead re-enables it to regenerate a
-                    // fresh allocation.
+                    // The allocation is auto-created at reconciliation finalize and
+                    // is NEVER regenerated from here (a regeneration would reset the
+                    // parties' decisions). "Generate proposal" is per-user: it
+                    // unlocks once THIS user has pressed I agree OR I disagree,
+                    // builds their report once, then greys (idempotent).
+                    const myDecided = (latestProposal as any)?.my_decision === true || (latestProposal as any)?.my_decision === false
                     const enabled =
                       (!latestProposal && !proposalsLocked) ||
-                      (proposalRejected && proposalDecided) ||
-                      (!!latestProposal && myAcceptedProposal && !reportGenerated)
+                      (!!latestProposal && myDecided && !reportGenerated)
                     const hint = reportGenerated
                       ? t('proposalGeneratedHint')
-                      : !latestProposal
-                        ? ''
-                        : proposalRejected
-                          ? ''
-                          : myAcceptedProposal ? '' : t('generateNeedsAcceptHint')
+                      : latestProposal && !myDecided ? t('generateNeedsDecisionHint') : ''
                     const onClick = async () => {
                       if (!enabled) return
-                      if (!latestProposal || proposalRejected) {
-                        await generateProposal()
-                        return
-                      }
+                      if (!latestProposal) { await generateProposal(); return }
                       await generateProposalReport()
                       try { if (genKey) localStorage.setItem(genKey, '1') } catch {}
                       setReportGenerated(true)
@@ -1326,12 +1321,12 @@ export default function DisputeDetail() {
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-slate-500">{t('downloadWord')}</span>
                             <HelpTip text={t('helpDownloads')} />
-                            <div className={`inline-flex overflow-hidden rounded-xl border divide-x ${proposalDecided ? 'border-slate-300 divide-slate-300' : 'border-slate-200 divide-slate-200'}`}>
+                            <div className={`inline-flex overflow-hidden rounded-xl border divide-x ${reportGenerated ? 'border-slate-300 divide-slate-300' : 'border-slate-200 divide-slate-200'}`}>
                               <button
                                 type="button"
                                 onClick={downloadReport}
-                                disabled={!(reportGenerated || proposalDecided)}
-                                title={(reportGenerated || proposalDecided) ? '' : t('downloadAfterGenerateHint')}
+                                disabled={!reportGenerated}
+                                title={reportGenerated ? '' : t('downloadAfterGenerateHint')}
                                 className="px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 PDF
@@ -1339,8 +1334,8 @@ export default function DisputeDetail() {
                               <button
                                 type="button"
                                 onClick={downloadExcel}
-                                disabled={!(reportGenerated || proposalDecided)}
-                                title={(reportGenerated || proposalDecided) ? '' : t('downloadAfterGenerateHint')}
+                                disabled={!reportGenerated}
+                                title={reportGenerated ? '' : t('downloadAfterGenerateHint')}
                                 className="px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 Excel
@@ -1348,17 +1343,17 @@ export default function DisputeDetail() {
                               <button
                                 type="button"
                                 onClick={downloadAuditLog}
-                                disabled={!(reportGenerated || proposalDecided)}
-                                title={(reportGenerated || proposalDecided) ? '' : t('downloadAfterGenerateHint')}
+                                disabled={!reportGenerated}
+                                title={reportGenerated ? '' : t('downloadAfterGenerateHint')}
                                 className="px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
                               >
                                 {t('auditWord')}
                               </button>
                             </div>
                           </div>
-                          {!proposalDecided ? (
+                          {!reportGenerated ? (
                             <div className="max-w-[240px] text-right text-[11px] leading-snug text-slate-400">
-                              {t('downloadAfterDecisionHint')}
+                              {t('downloadAfterGenerateHint')}
                             </div>
                           ) : null}
                         </div>

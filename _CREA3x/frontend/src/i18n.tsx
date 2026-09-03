@@ -327,7 +327,7 @@ const strings = {
     noProposalsYet: 'No proposal yet. Generate one to see the allocation.',
     priceCommonCol: 'Price (reconciled)',
     proposalsLockedHint: 'Locked — every agent must finish the reconciliation step first.',
-    generateNeedsAcceptHint: 'Accept the proposal first — Generate unlocks after you agree to it.',
+    generateNeedsDecisionHint: 'Choose "I agree" or "I disagree" first — Generate unlocks after you submit your decision.',
     proposalGeneratedHint: 'The proposal report was already generated.',
     downloadAfterGenerateHint: 'Press "Generate proposal" first to build the report.',
     initializedByLabel: 'Initialized by',
@@ -1068,8 +1068,8 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    generateNeedsDecisionHint: "Scegli prima \"Sono d'accordo\" o \"Non sono d'accordo\" — Genera si sblocca dopo aver inviato la tua decisione.",
     proposalsLockedHint: "Bloccato — ogni agente deve prima completare il passaggio di riconciliazione.",
-    generateNeedsAcceptHint: "Accetta prima la proposta — Genera si sblocca dopo che hai acconsentito.",
     proposalGeneratedHint: "Il rapporto della proposta è già stato generato.",
     downloadAfterGenerateHint: "Premi \"Genera proposta\" prima per creare il rapporto.",
     initializedByLabel: "Inizializzato da",
@@ -2114,8 +2114,8 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    generateNeedsDecisionHint: "Najprej izberite \"Strinjam se\" ali \"Ne strinjam se\" — Generiranje se odklene po oddaji vaše odločitve.",
     proposalsLockedHint: "Zaklenjeno — vsak agent mora najprej dokončati korak usklajevanja.",
-    generateNeedsAcceptHint: "Najprej sprejmite predlog — Generiraj se odklene, ko se strinjate z njim.",
     proposalGeneratedHint: "Poročilo o predlogu je bilo že ustvarjeno.",
     downloadAfterGenerateHint: "Najprej pritisnite \"Generiraj predlog\", da ustvarite poročilo.",
     initializedByLabel: "Inicializiral",
@@ -3160,8 +3160,8 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    generateNeedsDecisionHint: "Vali esmalt \"Ma nõustun\" või \"Ma ei nõustu\" — Generaator avatakse pärast sinu otsuse esitamist.",
     proposalsLockedHint: "Lukustatud — iga agendi peab esmalt lõpetama lepitamise sammu.",
-    generateNeedsAcceptHint: "Kinnita ettepanek esmalt — Generaator avatakse pärast selle kinnitamist.",
     proposalGeneratedHint: "Ettepaneku aruanne on juba genereeritud.",
     downloadAfterGenerateHint: "Vajuta esmalt \"Genereeri ettepanek\", et koostada aruanne.",
     initializedByLabel: "Algatas",
@@ -4206,8 +4206,8 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    generateNeedsDecisionHint: "Choisissez \"J'accepte\" ou \"Je n'accepte pas\" d'abord — Générer se déverrouille après que vous ayez soumis votre décision.",
     proposalsLockedHint: "Verrouillé — chaque agent doit d'abord terminer l'étape de réconciliation.",
-    generateNeedsAcceptHint: "Acceptez d'abord la proposition — Générer se débloque après votre accord.",
     proposalGeneratedHint: "Le rapport de proposition a déjà été généré.",
     downloadAfterGenerateHint: "Appuyez d'abord sur \"Générer la proposition\" pour créer le rapport.",
     initializedByLabel: "Initialisé par",
@@ -5252,8 +5252,8 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    generateNeedsDecisionHint: "Pirmiausia pasirinkite „Sutinku“ arba „Nesutinku“ — Generuoti bus galima tik po to, kai pateiksite savo sprendimą.",
     proposalsLockedHint: "Užrakinta — kiekvienas agentas pirmiausia turi užbaigti suderinimo žingsnį.",
-    generateNeedsAcceptHint: "Pirmiausia priimkite pasiūlymą — Generuoti bus galima tik po to, kai sutinkate su juo.",
     proposalGeneratedHint: "Pasiūlymo ataskaita jau buvo sugeneruota.",
     downloadAfterGenerateHint: "Pirmiausia paspauskite \"Generuoti pasiūlymą\", kad sukurtumėte ataskaitą.",
     initializedByLabel: "Inicializavo",
@@ -6298,8 +6298,8 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    generateNeedsDecisionHint: "Prvo odaberite \"Slažem se\" ili \"Ne slažem se\" — Generiraj se otključava nakon što pošaljete svoju odluku.",
     proposalsLockedHint: "Zaključano — svaki agent mora prvo završiti korak usklađivanja.",
-    generateNeedsAcceptHint: "Prvo prihvatite prijedlog — Generiraj se otključava nakon što se s njim slažete.",
     proposalGeneratedHint: "Izvještaj o prijedlogu je već generiran.",
     downloadAfterGenerateHint: "Prvo pritisnite \"Generiraj prijedlog\" da biste izradili izvještaj.",
     initializedByLabel: "Inicirano od",
@@ -7348,8 +7348,8 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    generateNeedsDecisionHint: "Kies eerst \"Ik ga akkoord\" of \"Ik ga niet akkoord\" — Genereer ontgrendelt nadat je je beslissing hebt ingediend.",
     proposalsLockedHint: "Vergrendeld — elke agent moet eerst de reconciliatiestap voltooien.",
-    generateNeedsAcceptHint: "Accepteer eerst het voorstel — Genereren ontgrendelt nadat je ermee akkoord gaat.",
     proposalGeneratedHint: "Het voorstelrapport is al gegenereerd.",
     downloadAfterGenerateHint: "Druk eerst op \"Voorstel genereren\" om het rapport op te bouwen.",
     initializedByLabel: "Geïnitieerd door",

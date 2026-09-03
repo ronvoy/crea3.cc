@@ -8,3 +8,4 @@ rag_store
 backend/rag_store
 .DS_Store
 _rsc
+generated_reports

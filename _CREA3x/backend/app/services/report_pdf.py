@@ -371,22 +371,26 @@ def build_report_pdf(
     # The long generated legal paragraphs remain in English (see report note);
     # the document STRUCTURE is localized to the reader's language.
     HEADINGS = {
-        "executive_summary": {"en": "Executive summary", "it": "Sintesi", "sl": "Povzetek", "et": "Kokkuvõte", "be": "Résumé", "lt": "Santrauka", "hr": "Sažetak"},
-        "parties": {"en": "Parties to the dispute", "it": "Parti della controversia", "sl": "Stranke v sporu", "et": "Vaidluse osapooled", "be": "Parties au litige", "lt": "Ginčo šalys", "hr": "Stranke u sporu"},
-        "positions": {"en": "Stated positions", "it": "Posizioni dichiarate", "sl": "Navedena stališča", "et": "Esitatud seisukohad", "be": "Positions déclarées", "lt": "Pareikštos pozicijos", "hr": "Navedeni stavovi"},
-        "timeline": {"en": "Timeline of the dispute", "it": "Cronologia della controversia", "sl": "Časovnica spora", "et": "Vaidluse ajajoon", "be": "Chronologie du litige", "lt": "Ginčo eiga", "hr": "Vremenski slijed spora"},
-        "assets": {"en": "Disputed Assets &amp; Preferences", "it": "Beni contesi e preferenze", "sl": "Sporno premoženje in preference", "et": "Vaidlusalune vara ja eelistused", "be": "Biens en litige et préférences", "lt": "Ginčijamas turtas ir pirmenybės", "hr": "Sporna imovina i preferencije"},
-        "valuation_each": {"en": "Valuation of each asset by each party:", "it": "Valutazione di ciascun bene da parte di ciascuna parte:", "sl": "Vrednotenje vsakega premoženja s strani vsake stranke:", "et": "Iga vara hindamine iga osapoole poolt:", "be": "Évaluation de chaque bien par chaque partie :", "lt": "Kiekvieno turto vertinimas kiekvienos šalies:", "hr": "Procjena svake imovine od strane svake stranke:"},
-        "proposed_allocation": {"en": "Proposed allocation", "it": "Ripartizione proposta", "sl": "Predlagana razdelitev", "et": "Kavandatud jaotus", "be": "Répartition proposée", "lt": "Siūlomas paskirstymas", "hr": "Predložena raspodjela"},
-        "at_a_glance": {"en": "Allocation at a glance", "it": "Ripartizione in sintesi", "sl": "Razdelitev na prvi pogled", "et": "Jaotus lühidalt", "be": "Répartition en un coup d'œil", "lt": "Paskirstymas trumpai", "hr": "Raspodjela na prvi pogled"},
-        "fairness": {"en": "Fairness summary", "it": "Sintesi di equità", "sl": "Povzetek pravičnosti", "et": "Õigluse kokkuvõte", "be": "Résumé d'équité", "lt": "Teisingumo santrauka", "hr": "Sažetak pravednosti"},
-        "summary_mediation": {"en": "Summary and mediation proposal", "it": "Sintesi e proposta di mediazione", "sl": "Povzetek in predlog mediacije", "et": "Kokkuvõte ja vahendusettepanek", "be": "Résumé et proposition de médiation", "lt": "Santrauka ir tarpininkavimo pasiūlymas", "hr": "Sažetak i prijedlog medijacije"},
-        "path": {"en": "Proposed path to resolution", "it": "Percorso proposto per la risoluzione", "sl": "Predlagana pot do rešitve", "et": "Kavandatud lahendustee", "be": "Voie proposée vers la résolution", "lt": "Siūlomas kelias į sprendimą", "hr": "Predloženi put do rješenja"},
-        "legal_notice": {"en": "Legal notice and intended use", "it": "Avviso legale e uso previsto", "sl": "Pravno obvestilo in predvidena uporaba", "et": "Õiguslik teave ja kavandatud kasutus", "be": "Mention légale et utilisation prévue", "lt": "Teisinis pranešimas ir numatomas naudojimas", "hr": "Pravna napomena i namjena"},
-        "partners": {"en": "Consortium partners", "it": "Partner del consorzio", "sl": "Partnerji konzorcija", "et": "Konsortsiumi partnerid", "be": "Partenaires du consortium", "lt": "Konsorciumo partneriai", "hr": "Partneri konzorcija"},
-        "decisions": {"en": "Party decisions", "it": "Decisioni delle parti", "sl": "Odločitve strank", "et": "Osapoolte otsused", "be": "Décisions des parties", "lt": "Šalių sprendimai", "hr": "Odluke stranaka"},
+        "executive_summary": {"en": "Executive summary", "it": "Sintesi", "sl": "Povzetek", "et": "Kokkuvõte", "be": "Résumé", "lt": "Santrauka", "hr": "Sažetak", "nl": "Samenvatting"},
+        "parties": {"en": "Parties to the dispute", "it": "Parti della controversia", "sl": "Stranke v sporu", "et": "Vaidluse osapooled", "be": "Parties au litige", "lt": "Ginčo šalys", "hr": "Stranke u sporu", "nl": "Partijen bij het geschil"},
+        "positions": {"en": "Stated positions", "it": "Posizioni dichiarate", "sl": "Navedena stališča", "et": "Esitatud seisukohad", "be": "Positions déclarées", "lt": "Pareikštos pozicijos", "hr": "Navedeni stavovi", "nl": "Ingenomen standpunten"},
+        "timeline": {"en": "Timeline of the dispute", "it": "Cronologia della controversia", "sl": "Časovnica spora", "et": "Vaidluse ajajoon", "be": "Chronologie du litige", "lt": "Ginčo eiga", "hr": "Vremenski slijed spora", "nl": "Tijdlijn van het geschil"},
+        "assets": {"en": "Disputed Assets &amp; Preferences", "it": "Beni contesi e preferenze", "sl": "Sporno premoženje in preference", "et": "Vaidlusalune vara ja eelistused", "be": "Biens en litige et préférences", "lt": "Ginčijamas turtas ir pirmenybės", "hr": "Sporna imovina i preferencije", "nl": "Betwiste goederen &amp; voorkeuren"},
+        "valuation_each": {"en": "Valuation of each asset by each party:", "it": "Valutazione di ciascun bene da parte di ciascuna parte:", "sl": "Vrednotenje vsakega premoženja s strani vsake stranke:", "et": "Iga vara hindamine iga osapoole poolt:", "be": "Évaluation de chaque bien par chaque partie :", "lt": "Kiekvieno turto vertinimas kiekvienos šalies:", "hr": "Procjena svake imovine od strane svake stranke:", "nl": "Waardering van elk goed door elke partij:"},
+        "proposed_allocation": {"en": "Proposed allocation", "it": "Ripartizione proposta", "sl": "Predlagana razdelitev", "et": "Kavandatud jaotus", "be": "Répartition proposée", "lt": "Siūlomas paskirstymas", "hr": "Predložena raspodjela", "nl": "Voorgestelde verdeling"},
+        "at_a_glance": {"en": "Allocation at a glance", "it": "Ripartizione in sintesi", "sl": "Razdelitev na prvi pogled", "et": "Jaotus lühidalt", "be": "Répartition en un coup d'œil", "lt": "Paskirstymas trumpai", "hr": "Raspodjela na prvi pogled", "nl": "Verdeling in één oogopslag"},
+        "fairness": {"en": "Fairness summary", "it": "Sintesi di equità", "sl": "Povzetek pravičnosti", "et": "Õigluse kokkuvõte", "be": "Résumé d'équité", "lt": "Teisingumo santrauka", "hr": "Sažetak pravednosti", "nl": "Billijkheidsoverzicht"},
+        "summary_mediation": {"en": "Summary and mediation proposal", "it": "Sintesi e proposta di mediazione", "sl": "Povzetek in predlog mediacije", "et": "Kokkuvõte ja vahendusettepanek", "be": "Résumé et proposition de médiation", "lt": "Santrauka ir tarpininkavimo pasiūlymas", "hr": "Sažetak i prijedlog medijacije", "nl": "Samenvatting en bemiddelingsvoorstel"},
+        "path": {"en": "Proposed path to resolution", "it": "Percorso proposto per la risoluzione", "sl": "Predlagana pot do rešitve", "et": "Kavandatud lahendustee", "be": "Voie proposée vers la résolution", "lt": "Siūlomas kelias į sprendimą", "hr": "Predloženi put do rješenja", "nl": "Voorgestelde weg naar een oplossing"},
+        "legal_notice": {"en": "Legal notice and intended use", "it": "Avviso legale e uso previsto", "sl": "Pravno obvestilo in predvidena uporaba", "et": "Õiguslik teave ja kavandatud kasutus", "be": "Mention légale et utilisation prévue", "lt": "Teisinis pranešimas ir numatomas naudojimas", "hr": "Pravna napomena i namjena", "nl": "Juridische kennisgeving en beoogd gebruik"},
+        "partners": {"en": "Consortium partners", "it": "Partner del consorzio", "sl": "Partnerji konzorcija", "et": "Konsortsiumi partnerid", "be": "Partenaires du consortium", "lt": "Konsorciumo partneriai", "hr": "Partneri konzorcija", "nl": "Consortiumpartners"},
+        "decisions": {"en": "Party decisions", "it": "Decisioni delle parti", "sl": "Odločitve strank", "et": "Osapoolte otsused", "be": "Décisions des parties", "lt": "Šalių sprendimai", "hr": "Odluke stranaka", "nl": "Beslissingen van de partijen"},
     }
-    _lang = lang if lang in ("en", "it", "sl", "et", "be", "lt", "hr") else "en"
+    _lang = lang if lang in ("en", "it", "sl", "et", "be", "nl", "lt", "hr") else "en"
+    from .report_i18n import body as _RB
+    def B(key: str, **kw) -> str:
+        txt = _RB(key, _lang)
+        return txt.format(**kw) if kw else txt
 
     def H(key: str) -> str:
         return HEADINGS.get(key, {}).get(_lang) or HEADINGS.get(key, {}).get("en") or key
@@ -437,42 +441,24 @@ def build_report_pdf(
     if len(party_names) == 2:
         who = f"{party_names[0]} and {party_names[1]}"
     elif party_names:
-        who = ", ".join(party_names[:-1]) + f" and {party_names[-1]}" if len(party_names) > 1 else party_names[0]
+        who = ", ".join(party_names[:-1]) + f" {B('w_and')} {party_names[-1]}" if len(party_names) > 1 else party_names[0]
     else:
-        who = f"{len(non_med)} parties"
+        who = B("w_parties", n=len(non_med))
 
     # Paragraph 1: what this is and who it concerns.
-    p1 = (
-        f"This document sets out {'a proposed' if kind == 'proposal' else 'the agreed'} resolution for "
-        f"dispute #{getattr(dispute,'id','')}, \u201c{getattr(dispute,'title','')}\u201d, between {who}. It concerns "
-        f"the division of {len(goods)} asset{'s' if len(goods) != 1 else ''} and was prepared by the CREA3 "
-        f"platform to help the parties \u2014 and any mediator involved \u2014 reach a fair outcome. It is a "
-        f"decision-support document and is explained in full in the sections that follow."
-    )
+    p1 = B("p1_proposal" if kind == "proposal" else "p1_final",
+           id=getattr(dispute, "id", ""), title=getattr(dispute, "title", ""),
+           who=who, n_assets=len(goods))
     story.append(Paragraph(p1, st["body"]))
     story.append(Spacer(1, 5))
 
     # Paragraph 2: how the method works, in plain language.
-    p2 = (
-        "People rarely value the same things in the same way: one party may care far more about the family "
-        "home, another about a particular asset. Rather than splitting every item down the middle, the "
-        "platform asks each party privately how much each asset is worth to them, then gives each asset to "
-        "the party who values it most. Because that can leave one party with more value than the other, a "
-        "single <b>balancing amount</b> of money is set between them so that, measured against each party\u2019s "
-        "own sense of a fair share, both end up equally well off. This makes the division efficient (assets "
-        "go where they are wanted most) and fair at the same time."
-    )
+    p2 = B("p2")
     story.append(Paragraph(p2, st["body"]))
     story.append(Spacer(1, 5))
 
     # Paragraph 3: what the reader will find, and confidentiality.
-    p3 = (
-        "On the following pages you will find the parties to the dispute, a full timeline of what happened, "
-        "how each party valued the assets, the proposed allocation, and a fairness summary showing the gap "
-        "that emerged and the balancing amount that closes it. Each party\u2019s individual ratings are kept "
-        "confidential: only the resulting allocation and the differences in how the assets were valued are "
-        "shown."
-    )
+    p3 = B("p3")
     story.append(Paragraph(p3, st["body"]))
 
     # ---------- Parties ----------
@@ -480,7 +466,7 @@ def build_report_pdf(
     ent_detail = {int(d["agent_id"]): d for d in (metrics.get("entitlement_detail") or [])}
     ent_mismatch = bool(metrics.get("entitlement_mismatch"))
     if ent_mismatch:
-        p_rows = [[Paragraph(t, st["cellh"]) for t in ["Party", "Assigned", "Claimed", "Share used", "Status"]]]
+        p_rows = [[Paragraph(t, st["cellh"]) for t in [B("h_party"), B("h_assigned"), B("h_claimed"), B("h_share_used"), B("h_status")]]]
         for a in non_med:
             d = ent_detail.get(a.id, {})
             claimed = d.get("claimed")
@@ -495,17 +481,9 @@ def build_report_pdf(
         pt.setStyle(_tbl_style(header=BRAND_DARK))
         story.append(pt)
         story.append(Spacer(1, 4))
-        story.append(Paragraph(
-            "The parties do not agree on the entitlement shares: at least one party claimed a share "
-            "different from the one assigned, and the claimed shares do not sum to 100%. The claimed shares "
-            "have NOT been rescaled or averaged; the division above uses the owner-assigned shares as a "
-            "<b>provisional</b> basis (they sum to 100%), and each party's own claim is shown in full for "
-            "transparency. This disagreement must be resolved by the parties or the mediator, and the "
-            "shares agreed there should replace this provisional basis.", st["small"])
+        story.append(Paragraph(B("ent_dispute_note"), st["small"])
             if metrics.get("entitlement_shares_in_dispute") else
-            Paragraph(
-            "One or more parties claimed a share different from the one assigned; the claims are consistent "
-            "(they sum to 100%) and have been used as the <b>share used</b> in the division above.", st["small"]))
+            Paragraph(B("ent_consistent_note"), st["small"]))
         # Each party's own stated position (free-text justification, <=50 chars).
         positions = [(d.get("name"), (d.get("position") or "").strip())
                      for d in (metrics.get("entitlement_detail") or []) if (d.get("position") or "").strip()]
@@ -515,7 +493,7 @@ def build_report_pdf(
             for nm, pos in positions:
                 story.append(Paragraph(f"<b>{nm}:</b> \u201c{pos}\u201d", st["small"]))
     else:
-        p_rows = [[Paragraph(t, st["cellh"]) for t in ["Party", "Entitlement share", "Status"]]]
+        p_rows = [[Paragraph(t, st["cellh"]) for t in [B("h_party"), B("h_ent_share"), B("h_status")]]]
         for a in non_med:
             p_rows.append([
                 Paragraph(a.name or "\u2014", st["cell"]),
@@ -529,10 +507,7 @@ def build_report_pdf(
     # ---------- Full timeline (placed right after the parties) ----------
     if history:
         story.append(Paragraph(H("timeline"), st["h2"]))
-        story.append(Paragraph(
-            "A full, chronological record of what happened in this dispute, drawn from the platform\u2019s log. "
-            "It is provided for context and does not reveal any party\u2019s private valuations or preferences.",
-            st["small"]))
+        story.append(Paragraph(B("timeline_note"), st["small"]))
         story.append(Spacer(1, 4))
         h_rows = []
         for h in history:
@@ -558,22 +533,14 @@ def build_report_pdf(
     # ---------- Assets & divergent valuations (KEY new section) ----------
     story.append(Paragraph(H("assets"), st["title"]))
     story.append(HRFlowable(width="100%", thickness=1.2, color=BRAND, spaceBefore=2, spaceAfter=8))
-    story.append(Paragraph(
-        "The parties do not necessarily place the same monetary value on each asset, and these "
-        "<b>perceived values</b> \u2014 not any external estimate \u2014 are what the allocation is based on. The "
-        "table below shows, for every asset, the value each party assigns to it. Where the two values "
-        "differ (the \u201cspread\u201d), that difference is exactly what makes an equitable, rather than identical, "
-        "division possible: each asset goes to the party who values it most, with a cash settlement "
-        "restoring balance. Where the parties stated the same value, it is shown as <b>agreed</b>. The "
-        "<i>reference</i> column is the figure entered when the asset was first registered, shown for "
-        "context only \u2014 it is not a third valuation and is not used in the settlement.", st["body"]))
+    story.append(Paragraph(B("assets_intro"), st["body"]))
     story.append(Spacer(1, 6))
 
-    head = ["Asset"]
+    head = [B("h_asset")]
     for a in non_med:
         head.append(f"{(a.name or '').split(' ')[0]}")
-    head.append("Spread / status")
-    head.append("Reference")
+    head.append(B("h_spread"))
+    head.append(B("h_reference"))
     v_rows = [[Paragraph(t, st["cellh"]) for t in head]]
     for al in allocations:
         row = [Paragraph(str(al.get("good_name") or "\u2014"), st["cell"])]
@@ -609,11 +576,7 @@ def build_report_pdf(
     vt = Table(v_rows, colWidths=colw, repeatRows=1)
     vt.setStyle(_tbl_style(header=BRAND_DARK))
     story.append(vt)
-    story.append(Paragraph("Figures in green indicate the party who values that asset most. The "
-                           "\u201cspread / status\u201d column shows the difference between the two valuations, or "
-                           "\u201cagreed\u201d when the parties stated the same value, \u201c\u2713 averaged\u201d when they agreed "
-                           "during reconciliation to use the average, or \u201cone-sided\u201d when only one party "
-                           "declared the asset.", st["small"]))
+    story.append(Paragraph(B("green_note"), st["small"]))
 
     # valuation chart
     story.append(Spacer(1, 8))
@@ -625,12 +588,9 @@ def build_report_pdf(
 
     # ---------- Proposed allocation (allocation ONLY) ----------
     story.append(Paragraph(H("proposed_allocation"), st["h2"]))
-    story.append(Paragraph(
-        "Each indivisible asset is awarded to the party who values it most. Divisible assets are split "
-        "between the parties \u2014 the share each receives is shown. Individual preferences are not shown.",
-        st["small"]))
+    story.append(Paragraph(B("alloc_note"), st["small"]))
     story.append(Spacer(1, 4))
-    a_rows = [[Paragraph(t, st["cellh"]) for t in ["Asset", "Awarded to", "Awarded party\u2019s valuation", "Estimated value"]]]
+    a_rows = [[Paragraph(t, st["cellh"]) for t in [B("h_asset"), B("h_awarded_to"), B("h_awarded_val"), B("h_est_value")]]]
     for al in allocations:
         if al.get("divisible") and al.get("fraction_by_name"):
             # Show the split, e.g. "Mario 52.7% · Lucia 47.3%"
@@ -654,23 +614,19 @@ def build_report_pdf(
     # ---------- Allocation donut chart (own page) ----------
     story.append(PageBreak())
     story.append(Paragraph(H("at_a_glance"), st["h2"]))
-    story.append(Paragraph(
-        "The disputed assets by their estimated value. This shows the relative weight of each asset in "
-        "the overall estate being divided.", st["small"]))
+    story.append(Paragraph(B("chart_assets_note"), st["small"]))
     story.append(Spacer(1, 10))
     total_alloc = sum(float(al.get("estimated_value") or 0.0) for al in allocations)
     story.append(_donut_allocation(allocations))
     story.append(Spacer(1, 6))
     story.append(Paragraph(
-        f"Total estimated value of the disputed assets: <b>{_money(total_alloc)}</b> across "
-        f"{len([a for a in allocations if float(a.get('estimated_value') or 0)>0])} asset(s).", st["small"]))
+        B("total_note", total=_money(total_alloc),
+          n=len([a for a in allocations if float(a.get("estimated_value") or 0) > 0])), st["small"]))
 
     # Second pie: how the total value divides across the parties (matches the app).
     story.append(Spacer(1, 18))
-    story.append(Paragraph("Value received by each party", st["h2"]))
-    story.append(Paragraph(
-        "The share of the total asset value that each party receives from the allocation, "
-        "with the amount per party.", st["small"]))
+    story.append(Paragraph(B("value_received_title"), st["h2"]))
+    story.append(Paragraph(B("value_received_note"), st["small"]))
     story.append(Spacer(1, 10))
     story.append(_donut_agents(allocations))
 
@@ -685,19 +641,12 @@ def build_report_pdf(
     # the GAP that emerges and the BALANCING amount that closes it, without ever
     # instructing a party to "compensate".
     has_one_sided = bool(omitted_assets)
-    intro = (
-        "Because the parties value the assets differently, the items each party receives are not worth the "
-        "same to each of them. The table below shows, for each party, the total value of what they receive "
-        "(in their own eyes) and the share that would be fair given their entitlement. The difference "
-        "between the two is the <b>gap</b>. To close this gap, the proposal sets a single <b>balancing "
-        "amount</b> between the parties \u2014 shown below \u2014 after which both parties are left equally well off "
-        "relative to their fair share."
-    )
+    intro = B("fairness_intro")
     story.append(Paragraph(intro, st["body"]))
     story.append(Spacer(1, 6))
 
     f_rows = [[Paragraph(t, st["cellh"]) for t in
-               ["Party", "Value received", "Fair share", "Gap", "Balance"]]]
+               [B("h_party"), B("h_value_recv"), B("h_fair"), B("h_gap"), B("h_balance")]]]
     for a in non_med:
         aid = str(a.id)
         surplus = float(gt_surplus.get(aid, 0.0))  # received - fair (the gap, signed)
@@ -720,11 +669,7 @@ def build_report_pdf(
     ft = Table(f_rows, colWidths=[4.0 * cm, 3.3 * cm, 3.0 * cm, 3.0 * cm, 3.7 * cm], repeatRows=1)
     ft.setStyle(_tbl_style(header=BRAND_DARK))
     story.append(ft)
-    story.append(Paragraph(
-        "<b>Value received</b> is what the assets awarded to a party are worth to that party. "
-        "<b>Fair share</b> is the value that would match their entitlement. The <b>gap</b> is the difference "
-        "between the two, and the <b>balance</b> is the single amount that closes it so the outcome is "
-        "balanced for both.", st["small"]))
+    story.append(Paragraph(B("fairness_legend"), st["small"]))
 
     # Side-by-side comparison chart: the two parties placed back-to-back, each
     # asset's valuation extending left for one and right for the other, so the
@@ -747,8 +692,8 @@ def build_report_pdf(
     # Build deterministic, data-driven summary text (no LLM).
     n_assets = len(allocations)
     party_names_sum = [a.name for a in non_med if a.name]
-    who_sum = (f"{party_names_sum[0]} and {party_names_sum[1]}" if len(party_names_sum) == 2
-               else (", ".join(party_names_sum) if party_names_sum else "the parties"))
+    who_sum = (f"{party_names_sum[0]} {B('w_and')} {party_names_sum[1]}" if len(party_names_sum) == 2
+               else (", ".join(party_names_sum) if party_names_sum else B("w_parties", n=len(non_med))))
     # Transfer description
     transfer_amt = 0.0
     payer = payee = None
@@ -760,81 +705,45 @@ def build_report_pdf(
             payee = names.get(int(aid_s))
     divisible_names = [al.get("good_name") for al in allocations if al.get("divisible")]
 
-    summary = (
-        f"This dispute concerns the division of {n_assets} asset{'s' if n_assets != 1 else ''} between "
-        f"{who_sum}, with a total estimated value of {_money(total_alloc)}. Each indivisible asset has "
-        f"been allocated to the party who values it most"
-    )
+    summary = B("sum_base", n_assets=n_assets, who=who_sum) + f" ({_money(total_alloc)})"
     if divisible_names:
         nm_list = ", ".join(str(n) for n in divisible_names)
-        summary += f", and the divisible asset(s) ({nm_list}) have been split between the parties"
-    summary += ". "
+        summary += B("sum_split", nm_list=nm_list)
     if transfer_amt > 0.005 and payer and payee:
-        summary += (
-            f"To make the outcome equitable, the proposal sets a balancing amount of {_money(transfer_amt)} "
-            f"from {payer} to {payee}. "
-        )
+        summary += B("sum_transfer", amount=_money(transfer_amt), payer=payer, payee=payee)
     else:
-        summary += "The allocation is already balanced and requires no balancing payment. "
+        summary += B("sum_balanced")
     if metrics.get("entitlement_shares_in_dispute"):
-        summary += (
-            "The parties have not agreed on their entitlement shares (their claims conflict and do not sum "
-            "to 100%); the shares used here are the owner-assigned ones on a provisional basis, and this "
-            "disagreement remains to be settled. "
-        )
+        summary += B("sum_ent_dispute")
     elif metrics.get("entitlement_mismatch"):
-        summary += (
-            "One or more parties claimed a share different from the one assigned; the claims are consistent "
-            "and have been used as the shares here. "
-        )
+        summary += B("sum_ent_consistent")
     story.append(Paragraph(summary, st["body"]))
     story.append(Spacer(1, 8))
 
     # Mediation proposal — concrete, neutral next steps.
     story.append(Paragraph(H("path"), st["h2"]))
-    steps = [
-        "Review this proposal independently. Each party is encouraged to read the allocation and the "
-        "fairness summary and, where helpful, to seek independent legal advice.",
-        "Confirm or contest the asset valuations. The division relies on the estimated values recorded "
-        "for each asset; if a party disputes a value, it should be raised before acceptance.",
-    ]
+    steps = [B("step_review"), B("step_confirm")]
     if metrics.get("entitlement_mismatch"):
-        steps.append(
-            "Resolve the entitlement-share disagreement. The parties hold differing views on their shares; "
-            "this point should be settled \u2014 by agreement or with the mediator \u2014 as it directly affects "
-            "the division."
-        )
+        steps.append(B("step_resolve_ent"))
     if divisible_names:
-        steps.append(
-            "Agree on how the divisible asset(s) are to be split in practice (e.g. sale and division of "
-            "proceeds, or transfer with a compensating payment)."
-        )
-    steps.append(
-        "Hold a mediation session. If the parties do not accept the proposal as it stands, a mediator can "
-        "use it as a neutral, evidence-based starting point for negotiation. The platform can schedule a "
-        "session once the parties choose a common time."
-    )
-    steps.append(
-        "Formalize the agreement. Any final settlement should be put in writing and, where required, "
-        "validated through the competent legal channels."
-    )
+        steps.append(B("step_divisible"))
+    steps.append(B("step_mediation"))
+    steps.append(B("step_formalize"))
     for i, s_txt in enumerate(steps, 1):
         story.append(Paragraph(f"<b>{i}.</b> {s_txt}", st["body"]))
         story.append(Spacer(1, 3))
     story.append(Spacer(1, 4))
-    story.append(Paragraph(
-        "This proposal is a neutral, decision-support starting point. It is not binding and does not "
-        "replace the parties\u2019 own agreement or a decision by a competent authority.", st["small"]))
+    story.append(Paragraph(B("not_binding"), st["small"]))
 
     # ---------- Party decisions (accept / reject) ----------
     # Shows the outcome of the parties' decisions on this proposal.
     if acceptances:
         story.append(Spacer(1, 10))
         story.append(Paragraph(H("decisions"), st["h2"]))
-        d_rows = [[Paragraph(t, st["cellh"]) for t in ["Party", "Decision", "Comment"]]]
+        d_rows = [[Paragraph(t, st["cellh"]) for t in [B("h_party"), B("h_decision"), B("h_comment")]]]
         for a in acceptances:
             acc = a.get("accepted")
-            decision = "Accepted" if acc is True else ("Rejected" if acc is False else "Pending")
+            decision = B("w_accepted") if acc is True else (B("w_rejected") if acc is False else B("w_pending"))
             d_rows.append([
                 Paragraph(a.get("name") or "\u2014", st["cell"]),
                 Paragraph(decision, st["cellb"]),
@@ -846,28 +755,8 @@ def build_report_pdf(
         story.append(Spacer(1, 4))
 
     # ---------- Legal notice and intended use ----------
-    status_line = (
-        "This document is a non-binding proposal generated to support negotiation; each party "
-        "may accept or decline it in the platform."
-        if kind == "proposal" else
-        "This document records the allocation accepted by the parties within the platform."
-    )
-    disclaimer_html = (
-        f"<b>This document has no legal value.</b> It is an automatically generated decision-support "
-        f"document produced by the CREA3 platform to assist the parties and any mediator in reaching an "
-        f"equitable agreement. {status_line}<br/><br/>"
-        f"The contents do not constitute legal advice, a legal opinion, a binding settlement, a court "
-        f"order, or any other legally enforceable instrument, and they do not create rights or obligations "
-        f"for any party. The allocation, valuations, and any balancing amount shown here are the output "
-        f"of an algorithm applied to the information the parties provided; they are indicative only, are not "
-        f"an order to pay, and may contain errors or omissions. Nothing in this document replaces "
-        f"independent legal advice from a qualified professional or the assessment of a competent court or "
-        f"authority.<br/><br/>"
-        f"Before relying on or acting upon this document, the parties should obtain appropriate legal advice "
-        f"and, where required, have any agreement formalized through the competent legal channels. The CREA3 "
-        f"consortium and the authors accept no liability for any use made of this document or for any "
-        f"decision taken on the basis of it."
-    )
+    status_line = B("status_proposal") if kind == "proposal" else B("status_final")
+    disclaimer_html = B("disclaimer", status_line=status_line)
     notice = Table([[Paragraph(disclaimer_html, st["callout"])]], colWidths=[17.0 * cm])
     notice.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), SOFT),
@@ -887,17 +776,12 @@ def build_report_pdf(
         if PARTNERS.exists():
             story.append(Spacer(1, 14))
             story.append(Paragraph(H("partners"), st["h2"]))
-            story.append(Paragraph(
-                "The CREA3 project (Conflict Resolution with Equitative Algorithms) is carried out by the "
-                "following consortium partners.", st["small"]))
+            story.append(Paragraph(B("partners_intro"), st["small"]))
             story.append(Spacer(1, 8))
             story.append(Image(str(PARTNERS), width=13.5 * cm, height=13.5 * cm * (635.0 / 935.0)))
             story.append(Spacer(1, 8))
             story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
-            story.append(Paragraph(
-                "This document was produced with the financial support of the Justice Programme of the "
-                "European Union. Its contents are the sole responsibility of the authors and do not "
-                "necessarily reflect the views of the European Commission.", st["small"]))
+            story.append(Paragraph(B("eu_note"), st["small"]))
     except Exception:
         pass
 

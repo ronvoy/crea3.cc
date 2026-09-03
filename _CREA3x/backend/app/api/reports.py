@@ -94,11 +94,42 @@ def export_audit_log(dispute_id: int, user: User = Depends(get_current_user), se
         w.writerow([ts, e.event_type, actor, details])
 
     csv_bytes = buf.getvalue().encode("utf-8-sig")  # BOM for Excel compatibility
+    csv_hash = sha256(csv_bytes).hexdigest()
+    sealed_name = _sealed_filename(session, dispute_id, csv_hash, "csv",
+                                   lang=(getattr(user, "locale", None) or "en"))
+    # Record the hash in the integrity ledger (file itself is streamed, not stored).
+    csv_disk = REPORT_DIR / sealed_name
+    try:
+        csv_disk.write_bytes(csv_bytes)
+    except OSError:
+        pass
+    _record_signature(session, dispute_id=dispute_id, pdf_path=csv_disk,
+                      file_hash=csv_hash, kind="audit-csv", user=user)
+    session.commit()
     return Response(
         content=csv_bytes,
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="CREA3_audit_dispute_{dispute_id}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="{sealed_name}"'},
     )
+
+
+def _sealed_filename(session: Session, dispute_id: int, file_hash: str, ext: str,
+                     lang: str = "en") -> str:
+    """Tamper-evident download name shared by every export format:
+    CREA3_allocation_dispute_<agent1>_<agent2>-<hash6>-<UTCstamp>-<lang>.<ext>
+    (language suffix: en/it/sl/hr/et/fr/nl/lt — 'be' is shown as 'fr')."""
+    import re as _re
+    agents = session.exec(
+        select(DisputeAgent).where(DisputeAgent.dispute_id == dispute_id)
+    ).all()
+    names = [a.name for a in agents
+             if (a.role_in_dispute or "agent").lower() != "mediator" and a.invite_status == "joined"][:2]
+    def _clean(n: str) -> str:
+        return _re.sub(r"[^A-Za-z0-9]+", "-", (n or "party").strip()).strip("-")[:24] or "party"
+    who = "_".join(_clean(n) for n in names) or f"dispute-{dispute_id}"
+    stamp = utcnow().strftime("%Y%m%d-%H%M%S")
+    suffix = {"be": "fr"}.get((lang or "en").lower(), (lang or "en").lower())
+    return f"CREA3_allocation_dispute_{who}-{file_hash[:6]}-{stamp}-{suffix}.{ext}"
 
 
 def _latest_proposal(session: Session, dispute_id: int) -> AllocationProposal | None:
@@ -132,7 +163,8 @@ def _load_acceptances(session: Session, dispute_id: int, proposal_id: int) -> li
     return out
 
 
-def _render(session: Session, dispute: Dispute, proposal: AllocationProposal, *, kind: str, user: User) -> dict:
+def _render(session: Session, dispute: Dispute, proposal: AllocationProposal, *, kind: str, user: User,
+            lang: str | None = None) -> dict:
     agents = session.exec(select(DisputeAgent).where(DisputeAgent.dispute_id == dispute.id)).all()
     goods = session.exec(select(Good).where(Good.dispute_id == dispute.id)).all()
     acceptances = _load_acceptances(session, dispute.id, proposal.id)
@@ -151,7 +183,9 @@ def _render(session: Session, dispute: Dispute, proposal: AllocationProposal, *,
         history=history,
         acceptances=acceptances,
         kind=kind,
-        lang=(getattr(user, "locale", None) or "en"),
+        # The CURRENT platform UI language (sent by the client) wins; the
+        # profile locale is only a fallback.
+        lang=(eff_lang := (lang or getattr(user, "locale", None) or "en")),
     )
 
     # TAMPER-EVIDENT NAMING: rename the generated file so its own name carries
@@ -159,8 +193,7 @@ def _render(session: Session, dispute: Dispute, proposal: AllocationProposal, *,
     # `CREA3_dispute_<id>_<kind>_<UTC-timestamp>_<hash12>.pdf`. Any change to the
     # file's bytes no longer matches the hash in its filename, the Report row,
     # or the DocumentSignature chain, so tampering is detectable at a glance.
-    stamp = utcnow().strftime("%Y%m%d-%H%M%S")
-    sealed = REPORT_DIR / f"CREA3_dispute_{dispute.id}_{suffix}_{stamp}_{report_hash[:12]}.pdf"
+    sealed = REPORT_DIR / _sealed_filename(session, dispute.id, report_hash, "pdf", lang=eff_lang)
     try:
         pdf_path.replace(sealed)
         pdf_path = sealed
@@ -201,7 +234,7 @@ def _render(session: Session, dispute: Dispute, proposal: AllocationProposal, *,
 
 
 @router.post("/proposal")
-def generate_proposal_report(dispute_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+def generate_proposal_report(dispute_id: int, lang: str = "", user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Generate the professional proposal PDF.
 
     Available as soon as a proposal exists (i.e. during/after the preferences
@@ -212,11 +245,11 @@ def generate_proposal_report(dispute_id: int, user: User = Depends(get_current_u
     proposal = _latest_proposal(session, dispute_id)
     if not proposal:
         raise HTTPException(status_code=409, detail="No proposal has been generated yet. Submit preferences first.")
-    return _render(session, dispute, proposal, kind="proposal", user=user)
+    return _render(session, dispute, proposal, kind="proposal", user=user, lang=lang or None)
 
 
 @router.post("")
-def generate_final_report(dispute_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+def generate_final_report(dispute_id: int, lang: str = "", user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Generate the FINAL report (after the dispute is accepted)."""
     dispute = can_access_dispute(dispute_id, user, session)
     if dispute.status not in ("accepted", "finalized"):
@@ -224,7 +257,7 @@ def generate_final_report(dispute_id: int, user: User = Depends(get_current_user
     proposal = _latest_proposal(session, dispute_id)
     if not proposal:
         raise HTTPException(status_code=404, detail="No proposal found")
-    result = _render(session, dispute, proposal, kind="final", user=user)
+    result = _render(session, dispute, proposal, kind="final", user=user, lang=lang or None)
     dispute.status = "finalized"
     session.add(dispute)
     session.commit()
@@ -232,7 +265,7 @@ def generate_final_report(dispute_id: int, user: User = Depends(get_current_user
 
 
 @router.get("/xlsx")
-def download_report_xlsx(dispute_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+def download_report_xlsx(dispute_id: int, lang: str = "", user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Build and download the proposal/report as an Excel workbook (.xlsx).
 
     Self-contained: it (re)builds from the latest proposal on each request so it
@@ -255,15 +288,26 @@ def download_report_xlsx(dispute_id: int, user: User = Depends(get_current_user)
         proposal=proposal,
         acceptances=acceptances,
         kind=kind,
-        lang=(getattr(user, "locale", None) or "en"),
+        lang=(eff_lang := (lang or getattr(user, "locale", None) or "en")),
     )
+    # Hash the workbook, seal its name, and record an immutable signature —
+    # the same tamper-evidence the PDF gets.
+    xlsx_hash = sha256(xlsx_path.read_bytes()).hexdigest()
+    sealed_x = REPORT_DIR / _sealed_filename(session, dispute_id, xlsx_hash, "xlsx", lang=eff_lang)
+    try:
+        xlsx_path.replace(sealed_x)
+        xlsx_path = sealed_x
+    except OSError:
+        pass
+    _record_signature(session, dispute_id=dispute_id, pdf_path=xlsx_path,
+                      file_hash=xlsx_hash, kind=f"xlsx-{kind}", user=user)
     session.add(AuditEvent(dispute_id=dispute_id, actor_user_id=user.id,
-                           event_type="ReportExcelDownloaded", payload={"kind": kind}))
+                           event_type="ReportExcelDownloaded", payload={"kind": kind, "hash": xlsx_hash}))
     session.commit()
     return FileResponse(
         str(xlsx_path),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=f"CREA3_allocation_dispute_{dispute_id}.xlsx",
+        filename=xlsx_path.name,
     )
 
 

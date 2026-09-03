@@ -1440,6 +1440,15 @@ def assistant_ask_stream(
 _JOB_TTL_SECONDS = 600  # keep finished jobs briefly so late polls still succeed
 
 
+def _looks_cut_off(text: str) -> bool:
+    """Heuristic: a non-trivial answer that stops mid-sentence (upstream stream
+    ended early). Used to trigger ONE automatic regeneration attempt."""
+    t = (text or "").rstrip()
+    if len(t) < 180 or t.endswith("```"):
+        return False
+    return t[-1] not in ".!?…\"')]|:*\u2019\u201d"
+
+
 @dataclass
 class _AskJob:
     id: str
@@ -1510,14 +1519,31 @@ def _run_ask_job(job_id: str, payload: "AskIn", user_id: int) -> None:
                 job.status = "running"
 
             meta: dict = {}
-            try:
+
+            def _generate_once() -> str:
+                buf: list[str] = []
                 for chunk in llm.chat_stream(
                     system=system, user_message=payload.question, history=hist,
                     model=payload.model, openrouter_model=settings.legal_openrouter_model, meta=meta,
                     prefer_legal_ai=(intent == "legal_statutes"), lang=payload.lang,
                 ):
+                    buf.append(chunk)
                     with job.lock:
                         job.text += chunk
+                return "".join(buf)
+
+            try:
+                first_txt = _generate_once()
+                # Upstream sometimes ends the stream mid-sentence. Retry ONCE and
+                # keep whichever attempt is complete (or simply longer).
+                if _looks_cut_off(first_txt):
+                    logger.info("ask job: answer looks cut off — retrying once")
+                    with job.lock:
+                        job.text = ""
+                    retry_txt = _generate_once()
+                    best = retry_txt if (not _looks_cut_off(retry_txt) or len(retry_txt) > len(first_txt)) else first_txt
+                    with job.lock:
+                        job.text = best
             except (llm.LLMUnavailable, llm.LLMError) as e:
                 logger.warning("ask job generation error: %s", e)
             except Exception:
@@ -1757,20 +1783,23 @@ def _run_what_if(row_id: int, dispute_id: int, user_id: int, context: str, quest
             # PRIMARY: LexAI chatbot (its own RAG over the legal KB). The composed
             # dispute context travels inside the question because /chat does not
             # take a system prompt.
-            text: str | None = None
-            provider = ""
-            if _la.is_configured():
-                try:
-                    text = _la.ask(f"{system}\n\n---\n\nTASK: {question}", lang=lang)
-                    provider = "legal-ai"
-                except _la.LegalAIError as e:
-                    logger.info("what-if: LexAI unavailable (%s) — falling back to OpenRouter", e)
-            if not text:
-                # SECONDARY: hosted Mistral. Full-length analysis (not tunnel-bound).
+            def _gen_once() -> tuple[str | None, str]:
+                if _la.is_configured():
+                    try:
+                        return _la.ask(f"{system}\n\n---\n\nTASK: {question}", lang=lang), "legal-ai"
+                    except _la.LegalAIError as e:
+                        logger.info("what-if: LexAI unavailable (%s) — falling back to OpenRouter", e)
                 result = llm.chat(system=system, user_message=question,
                                   openrouter_model=settings.legal_openrouter_model, max_tokens=2000)
-                text = result.text
-                provider = result.provider
+                return result.text, result.provider
+
+            text, provider = _gen_once()
+            # One automatic retry when the analysis ends mid-sentence.
+            if text and _looks_cut_off(text):
+                logger.info("what-if: analysis looks cut off — retrying once")
+                text2, provider2 = _gen_once()
+                if text2 and (not _looks_cut_off(text2) or len(text2) > len(text)):
+                    text, provider = text2, provider2
 
             row = s.get(WhatIfAnalysis, row_id)
             if row:

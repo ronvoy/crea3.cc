@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, apiBlob, API_BASE, getAccessToken } from '../api/client'
 import { useAuth } from '../store/auth'
@@ -1685,8 +1685,43 @@ function CourtReferences({ disputeId, t }: { disputeId: number; t: (k: any) => s
 }
 
 function WhatIfAnswer({ row, t }: { row: any; t: (k: any) => string }) {
-  if (!row || row.status === 'generating') return <div className="text-slate-500 text-sm">{t('whatIfThinking')}</div>
+  // Typewriter reveal — plays only when THIS mount watched the row generate
+  // (a stored analysis reopened later renders instantly).
+  const sawGenerating = useRef(false)
+  const [shown, setShown] = useState<number | null>(null)
+  useEffect(() => {
+    if (row?.status === 'generating') { sawGenerating.current = true; setShown(null); return }
+    if (row?.status === 'done' && sawGenerating.current && row.answer) {
+      sawGenerating.current = false
+      let i = 0
+      setShown(0)
+      const id = window.setInterval(() => {
+        const len = String(row.answer || '').length
+        i = Math.min(len, i + Math.max(4, Math.ceil((len - i) / 25)))
+        setShown(i)
+        if (i >= len) window.clearInterval(id)
+      }, 30)
+      return () => window.clearInterval(id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row?.status, row?.id])
+
+  if (!row || row.status === 'generating') {
+    // Shimmer skeleton while the analysis generates in the background.
+    return (
+      <div aria-label={t('whatIfThinking')} className="py-1">
+        <div className="text-xs text-slate-500 mb-1.5">{t('whatIfThinking')}</div>
+        <div className="crea3-skel-line" style={{ width: '95%' }} />
+        <div className="crea3-skel-line" style={{ width: '100%' }} />
+        <div className="crea3-skel-line" style={{ width: '88%' }} />
+        <div className="crea3-skel-line" style={{ width: '96%' }} />
+        <div className="crea3-skel-line" style={{ width: '52%' }} />
+      </div>
+    )
+  }
   if (row.status === 'error') return <div className="text-rose-700 text-sm">{row.answer || 'Error'}</div>
+  const fullText = String(row.answer || '—')
+  const displayText = shown != null && shown < fullText.length ? fullText.slice(0, shown) : fullText
   return (
     <div className="whatif-md space-y-2 leading-relaxed text-sm text-slate-800">
       {row.fallback ? <div><ExternalModelChip t={t} /></div> : null}
@@ -1699,7 +1734,7 @@ function WhatIfAnswer({ row, t }: { row: any; t: (k: any) => string }) {
               className="text-blue-600 hover:underline" />
           ),
         }}
-      >{row.answer || '—'}</ReactMarkdown>
+      >{displayText}</ReactMarkdown>
       {row.fallback ? <div className="pt-1"><ExternalModelChip t={t} /></div> : null}
     </div>
   )

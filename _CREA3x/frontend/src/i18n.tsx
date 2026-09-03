@@ -968,6 +968,7 @@ const strings = {
     aiDelete: 'Delete',
     aiRenamePrompt: 'Rename this chat:',
     aiDeleteConfirm: 'Delete this chat and all its messages?',
+    aiWidgetThinking: 'The assistant is preparing your answer…',
     aiWidgetUnavailable: 'The assistant is currently unavailable. Please try again shortly.',
     aiInterrupted: '(reply interrupted — please resend to continue)',
     aiExternalModel: 'External model',
@@ -1068,6 +1069,7 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    aiWidgetThinking: "L'assistente sta preparando la tua risposta…",
     generateNeedsDecisionHint: "Scegli prima \"Sono d'accordo\" o \"Non sono d'accordo\" — Genera si sblocca dopo aver inviato la tua decisione.",
     proposalsLockedHint: "Bloccato — ogni agente deve prima completare il passaggio di riconciliazione.",
     proposalGeneratedHint: "Il rapporto della proposta è già stato generato.",
@@ -2114,6 +2116,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    aiWidgetThinking: "Asistent pripravlja vaš odgovor…",
     generateNeedsDecisionHint: "Najprej izberite \"Strinjam se\" ali \"Ne strinjam se\" — Generiranje se odklene po oddaji vaše odločitve.",
     proposalsLockedHint: "Zaklenjeno — vsak agent mora najprej dokončati korak usklajevanja.",
     proposalGeneratedHint: "Poročilo o predlogu je bilo že ustvarjeno.",
@@ -3160,6 +3163,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    aiWidgetThinking: "Abiline valmistab teie vastust…",
     generateNeedsDecisionHint: "Vali esmalt \"Ma nõustun\" või \"Ma ei nõustu\" — Generaator avatakse pärast sinu otsuse esitamist.",
     proposalsLockedHint: "Lukustatud — iga agendi peab esmalt lõpetama lepitamise sammu.",
     proposalGeneratedHint: "Ettepaneku aruanne on juba genereeritud.",
@@ -4206,6 +4210,7 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    aiWidgetThinking: "L'assistant prépare votre réponse…",
     generateNeedsDecisionHint: "Choisissez \"J'accepte\" ou \"Je n'accepte pas\" d'abord — Générer se déverrouille après que vous ayez soumis votre décision.",
     proposalsLockedHint: "Verrouillé — chaque agent doit d'abord terminer l'étape de réconciliation.",
     proposalGeneratedHint: "Le rapport de proposition a déjà été généré.",
@@ -5252,6 +5257,7 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    aiWidgetThinking: "Asistentas ruošia jūsų atsakymą…",
     generateNeedsDecisionHint: "Pirmiausia pasirinkite „Sutinku“ arba „Nesutinku“ — Generuoti bus galima tik po to, kai pateiksite savo sprendimą.",
     proposalsLockedHint: "Užrakinta — kiekvienas agentas pirmiausia turi užbaigti suderinimo žingsnį.",
     proposalGeneratedHint: "Pasiūlymo ataskaita jau buvo sugeneruota.",
@@ -6298,6 +6304,7 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    aiWidgetThinking: "Asistent priprema vaš odgovor…",
     generateNeedsDecisionHint: "Prvo odaberite \"Slažem se\" ili \"Ne slažem se\" — Generiraj se otključava nakon što pošaljete svoju odluku.",
     proposalsLockedHint: "Zaključano — svaki agent mora prvo završiti korak usklađivanja.",
     proposalGeneratedHint: "Izvještaj o prijedlogu je već generiran.",
@@ -7348,6 +7355,7 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    aiWidgetThinking: "De assistent bereidt uw antwoord voor…",
     generateNeedsDecisionHint: "Kies eerst \"Ik ga akkoord\" of \"Ik ga niet akkoord\" — Genereer ontgrendelt nadat je je beslissing hebt ingediend.",
     proposalsLockedHint: "Vergrendeld — elke agent moet eerst de reconciliatiestap voltooien.",
     proposalGeneratedHint: "Het voorstelrapport is al gegenereerd.",

@@ -129,6 +129,42 @@ export default function AssistantWidget() {
   const [msgs, setMsgs] = useState<Msg[]>([{ role: 'bot', text: t('aiWelcome') }])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  // Typewriter reveal: generation accumulates into a TARGET buffer server-side
+  // (background job); the UI types toward it at adaptive speed, so answers
+  // render smoothly instead of in jumpy poll-sized chunks.
+  const typerRef = useRef<{ target: string; shown: number; timer: number | null; done: boolean }>({ target: '', shown: 0, timer: null, done: false })
+  const [typing, setTyping] = useState(false)
+  function typerReset() {
+    const T = typerRef.current
+    if (T.timer != null) window.clearInterval(T.timer)
+    typerRef.current = { target: '', shown: 0, timer: null, done: false }
+    setTyping(false)
+  }
+  function typeTo(target: string, done = false) {
+    const T = typerRef.current
+    T.target = target
+    if (done) T.done = true
+    if (T.timer == null) {
+      setTyping(true)
+      T.timer = window.setInterval(() => {
+        const t = typerRef.current
+        if (t.shown >= t.target.length) {
+          if (t.done) { if (t.timer != null) window.clearInterval(t.timer); t.timer = null; setTyping(false) }
+          return
+        }
+        const remaining = t.target.length - t.shown
+        const step = Math.max(2, Math.ceil(remaining / 30))   // adaptive: never lags far behind
+        t.shown = Math.min(t.target.length, t.shown + step)
+        patchLastBot({ text: t.target.slice(0, t.shown) })
+      }, 30)
+    }
+  }
+  function typerFlush() {
+    const T = typerRef.current
+    if (T.timer != null) window.clearInterval(T.timer)
+    T.timer = null; T.done = true; T.shown = T.target.length
+    setTyping(false)
+  }
   const [reporting, setReporting] = useState(false)
   const [report, setReport] = useState<{ text: string; ok: boolean } | null>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -522,6 +558,7 @@ export default function AssistantWidget() {
     }
     setSending(true)
 
+    typerReset()
     let acc = ''
     let msgId: number | undefined
     let newSessionId: number | undefined
@@ -574,9 +611,9 @@ export default function AssistantWidget() {
             })
             metaSet = true
           }
-          if (p.text) { acc += p.text; patchLastBot({ text: acc }) }
+          if (p.text) { acc += p.text; typeTo(acc) }
           offset = p.next_offset ?? offset
-          if (p.status === 'done') { msgId = p.message_id ?? undefined; patchLastBot({ msgId, fallback: !!p.fallback }); break }
+          if (p.status === 'done') { msgId = p.message_id ?? undefined; typeTo(acc, true); patchLastBot({ msgId, fallback: !!p.fallback }); break }
           if (p.status === 'error') { streamErr = 'unavailable'; break }
           if (Date.now() - startedAt > 180000) { streamErr = 'timeout'; break }
           await new Promise((r) => setTimeout(r, 900))
@@ -614,9 +651,10 @@ export default function AssistantWidget() {
               })
             } else if (obj.type === 'token') {
               acc += obj.text
-              patchLastBot({ text: acc })
+              typeTo(acc)
             } else if (obj.type === 'done') {
               msgId = obj.message_id ?? undefined
+              typeTo(acc, true)
               patchLastBot({ msgId, fallback: !!obj.fallback })
             } else if (obj.type === 'error') {
               streamErr = obj.detail
@@ -628,9 +666,11 @@ export default function AssistantWidget() {
       // Never render the raw backend error (it may name a model/provider) — always
       // a friendly, localized message.
       if (streamErr) {
+        typerFlush()
         if (acc) patchLastBot({ text: `${acc}\n\n_${t('aiInterrupted')}_` })
         else patchLastBot({ text: t('aiWidgetUnavailable') })
       } else if (!acc) {
+        typerFlush()
         patchLastBot({ text: t('aiWidgetUnavailable') })
       }
       if (newSessionId) { setSessionId(newSessionId); refreshSessions() }
@@ -640,6 +680,7 @@ export default function AssistantWidget() {
     } catch (e: any) {
       // Connection dropped mid-stream: preserve the partial answer rather than
       // wiping it with a bare "network error".
+      typerFlush()
       if (acc) patchLastBot({ text: `${acc}\n\n_${t('aiInterrupted')}_` })
       else patchLastBot({ text: e?.message || t('aiWidgetUnavailable') })
     } finally {
@@ -859,7 +900,16 @@ export default function AssistantWidget() {
                     }}
                   >
                     {m.role === 'bot'
-                      ? <Markdown text={splitOptions(m.text).body} />
+                      ? (!m.text && i === msgs.length - 1 && (sending || typing)
+                          ? (
+                            <div aria-label={t('aiWidgetThinking')} style={{ minWidth: '14rem' }}>
+                              <div className="crea3-skel-line" style={{ width: '92%' }} />
+                              <div className="crea3-skel-line" style={{ width: '100%' }} />
+                              <div className="crea3-skel-line" style={{ width: '84%' }} />
+                              <div className="crea3-skel-line" style={{ width: '55%' }} />
+                            </div>
+                          )
+                          : <Markdown text={splitOptions(m.text).body} />)
                       : <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{m.text}</Typography>}
                     {m.role === 'bot' && m.fallback && m.text ? (
                       <Tooltip title={t('aiExternalModelHint')}>
@@ -870,7 +920,7 @@ export default function AssistantWidget() {
                     ) : null}
                   </Paper>
                   {/* Quick-reply choices from an assistant clarifying question. */}
-                  {m.role === 'bot' && i === msgs.length - 1 && !sending && splitOptions(m.text).options.length ? (
+                  {m.role === 'bot' && i === msgs.length - 1 && !sending && !typing && splitOptions(m.text).options.length ? (
                     <Stack direction="row" spacing={0.75} sx={{ mt: 0.75, flexWrap: 'wrap', rowGap: 0.75 }}>
                       {splitOptions(m.text).options.map((opt) => (
                         <Chip key={opt} size="small" clickable variant="outlined" color="primary"
@@ -925,7 +975,7 @@ export default function AssistantWidget() {
                   {/* "Continue" chip on the latest answer when it looks cut off
                       mid-sentence — sends a follow-up (with full history) that asks
                       the model to resume seamlessly in the same language/format. */}
-                  {m.role === 'bot' && i === msgs.length - 1 && i > 0 && m.text && !sending ? (() => {
+                  {m.role === 'bot' && i === msgs.length - 1 && i > 0 && m.text && !sending && !typing ? (() => {
                     const parsed = splitOptions(m.text)
                     if (parsed.options.length) return null   // clarifying question, not a cut-off
                     const txt = parsed.body.trim()

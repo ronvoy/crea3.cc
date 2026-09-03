@@ -349,3 +349,13 @@ html.a11y-custom h1, html.a11y-custom h2, html.a11y-custom h3, html.a11y-custom 
   line-height: 1.35; padding: 10px 14px; border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 2px solid #06b6d4;
 }
+
+/* ── Loading shimmer (skeleton) for AI answers ─────────────────────────────── */
+.crea3-skel-line {
+  height: 12px; border-radius: 6px; margin: 7px 0;
+  background: linear-gradient(90deg, rgba(148,163,184,.16) 25%, rgba(148,163,184,.40) 50%, rgba(148,163,184,.16) 75%);
+  background-size: 400% 100%;
+  animation: crea3shimmer 1.25s ease-in-out infinite;
+}
+@keyframes crea3shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
+html.rm .crea3-skel-line { animation: none; }

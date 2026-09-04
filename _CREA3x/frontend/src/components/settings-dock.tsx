@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
+  Dialog,
+  DialogContent,
+  useMediaQuery,
   Drawer,
   IconButton,
   Tooltip,
@@ -19,6 +22,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import CloseIcon from '@mui/icons-material/Close'
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 import { useLocation } from 'react-router-dom'
 import { useA11y } from './a11y-provider'
 import AccessibilityPanel from './accessibility-panel'
@@ -47,6 +51,11 @@ export default function SettingsDock() {
 
   const [open, setOpen] = useState(false)
   const [a11yOpen, setA11yOpen] = useState(false)
+  // Tutorial video: the vertical Shorts cut is used on phone-sized viewports,
+  // the landscape one on tablet/desktop.
+  const [videoOpen, setVideoOpen] = useState(false)
+  const isMobile = useMediaQuery('(max-width:600px)')
+  const videoId = isMobile ? 'q6Du9fNiL6M' : 'RE3c2oEhjPg'
 
   // Draggable rail: stays pinned to the right edge, moves only vertically.
   // Default position is ~30% down from the top; the last position is remembered.
@@ -171,7 +180,51 @@ export default function SettingsDock() {
             {lightMode ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
           </IconButton>
         </Tooltip>
+        <Tooltip title={t('tutorialVideo')} placement="left">
+          <IconButton aria-label={t('tutorialVideo')} onClick={() => setVideoOpen(true)}>
+            <PlayCircleOutlineIcon />
+          </IconButton>
+        </Tooltip>
       </Paper>
+
+      {/* Tutorial video — responsive embed (Shorts on mobile, standard elsewhere) */}
+      <Dialog
+        open={videoOpen}
+        onClose={() => setVideoOpen(false)}
+        fullWidth
+        maxWidth={isMobile ? 'xs' : 'md'}
+        sx={{
+          zIndex: (th) => th.zIndex.drawer + 10,
+          '& .MuiDialog-paper': { m: { xs: 1, sm: 3 }, width: { xs: 'calc(100% - 16px)', sm: '100%' }, borderRadius: 3, overflow: 'hidden' },
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.25 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{t('tutorialVideo')}</Typography>
+          <IconButton size="small" aria-label={t('close')} onClick={() => setVideoOpen(false)}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+        <DialogContent sx={{ p: 0, pb: 2, px: 2 }}>
+          <Box
+            sx={{
+              position: 'relative', width: '100%', borderRadius: 2, overflow: 'hidden', bgcolor: 'black',
+              // 9:16 for the vertical Shorts cut, 16:9 for the landscape video.
+              pt: isMobile ? '177.78%' : '56.25%',
+            }}
+          >
+            {videoOpen ? (
+              <Box
+                component="iframe"
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
+                title={t('tutorialVideo')}
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+              />
+            ) : null}
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {/* Accessibility panel — WCAG 2.2 / AgID, ~70% viewport, centred content */}
       <Drawer

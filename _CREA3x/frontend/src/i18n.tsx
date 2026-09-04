@@ -803,6 +803,7 @@ const strings = {
     partnersVisitSite: "Visit site ↗",
     mapAria: "Map of Europe showing {cities} cities hosting {total} CREA3 partner institutions.",
     mapCaption: "{cities} cities · {total} partner institutions across {countries} countries. Select a marker to see the institution and a photo of the site.",
+    tutorialVideo: 'Watch the tutorial',
     cookieTitle: 'Cookies and your privacy',
     cookieBannerText: 'We use strictly necessary cookies to run the platform. With your consent we may also use optional cookies for preferences, analytics and communication. You can change your choice at any time.',
     cookieModalIntro: 'Choose which optional cookies you allow. Strictly necessary cookies cannot be switched off — the platform cannot work without them.',
@@ -1093,6 +1094,7 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    tutorialVideo: "Guarda il tutorial",
     cookieTitle: "Cookie e la tua privacy",
     cookieBannerText: "Utilizziamo cookie strettamente necessari per far funzionare la piattaforma. Con il tuo consenso possiamo anche utilizzare cookie opzionali per preferenze, analisi e comunicazione. Puoi cambiare la tua scelta in qualsiasi momento.",
     cookieModalIntro: "Scegli quali cookie opzionali consentire. I cookie strettamente necessari non possono essere disattivati: la piattaforma non può funzionare senza di essi.",
@@ -2164,6 +2166,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    tutorialVideo: "Oglejte si vadnico",
     cookieTitle: "Piškotki in vaša zasebnost",
     cookieBannerText: "Uporabljamo strogo potrebne piškotke za delovanje platforme. Z vašim soglasjem lahko uporabljamo tudi neobvezne piškotke za nastavitve, analitiko in komunikacijo. Svojo izbiro lahko spremenite kadarkoli.",
     cookieModalIntro: "Izberite, katere neobvezne piškotke dovoljujete. Strogo potrebni piškotki se ne morejo izklopiti — platforma ne more delovati brez njih.",
@@ -3235,6 +3238,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    tutorialVideo: "Vaata õpetusvideot",
     cookieTitle: "Küpsised ja teie privaatsus",
     cookieBannerText: "Kasutame platvormi toimimiseks rangelt vajalikke küpsiseid. Teie nõusolekul võime kasutada ka valikulisi küpsiseid eelistuste, analüütika ja suhtluse jaoks. Saate oma valikut igal ajal muuta.",
     cookieModalIntro: "Valige, milliseid valikulisi küpsiseid lubate. Rangelt vajalikke küpsiseid ei saa välja lülitada — platvorm ei saa ilma nendeta töötada.",
@@ -4306,6 +4310,7 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    tutorialVideo: "Regardez le tutoriel",
     cookieTitle: "Cookies et votre vie privée",
     cookieBannerText: "Nous utilisons des cookies strictement nécessaires pour faire fonctionner la plateforme. Avec votre consentement, nous pouvons également utiliser des cookies optionnels pour les préférences, l'analyse et la communication. Vous pouvez changer votre choix à tout moment.",
     cookieModalIntro: "Choisissez quels cookies optionnels vous autorisez. Les cookies strictement nécessaires ne peuvent pas être désactivés — la plateforme ne peut pas fonctionner sans eux.",
@@ -5377,6 +5382,7 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    tutorialVideo: "Žiūrėti mokomąjį vaizdo įrašą",
     cookieTitle: "Slapukai ir jūsų privatumas",
     cookieBannerText: "Naudojame griežtai būtinus slapukus platformai veikti. Su jūsų sutikimu galime naudoti ir pasirenkamus slapukus pageidavimams, analitikai ir komunikacijai. Bet kada galite pakeisti savo pasirinkimą.",
     cookieModalIntro: "Pasirinkite, kuriuos pasirenkamus slapukus leidžiate. Griežtai būtini slapukai negali būti išjungti — platforma negali veikti be jų.",
@@ -6448,6 +6454,7 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    tutorialVideo: "Pogledajte tutorial",
     cookieTitle: "Kolačići i vaša privatnost",
     cookieBannerText: "Koristimo strogo potrebne kolačiće za rad platforme. Uz vaš pristanak, možemo koristiti i opcionalne kolačiće za postavke, analitiku i komunikaciju. Svoj izbor možete promijeniti u bilo kojem trenutku.",
     cookieModalIntro: "Odaberite koje opcionalne kolačiće dopuštate. Strogo potrebni kolačići ne mogu se isključiti — platforma ne može raditi bez njih.",
@@ -7523,6 +7530,7 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    tutorialVideo: "Bekijk de tutorial",
     cookieTitle: "Cookies en uw privacy",
     cookieBannerText: "We gebruiken strikt noodzakelijke cookies om het platform te laten draaien. Met uw toestemming kunnen we ook optionele cookies gebruiken voor voorkeuren, analyses en communicatie. U kunt uw keuze op elk moment wijzigen.",
     cookieModalIntro: "Kies welke optionele cookies u toestaat. Strikt noodzakelijke cookies kunnen niet worden uitgeschakeld — het platform kan niet zonder hen functioneren.",

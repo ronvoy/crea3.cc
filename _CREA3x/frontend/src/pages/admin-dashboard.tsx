@@ -39,7 +39,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 export default function AdminDashboardPage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge">("stats");
+  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge" | "consent">("stats");
   const [theme, setTheme] = useState<Theme>((localStorage.getItem("admin_theme") as Theme) || "dark");
   const [refreshTick, setRefreshTick] = useState(0);
   const c = palette(theme);
@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {(["stats", "mail", "users", "database", "knowledge"] as const).map((tt) => (
+          {(["stats", "mail", "users", "consent", "database", "knowledge"] as const).map((tt) => (
             <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt === "knowledge" ? "Knowledge Base" : tt[0].toUpperCase() + tt.slice(1)}</button>
           ))}
           <button onClick={() => setRefreshTick((n) => n + 1)} title="Refresh current tab" style={{ ...tb(false), background: c.accent, color: "#fff", borderColor: c.accent }}>⟳ Refresh</button>
@@ -72,6 +72,7 @@ export default function AdminDashboardPage() {
         {tab === "mail" && <MailTab c={c} refreshTick={refreshTick} />}
         {tab === "database" && <DatabaseTab c={c} refreshTick={refreshTick} />}
         {tab === "knowledge" && <KnowledgeBaseTab c={c} refreshTick={refreshTick} />}
+        {tab === "consent" && <ConsentTab c={c} refreshTick={refreshTick} />}
       </main>
     </div>
   );
@@ -998,5 +999,93 @@ function NumField({ c, label, value, onSet, step }: { c: C; label: string; value
         onBlur={() => { const n = Number(v); if (!Number.isNaN(n) && n !== Number(value)) onSet(n); }}
       />
     </span>
+  );
+}
+
+
+// ── CONSENT (GDPR Art. 7(1) evidence log) ─────────────────────────────────────
+function ConsentTab({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const s = S(c);
+  const [data, setData] = useState<any>({ summary: null, rows: [] });
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  async function load() {
+    setErr(null);
+    try { setData(await adminApi(`/api/admin/consent?limit=1000`)); } catch (e: any) { setErr(e.message); }
+  }
+  useEffect(() => { load(); }, [refreshTick]);
+
+  const rows = useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    const all = data.rows || [];
+    return ql ? all.filter((r: any) => [r.visitor_id, r.user_email, r.action].some((v: any) => String(v ?? "").toLowerCase().includes(ql))) : all;
+  }, [data, q]);
+  const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  const sum = data.summary;
+  const yn = (v: boolean) => (v ? "✓" : "—");
+
+  return (
+    <div>
+      {err && <div style={s.err}>{err}</div>}
+      {sum ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 16 }}>
+          {[
+            ["Consent records", sum.records],
+            ["Subjects", sum.subjects],
+            ["Analytics accepted", `${sum.accepted_analytics} (${sum.analytics_rate}%)`],
+            ["Preferences accepted", sum.accepted_preferences],
+            ["Communication accepted", sum.accepted_marketing],
+            ["Rejected optional", sum.rejected_all],
+          ].map(([label, val]: any, i) => (
+            <div key={i} style={{ ...s.card, marginBottom: 0, borderLeft: `4px solid ${c.accent}` }}>
+              <div style={{ color: c.muted, fontSize: 12 }}>{label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div style={s.card}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+          <h3 style={{ margin: 0 }}>Cookie consent log</h3>
+          <span style={{ color: c.faint, fontSize: 12 }}>Append-only evidence of consent (GDPR Art. 7(1)) — never edited or deleted.</span>
+          <input style={{ ...s.input, minWidth: 200, marginLeft: "auto" }} placeholder="search visitor / user / action…" value={q}
+            onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
+            <thead>
+              <tr>
+                {["When (UTC)", "Subject", "Action", "Necessary", "Preferences", "Analytics", "Communication", "Policy", "IP"].map((h) => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((r: any) => (
+                <tr key={r.id}>
+                  <td style={s.td}>{r.created_at ? new Date(r.created_at).toLocaleString() : "—"}</td>
+                  <td style={s.td}>{r.user_email || <span style={{ color: c.faint }}>anon {String(r.visitor_id || "").slice(0, 12)}…</span>}</td>
+                  <td style={s.td}>{r.action}</td>
+                  <td style={s.td}>✓</td>
+                  <td style={s.td}>{yn(r.preferences)}</td>
+                  <td style={s.td}>{yn(r.analytics)}</td>
+                  <td style={s.td}>{yn(r.marketing)}</td>
+                  <td style={s.td}>{r.policy_version}</td>
+                  <td style={s.td}>{r.ip || "—"}</td>
+                </tr>
+              ))}
+              {pageRows.length === 0 && <tr><td style={s.td} colSpan={9}>No consent records yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <Pager c={c} page={page} pageSize={pageSize} total={rows.length} setPage={setPage} setPageSize={setPageSize} />
+        </div>
+      </div>
+    </div>
   );
 }

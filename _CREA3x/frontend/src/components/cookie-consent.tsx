@@ -96,7 +96,19 @@ export default function CookieConsent() {
 
   return (
     <>
-      {/* First-visit banner — nothing non-essential runs until a choice is made */}
+      {/* First-visit banner — nothing non-essential runs until a choice is made.
+          A dimmed scrim (like the modal backdrop) puts it in the spotlight. */}
+      {banner && !open ? (
+        <Box
+          aria-hidden
+          sx={{
+            position: 'fixed', inset: 0,
+            bgcolor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(2px)',
+            zIndex: (th) => th.zIndex.modal + 49,
+          }}
+        />
+      ) : null}
       {banner && !open ? (
         <Paper
           elevation={8}

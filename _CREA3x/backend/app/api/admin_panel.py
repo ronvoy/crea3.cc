@@ -32,7 +32,7 @@ from ..core.config import settings
 from ..core.email import _send_email
 from ..core.security import hash_password
 from ..db import engine, get_session
-from ..models import User, UserActivity, MailMessage, MailAttachmentRow, utcnow
+from ..models import User, UserActivity, MailMessage, MailAttachmentRow, CookieConsent, utcnow
 from .admin import require_admin_panel
 
 router = APIRouter(prefix="/api/admin", tags=["admin-panel"])
@@ -153,6 +153,68 @@ def delete_user(user_id: int, _admin: str = Depends(require_admin_panel), sessio
     session.delete(u)
     session.commit()
     return {"ok": True}
+
+
+@router.get("/consent")
+def list_consent(
+    limit: int = Query(200, ge=1, le=2000),
+    q: str | None = Query(None, description="filter by visitor id / user email"),
+    _admin: str = Depends(require_admin_panel),
+    session: Session = Depends(get_session),
+):
+    """Cookie-consent audit log — the evidence required by GDPR Art. 7(1).
+
+    Append-only: every decision (accept all / reject / save / withdraw) is a
+    separate row, so an authority can be shown exactly what each visitor or
+    user consented to, when, and against which policy version.
+    """
+    rows = session.exec(
+        select(CookieConsent).order_by(CookieConsent.id.desc()).limit(limit)
+    ).all()
+    emails: dict[int, str] = {}
+    uids = {r.user_id for r in rows if r.user_id}
+    if uids:
+        for u in session.exec(select(User).where(User.id.in_(list(uids)))).all():
+            emails[u.id] = u.email
+    out = [
+        {
+            "id": r.id,
+            "visitor_id": r.visitor_id,
+            "user_id": r.user_id,
+            "user_email": emails.get(r.user_id or -1),
+            "necessary": True,
+            "preferences": bool(r.preferences),
+            "analytics": bool(r.analytics),
+            "marketing": bool(r.marketing),
+            "action": r.action,
+            "policy_version": r.policy_version,
+            "ip": r.ip,
+            "user_agent": r.user_agent,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+    if q:
+        ql = q.strip().lower()
+        out = [o for o in out if ql in (o["visitor_id"] or "").lower() or ql in (o["user_email"] or "").lower()]
+    # Aggregate acceptance rates (latest decision per subject) for the summary.
+    latest: dict[str, dict] = {}
+    for o in out:
+        key = f"u{o['user_id']}" if o["user_id"] else f"v{o['visitor_id']}"
+        if key not in latest:      # rows are newest-first
+            latest[key] = o
+    subjects = list(latest.values())
+    n = len(subjects) or 1
+    summary = {
+        "records": len(out),
+        "subjects": len(subjects),
+        "accepted_analytics": sum(1 for o in subjects if o["analytics"]),
+        "accepted_preferences": sum(1 for o in subjects if o["preferences"]),
+        "accepted_marketing": sum(1 for o in subjects if o["marketing"]),
+        "rejected_all": sum(1 for o in subjects if not (o["analytics"] or o["preferences"] or o["marketing"])),
+        "analytics_rate": round(100.0 * sum(1 for o in subjects if o["analytics"]) / n, 1),
+    }
+    return {"summary": summary, "rows": out}
 
 
 @router.get("/activity")

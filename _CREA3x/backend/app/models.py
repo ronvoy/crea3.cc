@@ -231,6 +231,33 @@ class Report(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class CookieConsent(SQLModel, table=True):
+    """GDPR/ePrivacy cookie-consent record (append-only audit of choices).
+
+    One row per consent ACTION (accept all / reject / save selection), never
+    updated — Art. 7(1) GDPR requires the controller to be able to demonstrate
+    that consent was given, so each decision is kept with its timestamp, the
+    policy version it was given against, and the exact category flags.
+    `visitor_id` is a random client-side id so anonymous visitors' choices are
+    auditable without identifying them; `user_id` is set when signed in.
+    """
+    __tablename__ = "cookie_consent"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    visitor_id: str = Field(default="", index=True, max_length=64)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    # Category flags. `necessary` is always True (strictly necessary cookies
+    # need no consent); the rest are opt-IN and default to False.
+    necessary: bool = Field(default=True)
+    preferences: bool = Field(default=False)
+    analytics: bool = Field(default=False)
+    marketing: bool = Field(default=False)
+    action: str = Field(default="save", max_length=20)   # accept_all|reject_all|save|withdraw
+    policy_version: str = Field(default="1.0", max_length=20)
+    user_agent: Optional[str] = Field(default=None, max_length=400)
+    ip: Optional[str] = Field(default=None, max_length=64)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 class DocumentSignature(SQLModel, table=True):
     """Append-only integrity ledger for every generated document.
 

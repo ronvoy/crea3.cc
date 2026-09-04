@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Paper, Typography, Link as MuiLink, Stack, Divider, Container } from '@mui/material'
 import { useI18n } from '../i18n'
+import { openCookiePreferences } from './cookie-consent'
 
 const website = import.meta.env.VITE_PROJECT_WEBSITE || ''
 
@@ -69,9 +70,22 @@ export default function SiteFooter({ compact = false }: { compact?: boolean }) {
           </Box>
 
           <Divider sx={{ my: 2.5 }} />
-          <Typography variant="caption" color="text.secondary">
-            © {new Date().getFullYear()} {t('footerRights')}
-          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.5, sm: 2 }} alignItems={{ sm: 'center' }} justifyContent="space-between">
+            <Typography variant="caption" color="text.secondary">
+              © {new Date().getFullYear()} {t('footerRights')}
+            </Typography>
+            <MuiLink
+              component="button"
+              type="button"
+              onClick={openCookiePreferences}
+              underline="hover"
+              variant="caption"
+              color="text.secondary"
+              sx={{ textAlign: { xs: 'left', sm: 'right' } }}
+            >
+              🍪 {t('cookieSettingsLink')}
+            </MuiLink>
+          </Stack>
         </Paper>
       </Container>
     </Box>

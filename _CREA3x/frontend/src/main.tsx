@@ -9,6 +9,7 @@ import { AppThemeProvider } from './theme'
 import { I18nProvider } from './i18n'
 import SettingsDock from './components/settings-dock'
 import CookieConsent from './components/cookie-consent'
+import { AnimationProvider } from './components/animator'
 
 import { useAuth } from './store/auth'
 import { hasDirectSession, refreshTokens, clearDirectTokens, accessTokenExpiringSoon } from './auth/direct'
@@ -43,9 +44,11 @@ async function boot() {
         <AppThemeProvider>
           <I18nProvider>
             <BrowserRouter>
+              <AnimationProvider>
               <SettingsDock />
               <CookieConsent />
               <App />
+              </AnimationProvider>
             </BrowserRouter>
           </I18nProvider>
         </AppThemeProvider>

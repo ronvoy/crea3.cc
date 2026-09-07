@@ -1,0 +1,98 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# CREA3 — UI animation configuration (GSAP)
+#
+# This file is READ AT RUNTIME from /animation.yaml, so you can change it and
+# reload the page without rebuilding the frontend. The Settings ⚙ → Animation
+# panel writes the same values per browser; anything set there overrides this
+# file, and "Reset to file defaults" in that panel goes back to what is here.
+#
+# MASTER SWITCH
+#   animation: 1   -> animations enabled
+#   animation: 0   -> everything below is ignored, the UI renders statically
+# Animations are ALSO force-disabled (regardless of this file) when the user
+# turns on "Stop animations" in the accessibility panel or their OS asks for
+# reduced motion — accessibility always wins.
+# ══════════════════════════════════════════════════════════════════════════════
+animation: 1
+
+# Global defaults every target inherits unless it overrides them.
+defaults:
+  duration: 0.55            # seconds, 0.1 – 2.0
+  delay: 0.0                # seconds before the first element starts
+  stagger: 0.06             # seconds between elements in the same group
+  distance: 24              # px travelled by slide/rise effects
+  # ease: any GSAP ease. Recommended choices:
+  #   power1.out | power2.out | power3.out | power4.out
+  #   back.out(1.4) | expo.out | circ.out | sine.out | elastic.out(1, 0.6)
+  ease: sine.out
+  once: true                # true = animate on first mount / route change only
+
+targets:
+
+  # ── Cards & panels ────────────────────────────────────────────────────────
+  # Matches every outlined, rounded MUI Paper (the app's card container):
+  #   <div class="MuiPaper-root MuiPaper-outlined MuiPaper-rounded …">
+  # effect choices: fade | rise | fall | slide-left | slide-right | zoom | flip-x
+  cards:
+    enabled: 1
+    selector: ".MuiPaper-outlined.MuiPaper-rounded"
+    effect: fall            # eases DOWN into place, staggered across the page
+    duration: 0.55
+    stagger: 0.06
+    distance: 24
+    ease: sine.out
+
+  # ── Page header block ─────────────────────────────────────────────────────
+  # The header title box in the app shell (<div class="MuiBox-root …"> holding
+  # the page subtitle + <h6> title). Marked in the DOM with data-anim="header".
+  # effect choices: fall (ease DOWN from above) | fade | rise | zoom
+  header:
+    enabled: 1
+    selector: "[data-anim='header']"
+    effect: fall            # eases DOWN into place
+    duration: 0.5
+    distance: 18
+    ease: sine.out
+
+  # Header inner items sweep in LEFT → RIGHT after the block lands.
+  # effect choices: slide-right (from the left edge) | slide-left | fade
+  headerItems:
+    enabled: 1
+    selector: "[data-anim='header'] > *"
+    effect: fall
+    duration: 0.45
+    delay: 0.08
+    stagger: 0.07
+    distance: 20
+    ease: sine.out
+
+  # ── Sidebar navigation ────────────────────────────────────────────────────
+  # effect choices: slide-right | fade | rise
+  sidebar:
+    enabled: 0              # off by default (the nav is always on screen)
+    selector: "[data-anim='sidebar'] a, [data-anim='sidebar'] button"
+    effect: slide-right
+    duration: 0.4
+    stagger: 0.04
+    distance: 14
+    ease: sine.out
+
+  # ── Table rows ────────────────────────────────────────────────────────────
+  # effect choices: fade | rise | slide-right
+  tableRows:
+    enabled: 0              # off by default: long tables can feel busy
+    selector: "table tbody tr"
+    effect: fade
+    duration: 0.3
+    stagger: 0.02
+    ease: sine.out
+
+  # ── Dialogs / modals ──────────────────────────────────────────────────────
+  # effect choices: zoom | rise | fade
+  dialogs:
+    enabled: 1
+    selector: ".MuiDialog-paper"
+    effect: zoom
+    duration: 0.32
+    ease: sine.out
+    once: false             # replay every time a dialog opens

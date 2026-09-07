@@ -231,6 +231,24 @@ class Report(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class UiPreset(SQLModel, table=True):
+    """A shared UI preset (theme + animation), visible to EVERY visitor.
+
+    Presets are published by signed-in users and served publicly (read-only for
+    anonymous visitors), so a look agreed for the platform can be applied by
+    anyone — including people who are not signed in. The payload is the frontend
+    look/animation JSON; only the publisher (or an admin) may delete it.
+    """
+    __tablename__ = "ui_preset"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True, max_length=40)
+    payload: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_by_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    created_by_name: str = Field(default="", max_length=60)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 class CookieConsent(SQLModel, table=True):
     """GDPR/ePrivacy cookie-consent record (append-only audit of choices).
 

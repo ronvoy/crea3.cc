@@ -12,6 +12,7 @@ from .db import init_db
 
 from .api import (
     consent,
+    presets,
     users,
     disputes,
     agents,
@@ -98,6 +99,7 @@ app.include_router(mediator_tools.router)
 app.include_router(support.router)
 app.include_router(auth.router)
 app.include_router(consent.router)   # GDPR cookie consent
+app.include_router(presets.router)   # shared UI presets (public read)
 
 
 # ── Reverse-proxy Keycloak under this origin (single port) ────────────────────

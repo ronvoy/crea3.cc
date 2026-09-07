@@ -74,7 +74,6 @@ export default function Shell() {
           zIndex: (th) => th.zIndex.drawer + 1,
           borderBottom: 1,
           borderColor: 'divider',
-          bgcolor: 'background.paper',
         }}
       >
         <Toolbar disableGutters sx={{ pr: { xs: 1, sm: 2 } }}>
@@ -135,7 +134,7 @@ export default function Shell() {
 
           <Divider orientation="vertical" flexItem sx={{ my: 0, borderColor: 'divider' }} />
 
-          <Box sx={{ flex: 1, minWidth: 0, pl: { xs: 1.5, md: 2 } }}>
+          <Box data-anim="header" sx={{ flex: 1, minWidth: 0, pl: { xs: 1.5, md: 2 } }}>
             <Typography variant="caption" color="text.secondary" noWrap component="div">
               {t('appSubtitle')}
             </Typography>

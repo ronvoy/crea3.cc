@@ -18,7 +18,6 @@ from typing import List, Dict, Any, Optional
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
-from langchain_huggingface import HuggingFaceEmbeddings
 
 # Internal Imports
 from src.core.config_manager import AppConfig
@@ -180,7 +179,19 @@ class EmbeddingFactory:
         # Case 2: Local HuggingFace Embeddings (Free, CPU-optimized)
         # Preferred default for the exam project to ensure reproducibility without costs.
         print(f"[Embedding Service] Initializing Local HuggingFace Model: {model_id}")
-        
+
+        # Imported lazily: torch + transformers + sentence-transformers are a
+        # ~1 GB download and are only needed for this local backend. The
+        # deployed service uses API embeddings, so the base image stays small.
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+        except ImportError as exc:                      # pragma: no cover
+            raise RuntimeError(
+                "EMBEDDING_BACKEND=huggingface needs the optional local-AI stack. "
+                "Rebuild with:  docker build --build-arg WITH_LOCAL_AI=1 .   "
+                "(or: pip install -r requirements-local-ai.txt)"
+            ) from exc
+
         return HuggingFaceEmbeddings(
             model_name=model_id,
             # Force CPU execution to prevent "meta tensor" errors on non-CUDA devices

@@ -1,0 +1,4 @@
+# Optional: offline answer-quality evaluation. Never imported by the API.
+#   pip install -r requirements-eval.txt
+ragas>=0.1.10
+datasets==4.4.2

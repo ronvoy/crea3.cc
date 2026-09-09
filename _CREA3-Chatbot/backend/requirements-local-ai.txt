@@ -1,0 +1,12 @@
+# Optional: LOCAL embeddings / chat models (EMBEDDING_BACKEND=huggingface).
+# Not needed when embeddings come from an API (the default: openai / mistral).
+#
+#   docker build --build-arg WITH_LOCAL_AI=1 .
+#   pip install -r requirements-local-ai.txt
+#
+# Install CPU-only torch to avoid the ~900 MB CUDA wheel:
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1
+langchain-huggingface==1.2.0
+sentence-transformers==5.2.0
+transformers==4.57.3
+torch==2.9.1

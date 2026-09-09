@@ -13,7 +13,6 @@ from langchain_core.language_models.chat_models import BaseChatModel
 # Provider Libraries
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
-from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
 from src.core.config_manager import AppConfig
 
@@ -96,6 +95,16 @@ class LLMFactory:
         print(f"[LLM Factory] Loading HuggingFace Endpoint: {repo_id}")
         
         try:
+            # Lazy import — see data_ingestion.py: the HuggingFace stack is an
+            # optional extra, not part of the default image.
+            try:
+                from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+            except ImportError as exc:                  # pragma: no cover
+                raise RuntimeError(
+                    "This backend needs the optional local-AI stack. Rebuild with "
+                    "--build-arg WITH_LOCAL_AI=1 (or pip install -r requirements-local-ai.txt)."
+                ) from exc
+
             llm_endpoint = HuggingFaceEndpoint(
                 repo_id=repo_id,
                 task="text-generation",

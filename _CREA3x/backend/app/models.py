@@ -231,6 +231,27 @@ class Report(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class EstimatorChat(SQLModel, table=True):
+    """One message in a good's 'AI Estimate' conversation.
+
+    Each row belongs to a single Good; the whole thread is removed when that
+    good is deleted (see api/goods.delete_good), so no orphan valuation chatter
+    survives an asset that no longer exists.
+    """
+    __tablename__ = "estimator_chatbot"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    good_id: int = Field(foreign_key="good.id", index=True)
+    dispute_id: int = Field(foreign_key="dispute.id", index=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    role: str = Field(default="user", max_length=16)      # 'user' | 'assistant'
+    text: str = Field(default="")
+    # True when the answer came from the external secondary model (OpenRouter)
+    # rather than the platform's own LexAI service — drives the UI chip.
+    fallback: bool = Field(default=False)
+    meta: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 class UiPreset(SQLModel, table=True):
     """A shared UI preset (theme + animation), visible to EVERY visitor.
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from ..db import get_session
-from ..models import Good, AuditEvent, User, DisputeAgent, Preference
+from ..models import Good, AuditEvent, User, DisputeAgent, Preference, EstimatorChat, ReconciliationResponse
 from ..schemas import GoodAddIn
 from .deps import get_current_user, can_access_dispute, get_participant
 from ..core.authz import require_can_manage_structure
@@ -296,6 +296,17 @@ def delete_good(dispute_id: int, good_id: int, user: User = Depends(get_current_
     good = session.get(Good, good_id)
     if not good or good.dispute_id != dispute_id:
         raise HTTPException(status_code=404, detail="Good not found")
+    # Remove every row that belongs to this good BEFORE deleting it. Without
+    # this the ORM tries to NULL the children's good_id (NOT NULL -> IntegrityError,
+    # i.e. deleting a rated good used to fail with a 500).
+    for _pref in session.exec(select(Preference).where(Preference.good_id == good_id)).all():
+        session.delete(_pref)
+    for _rr in session.exec(select(ReconciliationResponse).where(ReconciliationResponse.good_id == good_id)).all():
+        session.delete(_rr)
+    # …including the good's AI-Estimate conversation (no orphan history).
+    for _row in session.exec(select(EstimatorChat).where(EstimatorChat.good_id == good_id)).all():
+        session.delete(_row)
+    session.flush()
     session.delete(good)
     session.add(AuditEvent(dispute_id=dispute_id, actor_user_id=user.id, event_type="GoodDeleted", payload={"good_id": good_id}))
     session.commit()

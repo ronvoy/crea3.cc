@@ -13,6 +13,7 @@ from .db import init_db
 from .api import (
     consent,
     presets,
+    estimator,
     users,
     disputes,
     agents,
@@ -100,6 +101,7 @@ app.include_router(support.router)
 app.include_router(auth.router)
 app.include_router(consent.router)   # GDPR cookie consent
 app.include_router(presets.router)   # shared UI presets (public read)
+app.include_router(estimator.router)  # per-good AI market valuation chat
 
 
 # ── Reverse-proxy Keycloak under this origin (single port) ────────────────────

@@ -359,3 +359,27 @@ html.a11y-custom h1, html.a11y-custom h2, html.a11y-custom h3, html.a11y-custom 
 }
 @keyframes crea3shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
 html.rm .crea3-skel-line { animation: none; }
+
+/* ── Markdown inside the per-asset AI Estimate chat ────────────────────────── */
+.estimate-md > :first-child { margin-top: 0; }
+.estimate-md > :last-child { margin-bottom: 0; }
+.estimate-md p { margin: .4rem 0; }
+.estimate-md h1, .estimate-md h2, .estimate-md h3, .estimate-md h4 {
+  font-size: .9rem; font-weight: 700; margin: .6rem 0 .3rem;
+}
+.estimate-md ul, .estimate-md ol { padding-left: 1.25rem; margin: .4rem 0; }
+.estimate-md li { margin-bottom: .15rem; }
+.estimate-md strong { font-weight: 700; }
+.estimate-md code {
+  background: rgba(100,116,139,.14); padding: 0 .25rem; border-radius: .25rem; font-size: .85em;
+}
+.estimate-md pre { background: rgba(100,116,139,.14); padding: .5rem; border-radius: .4rem; overflow-x: auto; }
+.estimate-md hr { margin: .6rem 0; border: 0; border-top: 1px solid rgba(100,116,139,.3); }
+.estimate-md table { border-collapse: collapse; display: block; overflow-x: auto; margin: .4rem 0; }
+.estimate-md th, .estimate-md td {
+  border: 1px solid rgba(100,116,139,.35); padding: .25rem .5rem; text-align: left; font-size: .85em;
+}
+.estimate-md th { background: rgba(100,116,139,.12); font-weight: 700; }
+.estimate-md blockquote {
+  border-left: 3px solid rgba(100,116,139,.35); padding-left: .5rem; margin: .4rem 0; color: inherit; opacity: .85;
+}

@@ -4,6 +4,9 @@ import { api, apiBlob, API_BASE, getAccessToken } from '../api/client'
 import { useAuth } from '../store/auth'
 import { useI18n } from '../i18n'
 import { Card, CardHeader, Button, Input, Select, ErrorBox, Pill, HelpTip } from '../components/ui'
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton,
+} from '@mui/material'
 import ReconciliationPanel from '../components/reconciliation-panel'
 import DocumentsPanel from '../components/documents'
 import DisputeStatusBadge from '../components/dispute-status-badge'
@@ -40,7 +43,11 @@ type Agent = {
   ready?: boolean
 }
 
-type Good = { id: number; name: string; estimated_value: number; indivisible: boolean; divisible?: boolean }
+type Good = {
+  id: number; name: string; estimated_value: number; indivisible: boolean; divisible?: boolean
+  // Free-form extras stored server-side: currency, optional description, creator.
+  meta?: { currency?: string; description?: string; [k: string]: any }
+}
 type Proposal = { id: number; outputs: any; metrics: any; explanation: string }
 
 type TabKey = 'agents' | 'goods' | 'prefs' | 'reconcile' | 'proposals' | 'mediation' | 'room'
@@ -84,6 +91,14 @@ function dotClass(status: StepStatus) {
   return 'bg-rose-500'
 }
 
+// Currencies offered for an asset's value (code + display symbol).
+const CURRENCIES = [
+  { code: 'EUR', symbol: '€' }, { code: 'USD', symbol: '$' }, { code: 'GBP', symbol: '£' },
+  { code: 'CHF', symbol: 'Fr' }, { code: 'SEK', symbol: 'kr' }, { code: 'DKK', symbol: 'kr' },
+  { code: 'NOK', symbol: 'kr' }, { code: 'PLN', symbol: 'zł' }, { code: 'CZK', symbol: 'Kč' },
+  { code: 'RON', symbol: 'lei' }, { code: 'HUF', symbol: 'Ft' }, { code: 'BGN', symbol: 'лв' },
+]
+
 export default function DisputeDetail() {
   const { id } = useParams()
   const disputeId = Number(id)
@@ -117,8 +132,26 @@ export default function DisputeDetail() {
   const [arole, setArole] = useState('') // '' | 'agent' | 'mediator'
 
   const [gname, setGname] = useState('')
-  const [gval, setGval] = useState('0')
+  const [gval, setGval] = useState('')
   const [gdiv, setGdiv] = useState(false)
+  const [gcur, setGcur] = useState<string>(() => {
+    try { return localStorage.getItem(`crea3_goods_currency_${window.location.pathname.split('/').pop()}`) || 'EUR' } catch { return 'EUR' }
+  })
+  const [gdescOn, setGdescOn] = useState(false)
+  const [gdesc, setGdesc] = useState('')
+
+  // Live FX rates (server-cached ECB reference rates) power the section-level
+  // currency switch: changing it restates the amounts instead of relabelling them.
+  const [fxRates, setFxRates] = useState<Record<string, number> | null>(null)
+  const [fxDate, setFxDate] = useState<string | null>(null)
+  const [fxBusy, setFxBusy] = useState(false)
+
+  // Quick estimate for the asset being typed in (no good exists yet).
+  const [draftBusy, setDraftBusy] = useState(false)
+  const [draftEst, setDraftEst] = useState<{ min: number; avg: number; max: number; currency: string } | null>(null)
+  const [draftText, setDraftText] = useState('')
+  const [draftFallback, setDraftFallback] = useState(false)
+  const [draftApplied, setDraftApplied] = useState<number | null>(null)
   const [claimShare, setClaimShare] = useState('')
   const [claimPosition, setClaimPosition] = useState('')
   const [claimMsg, setClaimMsg] = useState<string | null>(null)
@@ -135,6 +168,14 @@ export default function DisputeDetail() {
   const [valueEditIds, setValueEditIds] = useState<Set<number>>(() => new Set())
   const [lockStatus, setLockStatus] = useState<{ all_locked: boolean; my_locked: boolean; pending_count?: number; pending_names?: string[]; parties: { name: string; locked: boolean }[] }>({ all_locked: false, my_locked: false, parties: [] })
   const [editingGoodId, setEditingGoodId] = useState<number | null>(null)
+  const [editGoodDesc, setEditGoodDesc] = useState('')
+  // Which good's "AI Estimate" chat is expanded (only one at a time).
+  const [estimateOpen, setEstimateOpen] = useState<number | null>(null)
+  // Good pending deletion — drives the confirmation dialog.
+  const [goodToDelete, setGoodToDelete] = useState<any | null>(null)
+  const [deletingGood, setDeletingGood] = useState(false)
+  // "Agent management" card is collapsible; it starts open.
+  const [agentsOpen, setAgentsOpen] = useState(true)
   const [editGoodName, setEditGoodName] = useState('')
 
   const latestProposal = proposals[0]
@@ -464,13 +505,35 @@ export default function DisputeDetail() {
 
   async function addGood() {
     try {
-      await api(`/api/disputes/${disputeId}/goods`, {
+      const created = await api(`/api/disputes/${disputeId}/goods`, {
         method: 'POST',
-        body: { name: gname, estimated_value: Number(gval), indivisible: !gdiv, divisible: gdiv, meta: {} },
+        body: {
+          name: gname, estimated_value: Number(gval || 0),
+          indivisible: !gdiv, divisible: gdiv,
+          meta: { currency: gcur, description: gdesc.trim() || undefined },
+        },
       })
+      // Carry the quick estimate (question, reasoning, range, applied figure)
+      // into the new good's AI Estimate thread, so the reason behind the number
+      // stays with the asset and the conversation can be continued there.
+      if (created?.id && draftText) {
+        try {
+          await api(`/api/disputes/${disputeId}/goods/${created.id}/estimate/seed`, {
+            method: 'POST',
+            body: {
+              question: t('aiEstimateSeedQuestion', { name: gname.trim() }),
+              text: draftText, estimate: draftEst, fallback: draftFallback,
+              applied: draftApplied, currency: gcur,
+            },
+          })
+        } catch { /* the good is created either way */ }
+      }
       setGname('')
-      setGval('0')
+      setGval('')
       setGdiv(false)
+      setGdesc('')
+      setGdescOn(false)
+      setDraftEst(null); setDraftText(''); setDraftApplied(null); setDraftFallback(false)
       await loadAll()
     } catch (e: any) {
       setErr(e.message)
@@ -478,6 +541,120 @@ export default function DisputeDetail() {
   }
 
   // Rename a good (allowed before this party finishes goods, or when reopened).
+  async function ensureRates(): Promise<Record<string, number> | null> {
+    if (fxRates) return fxRates
+    try {
+      setFxBusy(true)
+      const r = await api(`/api/disputes/${disputeId}/fx/rates`)
+      setFxRates(r.rates || null)
+      setFxDate(r.date || null)
+      return r.rates || null
+    } catch {
+      return null
+    } finally {
+      setFxBusy(false)
+    }
+  }
+
+  function convertAmount(amount: number, from: string, to: string, rates: Record<string, number> | null): number | null {
+    if (!Number.isFinite(amount)) return null
+    if (from === to) return amount
+    if (!rates || !rates[from] || !rates[to]) return null
+    return (amount / rates[from]) * rates[to]
+  }
+
+  // Switching the section currency converts the amount already typed in.
+  async function changeSectionCurrency(next: string) {
+    const prev = gcur
+    if (next === prev) return
+    const rates = await ensureRates()
+    setGcur(next)
+    const typed = Number(gval)
+    if (gval.trim() && Number.isFinite(typed)) {
+      const conv = convertAmount(typed, prev, next, rates)
+      if (conv != null) setGval(String(Math.round(conv * 100) / 100))
+    }
+    if (draftEst) {
+      const c = (v: number) => convertAmount(v, draftEst.currency || prev, next, rates)
+      const lo = c(draftEst.min), av = c(draftEst.avg), hi = c(draftEst.max)
+      if (lo != null && av != null && hi != null) setDraftEst({ min: lo, avg: av, max: hi, currency: next })
+    }
+    try { localStorage.setItem(`crea3_goods_currency_${disputeId}`, next) } catch { /* ignore */ }
+  }
+
+  async function runDraftEstimate() {
+    if (!gname.trim() || draftBusy) return
+    setDraftBusy(true); setErr(null); setDraftEst(null); setDraftText(''); setDraftApplied(null)
+    try {
+      const r = await api(`/api/disputes/${disputeId}/goods/estimate-draft`, {
+        method: 'POST',
+        body: { name: gname.trim(), description: gdesc.trim(), currency: gcur, lang },
+      })
+      setDraftEst(r.estimate || null)
+      setDraftText(r.text || '')
+      setDraftFallback(!!r.fallback)
+    } catch (e: any) {
+      setErr(e?.message || t('aiWidgetUnavailable'))
+    } finally {
+      setDraftBusy(false)
+    }
+  }
+
+  // Apply a figure the AI Estimator proposed: it fills this good's value input
+  // (and remembers the currency on the good) rather than saving silently.
+  async function applyEstimatePrice(good: any, amount: number, currency: string) {
+    setValueDraft((d) => ({ ...d, [good.id]: String(Math.round(amount * 100) / 100) }))
+    setValueEditIds((set) => new Set(set).add(good.id))
+    if (currency && (good.meta?.currency || 'EUR') !== currency) {
+      try {
+        await api(`/api/disputes/${disputeId}/goods/${good.id}`, {
+          method: 'PATCH',
+          body: {
+            name: good.name, estimated_value: Number(good.estimated_value || 0),
+            indivisible: !good.divisible, divisible: !!good.divisible,
+            meta: { ...(good.meta || {}), currency },
+          },
+        })
+        await loadAll()
+      } catch { /* the value draft still applies */ }
+    }
+  }
+
+  // Apply the name + description the AI Estimator proposed.
+  async function applyEstimateDetails(good: any, title: string, description: string) {
+    setErr(null)
+    try {
+      await api(`/api/disputes/${disputeId}/goods/${good.id}`, {
+        method: 'PATCH',
+        body: {
+          name: (title || good.name).slice(0, 200),
+          estimated_value: Number(good.estimated_value || 0),
+          indivisible: !good.divisible, divisible: !!good.divisible,
+          meta: { ...(good.meta || {}), description: description || good.meta?.description },
+        },
+      })
+      await loadAll()
+    } catch (e: any) {
+      setErr(e?.message || 'Could not apply the suggested details')
+    }
+  }
+
+  async function confirmDeleteGood() {
+    if (!goodToDelete) return
+    setDeletingGood(true)
+    setErr(null)
+    try {
+      await api(`/api/disputes/${disputeId}/goods/${goodToDelete.id}`, { method: 'DELETE' })
+      if (estimateOpen === goodToDelete.id) setEstimateOpen(null)
+      setGoodToDelete(null)
+      await loadAll()
+    } catch (e: any) {
+      setErr(e?.message || 'Could not delete this asset')
+    } finally {
+      setDeletingGood(false)
+    }
+  }
+
   async function renameGood(g: { id: number; estimated_value: number; divisible?: boolean; meta?: any }) {
     const newName = editGoodName.trim()
     if (!newName) { setEditingGoodId(null); return }
@@ -489,7 +666,8 @@ export default function DisputeDetail() {
           estimated_value: Number(g.estimated_value),
           indivisible: !g.divisible,
           divisible: !!g.divisible,
-          meta: g.meta || {},
+          // The edit form updates the optional description alongside the name.
+          meta: { ...(g.meta || {}), description: editGoodDesc.trim() || undefined },
         },
       })
       setEditingGoodId(null)
@@ -907,8 +1085,21 @@ export default function DisputeDetail() {
             {/* AGENTS */}
             {tab === 'agents' ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-base font-semibold text-slate-900">{t('agentManagementTitle')}</div>
-                <div className="text-sm text-slate-600 mt-1">{t('agentManagementSubtitle')}</div>
+                {/* The whole card collapses on click — the header stays as the toggle. */}
+                <button
+                  type="button"
+                  onClick={() => setAgentsOpen((v) => !v)}
+                  aria-expanded={agentsOpen}
+                  className="flex w-full items-start justify-between gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 rounded-lg"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-base font-semibold text-slate-900">{t('agentManagementTitle')}</span>
+                    <span className="block text-sm text-slate-600 mt-1">{t('agentManagementSubtitle')}</span>
+                  </span>
+                  <span className="shrink-0 text-slate-500 text-sm mt-1" aria-hidden>{agentsOpen ? '▴' : '▾'}</span>
+                </button>
+
+                {!agentsOpen ? null : <>
 
                 {meParticipation && (meParticipation.role_in_dispute || '').toLowerCase() !== 'mediator' ? (
                   <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
@@ -1019,6 +1210,8 @@ export default function DisputeDetail() {
                     </div>
                   </div>
                 )}
+
+                </>}
               </div>
             ) : null}
 
@@ -1026,8 +1219,27 @@ export default function DisputeDetail() {
             {/* GOODS — add assets, then "Finish adding goods" to lock */}
             {tab === 'goods' ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-base font-semibold text-slate-900">{t('tabGoods')}</div>
-                <div className="text-sm text-slate-600 mt-1">{t('goodsTabSubtitle')}</div>
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold text-slate-900">{t('tabGoods')}</div>
+                    <div className="text-sm text-slate-600 mt-1">{t('goodsTabSubtitle')}</div>
+                  </div>
+                  {/* Section currency — switching it converts the amounts using
+                      today's ECB reference rates (fetched once, cached). */}
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="goodsCurrency" className="text-xs text-slate-600">{t('currencyLabel')}</label>
+                    <select
+                      id="goodsCurrency"
+                      value={gcur}
+                      onChange={(e) => changeSectionCurrency(e.target.value)}
+                      disabled={fxBusy}
+                      className="h-9 rounded-xl border border-slate-300 bg-white px-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                    >
+                      {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} {c.symbol}</option>)}
+                    </select>
+                    <HelpTip text={fxDate ? t('fxRatesOn', { date: fxDate }) : t('fxRatesHint')} />
+                  </div>
+                </div>
 
                 {isMediator ? (
                   <div className="mt-3 text-sm text-rose-700">{t('dispNotAuthorized')}</div>
@@ -1036,17 +1248,118 @@ export default function DisputeDetail() {
                     {/* Add a new good (hidden once this party has locked) */}
                     {!lockStatus.my_locked ? (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="text-sm font-semibold mb-2">{t('addNewGood')}</div>
-                        <div className="grid sm:grid-cols-2 gap-2">
-                          <Input value={gname} onChange={(e) => setGname(e.target.value)} placeholder={t('goodNamePlaceholder')} />
-                          <Input value={gval} onChange={(e) => setGval(e.target.value)} placeholder={t('estimatedValuePlaceholder')} />
+                        {/* Row 1 — the asset name; its placeholder names the field */}
+                        <Input
+                          value={gname}
+                          onChange={(e) => setGname(e.target.value)}
+                          placeholder={t('goodNamePlaceholder')}
+                          aria-label={t('goodNamePlaceholder')}
+                          className="w-full"
+                        />
+
+                        {/* Row 2 — the two switches; the second wraps on mobile */}
+                        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+                          <div className="flex w-full items-center gap-2 sm:w-auto">
+                            <Switch2 on={gdiv} onToggle={() => setGdiv(!gdiv)} label={t('divisibleLabel')} />
+                            <span>{t('divisibleLabel')}</span>
+                            <HelpTip text={t('divisibleHint')} />
+                          </div>
+                          <div className="flex w-full items-center gap-2 sm:w-auto">
+                            <Switch2 on={gdescOn} onToggle={() => setGdescOn(!gdescOn)} label={t('goodsDescriptionToggle')} />
+                            <span>{t('goodsDescriptionToggle')}</span>
+                            <HelpTip text={t('goodsDescriptionHint')} />
+                          </div>
                         </div>
-                        <label className="flex items-center gap-2 text-sm mt-2">
-                          <input type="checkbox" checked={gdiv} onChange={(e) => setGdiv(e.target.checked)} />
-                          {t('divisibleLabel')}
-                        </label>
-                        <div className="text-xs text-slate-500">{t('divisibleHint')}</div>
-                        <div className="mt-2">
+
+                        {/* Conditional — the description box appears only when asked for */}
+                        {gdescOn ? (
+                          <textarea
+                            value={gdesc}
+                            onChange={(e) => setGdesc(e.target.value.slice(0, 2000))}
+                            placeholder={t('goodsDescriptionPlaceholder')}
+                            rows={5}
+                            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
+                          />
+                        ) : null}
+
+                        {/* Row 3 — <CUR> price, then "or ✦ AI Estimate" (wraps on mobile) */}
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="inline-flex h-10 shrink-0 items-center rounded-xl border border-slate-300 bg-slate-100 px-2 text-xs font-semibold text-slate-700">
+                              {gcur} {CURRENCIES.find((c) => c.code === gcur)?.symbol || ''}
+                            </span>
+                            <Input
+                              value={gval}
+                              onChange={(e) => setGval(e.target.value)}
+                              placeholder={t('priceWord')}
+                              // Inline width: the styled input sets width:100%,
+                              // which a Tailwind width class cannot override.
+                              style={{ width: '14ch', flex: '0 0 auto' }}
+                              inputMode="decimal"
+                              maxLength={14}
+                            />
+                          </div>
+                          <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+                            <span className="text-xs text-slate-500">{t('orWord')}</span>
+                            <button
+                              type="button"
+                              onClick={runDraftEstimate}
+                              disabled={!gname.trim() || draftBusy}
+                              title={t('aiEstimateDraftHint')}
+                              className="rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              ✦ {draftBusy ? t('aiEstimateWorking') : t('aiEstimate')}
+                            </button>
+                          </div>
+                        </div>
+
+                        {draftBusy ? (
+                          <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2">
+                            <div className="crea3-skel-line" style={{ width: '70%' }} />
+                            <div className="crea3-skel-line" style={{ width: '45%' }} />
+                          </div>
+                        ) : null}
+                        {!draftBusy && draftEst ? (
+                          <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                                {t('aiEstimateTldr')}
+                              </div>
+                              {draftFallback ? <ExternalModelChip t={t} /> : null}
+                            </div>
+                            <div className="mt-1.5 grid grid-cols-3 gap-2">
+                              {([['aiEstimateMin', draftEst.min], ['aiEstimateAvg', draftEst.avg], ['aiEstimateMax', draftEst.max]] as const).map(([k, amt]) => (
+                                <button
+                                  key={k}
+                                  type="button"
+                                  onClick={() => {
+                                    const applied = Math.round(Number(amt) * 100) / 100
+                                    setGval(String(applied))
+                                    setGcur(draftEst.currency || gcur)
+                                    setDraftApplied(applied)   // carried into the new good's chat
+                                  }}
+                                  className="rounded-lg border border-emerald-300 bg-white px-2 py-1.5 text-center transition hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                                >
+                                  <div className="text-[10px] uppercase tracking-wide text-slate-500">{t(k)}</div>
+                                  <div className="text-sm font-bold text-emerald-900">
+                                    {Number(amt).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                            <div className="mt-1.5 text-[11px] text-emerald-800">{t('aiEstimateApplyHint')} · {draftEst.currency}</div>
+                            {draftText ? (
+                              <details className="mt-1.5">
+                                <summary className="cursor-pointer text-[11px] text-emerald-900">{t('aiEstimateWhy')}</summary>
+                                <div className="estimate-md mt-1 text-xs text-slate-700">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{draftText}</ReactMarkdown>
+                                </div>
+                              </details>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3">
                           <Button onClick={addGood} disabled={!canEditWorkflow || !gname.trim()}>
                             {t('addGood')}
                           </Button>
@@ -1078,15 +1391,21 @@ export default function DisputeDetail() {
                         {goods.map((g) => (
                           <div key={g.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex items-center justify-between gap-2 flex-wrap">
                             {editingGoodId === g.id ? (
-                              <div className="flex items-center gap-2 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 flex-1">
                                 <Input
                                   value={editGoodName}
                                   onChange={(e) => setEditGoodName(e.target.value)}
                                   placeholder={g.name}
-                                  className="max-w-[240px]"
+                                  className="w-full sm:w-[220px]"
+                                />
+                                <Input
+                                  value={editGoodDesc}
+                                  onChange={(e) => setEditGoodDesc(e.target.value.slice(0, 2000))}
+                                  placeholder={t('goodsDescriptionPlaceholder')}
+                                  className="w-full sm:flex-1 sm:min-w-[200px]"
                                 />
                                 <Button onClick={() => renameGood(g)} disabled={!editGoodName.trim()}>{t('saveWord')}</Button>
-                                <Button variant="ghost" onClick={() => { setEditingGoodId(null); setEditGoodName('') }}>{t('cancelWord')}</Button>
+                                <Button variant="ghost" onClick={() => { setEditingGoodId(null); setEditGoodName(''); setEditGoodDesc('') }}>{t('cancelWord')}</Button>
                               </div>
                             ) : (
                               <>
@@ -1156,14 +1475,46 @@ export default function DisputeDetail() {
                                     <Button
                                       variant="ghost"
                                       className="text-xs"
-                                      onClick={() => { setEditingGoodId(g.id); setEditGoodName(g.name) }}
+                                      onClick={() => { setEditingGoodId(g.id); setEditGoodName(g.name); setEditGoodDesc(g.meta?.description || '') }}
                                     >
-                                      {t('renameWord')}
+                                      {t('editWord')}
                                     </Button>
                                   ) : null}
+                                  {!lockStatus.my_locked && canEditWorkflow ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setGoodToDelete(g)}
+                                      className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                                    >
+                                      {t('deleteWord')}
+                                    </button>
+                                  ) : null}
+                                  {/* Per-asset market-valuation assistant */}
+                                  <button
+                                    type="button"
+                                    aria-expanded={estimateOpen === g.id}
+                                    onClick={() => setEstimateOpen(estimateOpen === g.id ? null : g.id)}
+                                    className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 ${
+                                      estimateOpen === g.id
+                                        ? 'border-indigo-300 bg-indigo-100 text-indigo-800'
+                                        : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                                    }`}
+                                  >
+                                    ✦ {t('aiEstimate')} {estimateOpen === g.id ? '▴' : '▾'}
+                                  </button>
                                 </div>
                               </>
                             )}
+                            {/* Drops down inside this good's own card */}
+                            {estimateOpen === g.id ? (
+                              <div className="w-full basis-full mt-2">
+                                <EstimatePanel
+                                  disputeId={disputeId} good={g} t={t} lang={lang} currency={gcur}
+                                  onApplyPrice={(amt, curr) => applyEstimatePrice(g, amt, curr)}
+                                  onApplyDetails={(title, desc) => applyEstimateDetails(g, title, desc)}
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                         {goods.length === 0 ? <div className="text-sm text-slate-600">{t('noGoodsYet')}</div> : null}
@@ -1440,29 +1791,28 @@ export default function DisputeDetail() {
               </div>
             ) : null}
 
-            {/* Help & assistant */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="text-sm font-semibold text-slate-900">{t('helpSupportTitle')}</div>
-              <div className="text-sm text-slate-600 mt-1">{t('helpSupportSubtitle')}</div>
-              <div className="mt-2 text-sm text-slate-700">
-                <span className="font-semibold">{t('helpSupportEmailLabel')}:</span> {SUPPORT_EMAIL}
-              </div>
-              <div className="mt-1 text-sm text-slate-700">{t('helpSupportFaqHint')}</div>
-              <div className="mt-1 text-xs text-slate-600">{t('helpSupportKeyboardHint')}</div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => window.dispatchEvent(new Event('crea3-open-settings'))}>
-                  {t('openAccessibilitySettings')}
-                </Button>
-                <Button variant="outline" onClick={() => window.dispatchEvent(new Event('crea3-open-assistant'))}>
-                  {t('launchLegalAssistant')}
-                </Button>
-              </div>
-            </div>
-
           </div>
         </div>
       </Card>
+
+      {/* Delete-asset confirmation — deleting a good also removes its ratings,
+          reconciliation answers and AI-Estimate conversation. */}
+      <Dialog open={!!goodToDelete} onClose={() => (!deletingGood ? setGoodToDelete(null) : null)} fullWidth maxWidth="xs"
+        sx={{ '& .MuiDialog-paper': { m: { xs: 1, sm: 3 }, width: { xs: 'calc(100% - 16px)', sm: '100%' }, borderRadius: 3 } }}>
+        <DialogTitle sx={{ pb: 1 }}>{t('deleteGoodTitle')}</DialogTitle>
+        <DialogContent>
+          <div className="text-sm text-slate-700">
+            {t('deleteGoodConfirm', { name: goodToDelete?.name || '' })}
+          </div>
+          <div className="mt-2 text-xs text-slate-500">{t('deleteGoodWarning')}</div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: 'wrap' }}>
+          <MuiButton onClick={() => setGoodToDelete(null)} disabled={deletingGood}>{t('cancelWord')}</MuiButton>
+          <MuiButton variant="contained" color="error" onClick={confirmDeleteGood} disabled={deletingGood}>
+            {deletingGood ? t('deletingWord') : t('deleteWord')}
+          </MuiButton>
+        </DialogActions>
+      </Dialog>
     </div>
   )
 }
@@ -2547,4 +2897,311 @@ function Tab({
       {label}
     </button>
   )
+}
+
+/** Minimal on/off switch used by the goods form (divisible, description). */
+function Switch2({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onToggle}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
+        on ? 'bg-blue-600 border-blue-600' : 'bg-slate-200 border-slate-300'
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+          on ? 'translate-x-4' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  )
+}
+
+/**
+ * "AI Estimate" — the per-good market-valuation chat.
+ *
+ * Opens inside the good's own card. The first opening automatically asks for an
+ * estimate using everything the platform already knows about the asset; the
+ * assistant replies with a value range, or — when the description is too thin
+ * to price honestly — with the specific questions it needs answered (model and
+ * mileage for a car, location and floor area for a property, and so on).
+ * Answers produced by the external secondary model carry the same chip as the
+ * Legal AI assistant. History is stored server-side per good and disappears
+ * with the good.
+ */
+function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApplyDetails }: {
+  disputeId: string | number; good: any; lang: string; currency?: string
+  t: (k: any, vars?: Record<string, any>) => string
+  onApplyPrice?: (amount: number, currency: string) => void
+  onApplyDetails?: (title: string, description: string) => void
+}) {
+  const [msgs, setMsgs] = useState<Array<{
+    id?: number; role: string; text: string; fallback?: boolean
+    estimate?: { min: number; avg: number; max: number; currency: string } | null
+    details?: { title: string; description: string } | null
+  }>>([])
+  const [input, setInput] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [full, setFull] = useState(false)
+  const bootstrapped = useRef(false)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  // Report an inaccurate valuation to support (same flow as the Legal AI report).
+  const [repOpen, setRepOpen] = useState(false)
+  const [repTitle, setRepTitle] = useState('')
+  const [repNote, setRepNote] = useState('')
+  const [repBusy, setRepBusy] = useState(false)
+  const [repDone, setRepDone] = useState<string | null>(null)
+
+  async function send(message: string) {
+    setBusy(true); setErr(null)
+    if (message.trim()) setMsgs((m) => [...m, { role: 'user', text: message.trim() }])
+    try {
+      const r = await api(`/api/disputes/${disputeId}/goods/${good.id}/estimate`, {
+        method: 'POST', body: { message, lang, currency: currency || '' },
+      })
+      setMsgs((m) => [...m, {
+        id: r.id, role: 'assistant', text: r.text, fallback: !!r.fallback,
+        estimate: r.estimate || null, details: r.details || null,
+      }])
+    } catch (e: any) {
+      setErr(e?.message || t('aiWidgetUnavailable'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function sendReport() {
+    if (repBusy) return
+    setRepBusy(true)
+    try {
+      await api(`/api/disputes/${disputeId}/goods/${good.id}/estimate/report`, {
+        method: 'POST', body: { title: repTitle.trim(), note: repNote.trim() },
+      })
+      setRepDone(t('aiReportSent'))
+      setRepOpen(false); setRepTitle(''); setRepNote('')
+    } catch (e: any) {
+      setRepDone(e?.message || t('aiReportFailed'))
+    } finally {
+      setRepBusy(false)
+    }
+  }
+
+  // Load the stored thread; ask for a first estimate when there is none yet.
+  useEffect(() => {
+    if (bootstrapped.current) return
+    bootstrapped.current = true
+    ;(async () => {
+      try {
+        const r = await api(`/api/disputes/${disputeId}/goods/${good.id}/estimate`)
+        const rows = r?.messages || []
+        setMsgs(rows)
+        if (!rows.length) await send('')
+      } catch (e: any) {
+        setErr(e?.message || t('aiWidgetUnavailable'))
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  }, [msgs.length, busy])
+
+  // Latest structured results drive the TLDR card and the one-click actions.
+  const lastEstimate = [...msgs].reverse().find((m) => m.estimate)?.estimate || null
+  const lastDetails = [...msgs].reverse().find((m) => m.details)?.details || null
+  const cur = CURRENCIES.find((c) => c.code === (lastEstimate?.currency || 'EUR'))
+  const money = (n: number) =>
+    `${cur?.symbol || ''}${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+
+  const body = (
+    <div className={`rounded-xl border border-indigo-200 bg-white/80 p-3 ${full ? 'h-full flex flex-col' : ''}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+        <div className="text-xs font-semibold text-indigo-800">✦ {t('aiEstimateTitle', { name: good.name })}</div>
+        <div className="flex items-center gap-2">
+          <div className="hidden sm:block text-[11px] text-slate-500">{t('aiEstimateDisclaimer')}</div>
+          <button
+            type="button"
+            onClick={() => setRepOpen(true)}
+            aria-label={t('aiEstimateReport')}
+            title={t('aiEstimateReport')}
+            className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 transition hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          >
+            ⚠
+          </button>
+          <button
+            type="button"
+            onClick={() => setFull(!full)}
+            aria-label={full ? t('aiEstimateExit') : t('aiEstimateEnlarge')}
+            title={full ? t('aiEstimateExit') : t('aiEstimateEnlarge')}
+            className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+          >
+            {full ? '✕' : '⤢'}
+          </button>
+        </div>
+      </div>
+
+      <div ref={scrollRef} className={`overflow-y-auto pr-1 space-y-2 ${full ? 'flex-1 min-h-0' : 'max-h-72'}`}>
+        {msgs.map((m, i) => (
+          <div key={m.id ?? i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+            <div
+              // The global light-mode CSS net rewrites `text-white`, which turned
+              // the user's own bubble text dark-on-indigo. Paint it inline instead.
+              style={m.role === 'user' ? { backgroundColor: '#4f46e5', color: '#ffffff' } : undefined}
+              className={`max-w-[92%] rounded-xl px-3 py-2 text-sm ${
+                m.role === 'user' ? '' : 'bg-slate-50 text-slate-800 border border-slate-200'
+              }`}
+            >
+              {m.role === 'assistant' ? (
+                <>
+                  {m.fallback ? <div className="mb-1"><ExternalModelChip t={t} /></div> : null}
+                  {/* The model answers in Markdown (headings, bold, lists,
+                      tables) — render it, don't print the syntax. */}
+                  <div className="estimate-md leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                  </div>
+                </>
+              ) : (
+                <div className="whitespace-pre-wrap">{m.text}</div>
+              )}
+            </div>
+          </div>
+        ))}
+        {busy ? (
+          <div className="flex justify-start">
+            <div className="w-full max-w-[92%] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="crea3-skel-line" style={{ width: '88%' }} />
+              <div className="crea3-skel-line" style={{ width: '96%' }} />
+              <div className="crea3-skel-line" style={{ width: '60%' }} />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {err ? <div className="mt-2 text-xs text-rose-700">{err}</div> : null}
+
+      {/* TLDR — the figures at a glance; each one can be applied to the asset. */}
+      {lastEstimate ? (
+        <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+            {t('aiEstimateTldr')}
+          </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-2">
+            {([
+              ['aiEstimateMin', lastEstimate.min],
+              ['aiEstimateAvg', lastEstimate.avg],
+              ['aiEstimateMax', lastEstimate.max],
+            ] as const).map(([labelKey, amount]) => (
+              <button
+                key={labelKey}
+                type="button"
+                onClick={() => onApplyPrice?.(Number(amount), lastEstimate.currency)}
+                title={t('aiEstimateApplyHint')}
+                className="rounded-lg border border-emerald-300 bg-white px-2 py-1.5 text-center transition hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              >
+                <div className="text-[10px] uppercase tracking-wide text-slate-500">{t(labelKey)}</div>
+                <div className="text-sm font-bold text-emerald-900">{money(Number(amount))}</div>
+              </button>
+            ))}
+          </div>
+          <div className="mt-1.5 text-[11px] text-emerald-800">
+            {t('aiEstimateApplyHint')} · {lastEstimate.currency}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Preset: let the assistant propose a clearer name + description. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => send(t('aiEstimateAskDetailsPrompt'))}
+          className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+        >
+          ✎ {t('aiEstimateSuggestDetails')}
+        </button>
+        {lastDetails ? (
+          <button
+            type="button"
+            onClick={() => onApplyDetails?.(lastDetails.title, lastDetails.description)}
+            className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+            title={lastDetails.title}
+          >
+            ✓ {t('aiEstimateApplyDetails')}
+          </button>
+        ) : null}
+      </div>
+
+      <form
+        className="mt-2 flex items-center gap-2"
+        onSubmit={(e) => { e.preventDefault(); const v = input.trim(); if (!v || busy) return; setInput(''); send(v) }}
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={t('aiEstimatePlaceholder')}
+          aria-label={t('aiEstimatePlaceholder')}
+          disabled={busy}
+          className="flex-1 min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+        />
+        <button
+          type="submit"
+          disabled={busy || !input.trim()}
+          className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t('send')}
+        </button>
+      </form>
+
+      {/* Report modal — title becomes part of the email subject, the note goes
+          in the body, and the whole conversation travels as an attachment. */}
+      <Dialog open={repOpen} onClose={() => (!repBusy ? setRepOpen(false) : null)} fullWidth maxWidth="sm"
+        sx={{ zIndex: 1500, '& .MuiDialog-paper': { m: { xs: 1, sm: 3 }, width: { xs: 'calc(100% - 16px)', sm: '100%' }, borderRadius: 3 } }}>
+        <DialogTitle sx={{ pb: 1 }}>{t('aiEstimateReportTitle')}</DialogTitle>
+        <DialogContent>
+          <div className="text-sm text-slate-600 mb-3">{t('aiEstimateReportHint')}</div>
+          <div className="space-y-2">
+            <input
+              value={repTitle}
+              onChange={(e) => setRepTitle(e.target.value.slice(0, 150))}
+              placeholder={t('aiReportTitleLabel')}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            />
+            <textarea
+              value={repNote}
+              onChange={(e) => setRepNote(e.target.value.slice(0, 2000))}
+              placeholder={t('aiReportMessageLabel')}
+              rows={4}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            />
+          </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: 'wrap' }}>
+          <MuiButton onClick={() => setRepOpen(false)} disabled={repBusy}>{t('cancelWord')}</MuiButton>
+          <MuiButton variant="contained" color="warning" onClick={sendReport} disabled={repBusy}>
+            {repBusy ? t('aiReportSending') : t('aiReportSend')}
+          </MuiButton>
+        </DialogActions>
+      </Dialog>
+      {repDone ? <div className="mt-2 text-xs text-emerald-700">{repDone}</div> : null}
+    </div>
+  )
+
+  // Enlarged: a responsive full-viewport overlay (works on phones too).
+  if (full) {
+    return (
+      <div className="fixed inset-0 z-[1400] flex flex-col bg-black/50 p-2 sm:p-6" role="dialog" aria-modal="true">
+        <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex-1 min-h-0 overflow-hidden p-2 sm:p-3">{body}</div>
+        </div>
+      </div>
+    )
+  }
+  return body
 }

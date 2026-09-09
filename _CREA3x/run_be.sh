@@ -35,8 +35,26 @@ docker network create api >/dev/null 2>&1 || true
 # ── Ensure infra (Keycloak / Postgres / Mailpit) is up ────────────────────────
 if [[ -z "$(docker compose -f "$ROOT_DIR/docker-compose.yml" ps -q --status running keycloak 2>/dev/null)" ]]; then
   echo "Infra not running — starting db / keycloak / mailpit…"
-  docker compose -f "$ROOT_DIR/docker-compose.yml" up -d db keycloak mailpit
-  docker compose -f "$ROOT_DIR/docker-compose.yml" up keycloak-init >/dev/null 2>&1 || true
+  # Image pulls fail intermittently (registry/CDN hiccups: "httpReadSeeker …
+  # EOF"). Retry a few times instead of letting `set -e` kill the whole run.
+  infra_started=0
+  for attempt in 1 2 3; do
+    if docker compose -f "$ROOT_DIR/docker-compose.yml" up -d db keycloak mailpit; then
+      infra_started=1
+      break
+    fi
+    echo "  …infra start failed (attempt $attempt/3). Retrying in 5s…" >&2
+    sleep 5
+  done
+  if [[ "$infra_started" -eq 1 ]]; then
+    docker compose -f "$ROOT_DIR/docker-compose.yml" up keycloak-init >/dev/null 2>&1 || true
+  else
+    # The API + SPA run on SQLite and do not need Keycloak/Mailpit, so a
+    # registry outage must not stop the platform from coming up.
+    echo "  ⚠ Could not start the optional infra (registry unreachable?)." >&2
+    echo "    Continuing without Keycloak/Mailpit — the app itself does not need them." >&2
+    echo "    Re-run ./run_be.sh once the network is back to bring them up." >&2
+  fi
 fi
 
 # ── Build the frontend (relative /api, single origin) → frontend/dist ─────────

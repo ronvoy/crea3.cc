@@ -10,3 +10,5 @@ backend/rag_store
 _rsc
 generated_reports
 crea3.db-journal
+# carries real .env secrets between machines — never commit
+env.sh

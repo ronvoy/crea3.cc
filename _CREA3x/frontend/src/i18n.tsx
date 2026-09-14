@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { CONSENT_EVENT, preferencesAllowed } from './consent'
 
 // Supported UI languages (minimal strings used across navigation, settings and chat).
 // NOTE: "be" represents French (Belgium) in this app.
@@ -9300,20 +9301,19 @@ export type I18nKey = keyof typeof strings['en']
 
 const Ctx = createContext<I18nState | null>(null)
 
+const LANGS: Lang[] = ['en', 'it', 'sl', 'et', 'be', 'lt', 'hr', 'nl']
+
+/**
+ * The first load is ALWAYS English — no browser-locale or region sniffing.
+ * A language the visitor chose earlier is restored only when they allowed
+ * preference cookies; without that consent every load starts in English.
+ */
 function detectDefault(): Lang {
   try {
-    const saved = localStorage.getItem(LS_LANG) as Lang | null
-    if (saved === 'en' || saved === 'it' || saved === 'sl' || saved === 'et' || saved === 'be' || saved === 'lt' || saved === 'hr' || saved === 'nl') return saved
-  } catch {}
-  try {
-    const n = navigator.language?.toLowerCase() || ''
-    if (n.startsWith('it')) return 'it'
-    if (n.startsWith('sl')) return 'sl'
-    if (n.startsWith('et')) return 'et'
-    if (n.startsWith('lt')) return 'lt'
-    if (n.startsWith('hr')) return 'hr'
-    if (n.startsWith('nl')) return 'nl'   // Belgium (Dutch)
-    if (n.startsWith('fr')) return 'be'   // Belgium (French)
+    if (preferencesAllowed()) {
+      const saved = localStorage.getItem(LS_LANG) as Lang | null
+      if (saved && LANGS.includes(saved)) return saved
+    }
   } catch {}
   return 'en'
 }

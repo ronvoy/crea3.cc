@@ -7,7 +7,8 @@ import CookieOutlinedIcon from '@mui/icons-material/CookieOutlined'
 import { api, API_BASE, getAccessToken } from '../api/client'
 import { useI18n } from '../i18n'
 
-const LS_KEY = 'crea3_cookie_consent_v1'
+import { CONSENT_KEY as LS_KEY, CONSENT_EVENT, getConsent } from '../consent'
+export { getConsent }
 const LS_VISITOR = 'crea3_visitor_id'
 
 type Choice = { preferences: boolean; analytics: boolean; marketing: boolean }
@@ -25,17 +26,6 @@ function visitorId(): string {
     }
     return v
   } catch { return '' }
-}
-
-/** The consent the visitor gave, for other code to read (e.g. before loading
- *  any non-essential script). Necessary cookies never require consent. */
-export function getConsent(): (Choice & { necessary: true }) | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return null
-    const p = JSON.parse(raw)
-    return { necessary: true, preferences: !!p.preferences, analytics: !!p.analytics, marketing: !!p.marketing }
-  } catch { return null }
 }
 
 /** Open the preferences modal from anywhere (footer link fires this). */
@@ -73,6 +63,8 @@ export default function CookieConsent() {
       })
     } catch { /* local choice still applies */ }
     setChoice(next); setBanner(false); setOpen(false); setBusy(false)
+    // Let listeners (language persistence, analytics loaders…) react at once.
+    try { window.dispatchEvent(new CustomEvent(CONSENT_EVENT, { detail: next })) } catch { /* ignore */ }
   }
 
   const Row = ({ k, required = false }: { k: 'necessary' | 'preferences' | 'analytics' | 'marketing'; required?: boolean }) => (

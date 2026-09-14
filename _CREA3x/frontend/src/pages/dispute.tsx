@@ -603,8 +603,8 @@ export default function DisputeDetail() {
   // Apply a figure the AI Estimator proposed: it fills this good's value input
   // (and remembers the currency on the good) rather than saving silently.
   async function applyEstimatePrice(good: any, amount: number, currency: string) {
+    openGoodEdit(good)
     setValueDraft((d) => ({ ...d, [good.id]: String(Math.round(amount * 100) / 100) }))
-    setValueEditIds((set) => new Set(set).add(good.id))
     if (currency && (good.meta?.currency || 'EUR') !== currency) {
       try {
         await api(`/api/disputes/${disputeId}/goods/${good.id}`, {
@@ -636,6 +636,52 @@ export default function DisputeDetail() {
       await loadAll()
     } catch (e: any) {
       setErr(e?.message || 'Could not apply the suggested details')
+    }
+  }
+
+  // Single "Edit" on a goods card: saves the asset's name/description (when
+  // this party may edit structure and has not locked) AND this party's own
+  // price + divisibility opinion, then reloads once.
+  function openGoodEdit(g: any) {
+    setEditingGoodId(g.id)
+    setEditGoodName(g.name)
+    setEditGoodDesc(g.meta?.description || '')
+    setValueDraft((d) => ({ ...d, [g.id]: myValueFor(g.id) }))
+    setDivisibleDraft((d) => ({ ...d, [g.id]: myDivisibleFor(g.id) }))
+  }
+
+  async function saveGoodEdit(g: any) {
+    setErr(null)
+    const raw = (valueDraft[g.id] ?? myValueFor(g.id) ?? '').trim()
+    const value_amount = raw === '' ? null : Number(raw)
+    if (value_amount !== null && (Number.isNaN(value_amount) || value_amount < 0)) {
+      setErr(t('valueMustBeNumber')); return
+    }
+    const divisible = divisibleDraft[g.id] !== undefined ? divisibleDraft[g.id] : myDivisibleFor(g.id)
+    try {
+      const canEditStructure = canEditWorkflow && !lockStatus.my_locked
+      const newName = editGoodName.trim()
+      if (canEditStructure && editingGoodId === g.id && newName) {
+        await api(`/api/disputes/${disputeId}/goods/${g.id}`, {
+          method: 'PATCH',
+          body: {
+            name: newName,
+            estimated_value: Number(g.estimated_value),
+            indivisible: !g.divisible,
+            divisible: !!g.divisible,
+            meta: { ...(g.meta || {}), description: editGoodDesc.trim() || undefined },
+          },
+        })
+      }
+      await api(`/api/disputes/${disputeId}/goods/${g.id}/valuation`, {
+        method: 'POST',
+        body: { value_amount, divisible },
+      })
+      setEditingGoodId(null)
+      setValueEditIds((set) => { const n = new Set(set); n.delete(g.id); return n })
+      await loadAll()
+    } catch (e: any) {
+      setErr(e?.message || 'Could not save this asset')
     }
   }
 
@@ -1390,93 +1436,104 @@ export default function DisputeDetail() {
                       <div className="grid gap-2">
                         {goods.map((g) => (
                           <div key={g.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 flex items-center justify-between gap-2 flex-wrap">
-                            {editingGoodId === g.id ? (
-                              <div className="flex flex-wrap items-center gap-2 flex-1">
-                                <Input
-                                  value={editGoodName}
-                                  onChange={(e) => setEditGoodName(e.target.value)}
-                                  placeholder={g.name}
-                                  className="w-full sm:w-[220px]"
-                                />
-                                <Input
-                                  value={editGoodDesc}
-                                  onChange={(e) => setEditGoodDesc(e.target.value.slice(0, 2000))}
-                                  placeholder={t('goodsDescriptionPlaceholder')}
-                                  className="w-full sm:flex-1 sm:min-w-[200px]"
-                                />
-                                <Button onClick={() => renameGood(g)} disabled={!editGoodName.trim()}>{t('saveWord')}</Button>
-                                <Button variant="ghost" onClick={() => { setEditingGoodId(null); setEditGoodName(''); setEditGoodDesc('') }}>{t('cancelWord')}</Button>
+                            {(editingGoodId === g.id || (canEditWorkflow && isJoined && !isMediator && myValues[String(g.id)]?.value_amount == null)) ? (
+                              <div className="w-full min-w-0">
+                                {(() => {
+                                  const canEditStructure = canEditWorkflow && !lockStatus.my_locked
+                                  const hasVal = myValues[String(g.id)]?.value_amount != null
+                                  const curCode = g.meta?.currency || gcur
+                                  const curSym = CURRENCIES.find((c) => c.code === curCode)?.symbol || ''
+                                  const isFull = editingGoodId === g.id
+                                  return (
+                                    <>
+                                      {!isFull ? <div className="font-medium mb-2">{g.name}</div> : null}
+                                      <div className={`grid gap-2 ${isFull ? 'sm:grid-cols-[1fr_auto] sm:items-center' : ''}`}>
+                                        {isFull ? (
+                                          <Input
+                                            value={editGoodName}
+                                            onChange={(e) => setEditGoodName(e.target.value)}
+                                            placeholder={t('goodNamePlaceholder')}
+                                            aria-label={t('goodNamePlaceholder')}
+                                            disabled={!canEditStructure}
+                                            className="w-full"
+                                          />
+                                        ) : null}
+                                        {/* This party's own price for the asset */}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="text-xs text-slate-500 whitespace-nowrap">{t('yourValueWord')}:</span>
+                                          <span className="inline-flex h-10 shrink-0 items-center rounded-xl border border-slate-300 bg-slate-100 px-2 text-xs font-semibold text-slate-700">
+                                            {curCode} {curSym}
+                                          </span>
+                                          <Input
+                                            type="number"
+                                            placeholder={t('yourValuePlaceholder')}
+                                            value={valueDraft[g.id] ?? myValueFor(g.id)}
+                                            onChange={(e) => setValueDraft((d) => ({ ...d, [g.id]: e.target.value }))}
+                                            onKeyDown={(e) => { if (e.key === 'Enter') saveGoodEdit(g) }}
+                                            style={{ width: '14ch', flex: '0 0 auto' }}
+                                            inputMode="decimal"
+                                          />
+                                        </div>
+                                      </div>
+                                      {isFull ? (
+                                        <textarea
+                                          value={editGoodDesc}
+                                          onChange={(e) => setEditGoodDesc(e.target.value.slice(0, 2000))}
+                                          placeholder={t('goodsDescriptionPlaceholder')}
+                                          disabled={!canEditStructure}
+                                          rows={3}
+                                          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 disabled:opacity-60"
+                                        />
+                                      ) : null}
+                                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                                        <div className="flex items-center gap-2 text-sm">
+                                          <Switch2
+                                            on={divisibleDraft[g.id] !== undefined ? divisibleDraft[g.id] : myDivisibleFor(g.id)}
+                                            onToggle={() => setDivisibleDraft((d) => ({ ...d, [g.id]: !(d[g.id] !== undefined ? d[g.id] : myDivisibleFor(g.id)) }))}
+                                            label={t('divisibleLabel')}
+                                          />
+                                          <span>{t('divisibleLabel')}</span>
+                                          <HelpTip text={t('divisibleHint')} />
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-auto">
+                                          <Button onClick={() => saveGoodEdit(g)}>{t('saveWord')}</Button>
+                                          {hasVal ? (
+                                            <Button variant="ghost" onClick={() => { setEditingGoodId(null); setEditGoodName(''); setEditGoodDesc('') }}>
+                                              {t('cancelWord')}
+                                            </Button>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )
+                                })()}
                               </div>
                             ) : (
                               <>
-                                <div className="min-w-[180px]">
+                                <div className="min-w-[180px] max-w-full">
                                   <div className="font-medium">{g.name}</div>
+                                  {g.meta?.description ? (
+                                    <div className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap break-words">
+                                      {g.meta.description}
+                                    </div>
+                                  ) : null}
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  {canEditWorkflow && isJoined && !isMediator ? (() => {
-                                    const hasVal = myValues[String(g.id)]?.value_amount != null
-                                    const editing = valueEditIds.has(g.id) || !hasVal
-                                    if (!editing) {
-                                      // Value already set (e.g. the party that created this good, or
-                                      // one who already saved it): show it as set, don't ask again.
-                                      return (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
-                                            <span className="text-slate-600">{t('yourValueWord')}:</span>
-                                            <b>€{Number(myValues[String(g.id)]?.value_amount || 0).toLocaleString('it-IT')}</b>
-                                            <span className="text-slate-500">·</span>
-                                            <span>{myDivisibleFor(g.id) ? t('divisibleLabel').toLowerCase() : t('indivisibleWord')}</span>
-                                            <span aria-hidden>✓</span>
-                                            <span className="text-emerald-700">{t('savedWord')}</span>
-                                          </span>
-                                          <Button
-                                            variant="ghost"
-                                            className="text-xs"
-                                            onClick={() => { setValueDraft(d => ({ ...d, [g.id]: myValueFor(g.id) })); setValueEditIds(s => new Set(s).add(g.id)) }}
-                                          >
-                                            {t('editWord')}
-                                          </Button>
-                                        </div>
-                                      )
-                                    }
-                                    return (
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-xs text-slate-500">{t('yourValueWord')}:</span>
-                                          <span className="text-sm text-slate-500">€</span>
-                                          <Input
-                                            type="number"
-                                            className="w-28"
-                                            placeholder={t('yourValuePlaceholder')}
-                                            value={valueDraft[g.id] ?? myValueFor(g.id)}
-                                            onChange={(e) => setValueDraft(d => ({ ...d, [g.id]: e.target.value }))}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') submitValuation(g.id) }}
-                                          />
-                                        </div>
-                                        <label className="flex items-center gap-1 text-xs text-slate-600 select-none">
-                                          <input
-                                            type="checkbox"
-                                            checked={divisibleDraft[g.id] !== undefined ? divisibleDraft[g.id] : myDivisibleFor(g.id)}
-                                            onChange={(e) => setDivisibleDraft(d => ({ ...d, [g.id]: e.target.checked }))}
-                                          />
-                                          {t('divisibleLabel')}
-                                        </label>
-                                        <button
-                                          type="button"
-                                          className="rounded-xl px-3 py-2 text-xs font-semibold bg-emerald-600 text-white border border-emerald-600 transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                                          onClick={() => submitValuation(g.id)}
-                                        >
-                                          {t('saveWord')}
-                                        </button>
-                                      </div>
-                                    )
-                                  })() : null}
-                                  {!lockStatus.my_locked && canEditWorkflow ? (
-                                    <Button
-                                      variant="ghost"
-                                      className="text-xs"
-                                      onClick={() => { setEditingGoodId(g.id); setEditGoodName(g.name); setEditGoodDesc(g.meta?.description || '') }}
-                                    >
+                                  {canEditWorkflow && isJoined && !isMediator && myValues[String(g.id)]?.value_amount != null ? (
+                                    <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-800">
+                                      <span className="text-slate-600">{t('yourValueWord')}:</span>
+                                      <b>
+                                        {CURRENCIES.find((c) => c.code === (g.meta?.currency || gcur))?.symbol || ''}
+                                        {Number(myValues[String(g.id)]?.value_amount || 0).toLocaleString('it-IT')}
+                                      </b>
+                                      <span className="text-slate-500">·</span>
+                                      <span>{myDivisibleFor(g.id) ? t('divisibleLabel').toLowerCase() : t('indivisibleWord')}</span>
+                                      <span aria-hidden>✓</span>
+                                      <span className="text-emerald-700">{t('savedWord')}</span>
+                                    </span>
+                                  ) : null}
+                                  {canEditWorkflow && isJoined && !isMediator ? (
+                                    <Button variant="ghost" className="text-xs" onClick={() => openGoodEdit(g)}>
                                       {t('editWord')}
                                     </Button>
                                   ) : null}
@@ -1507,7 +1564,7 @@ export default function DisputeDetail() {
                             )}
                             {/* Drops down inside this good's own card */}
                             {estimateOpen === g.id ? (
-                              <div className="w-full basis-full mt-2">
+                              <div className="w-full basis-full min-w-0 max-w-full mt-2">
                                 <EstimatePanel
                                   disputeId={disputeId} good={g} t={t} lang={lang} currency={gcur}
                                   onApplyPrice={(amt, curr) => applyEstimatePrice(g, amt, curr)}
@@ -3021,10 +3078,11 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
     `${cur?.symbol || ''}${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
 
   const body = (
-    <div className={`rounded-xl border border-indigo-200 bg-white/80 p-3 ${full ? 'h-full flex flex-col' : ''}`}>
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-        <div className="text-xs font-semibold text-indigo-800">✦ {t('aiEstimateTitle', { name: good.name })}</div>
-        <div className="flex items-center gap-2">
+    <div className={`w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-indigo-200 bg-white/80 p-2 sm:p-3 [overflow-wrap:anywhere] ${full ? 'h-full flex flex-col' : ''}`}>
+      {/* Header stacks on phones: title on its own line, controls below */}
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between mb-2">
+        <div className="min-w-0 text-xs font-semibold text-indigo-800 break-words">✦ {t('aiEstimateTitle', { name: good.name })}</div>
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <div className="hidden sm:block text-[11px] text-slate-500">{t('aiEstimateDisclaimer')}</div>
           <button
             type="button"
@@ -3047,14 +3105,14 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
         </div>
       </div>
 
-      <div ref={scrollRef} className={`overflow-y-auto pr-1 space-y-2 ${full ? 'flex-1 min-h-0' : 'max-h-72'}`}>
+      <div ref={scrollRef} className={`min-w-0 max-w-full overflow-y-auto overflow-x-hidden pr-1 space-y-2 ${full ? 'flex-1 min-h-0' : 'max-h-72'}`}>
         {msgs.map((m, i) => (
           <div key={m.id ?? i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
             <div
               // The global light-mode CSS net rewrites `text-white`, which turned
               // the user's own bubble text dark-on-indigo. Paint it inline instead.
               style={m.role === 'user' ? { backgroundColor: '#4f46e5', color: '#ffffff' } : undefined}
-              className={`max-w-[92%] rounded-xl px-3 py-2 text-sm ${
+              className={`min-w-0 max-w-[92%] break-words rounded-xl px-3 py-2 text-sm ${
                 m.role === 'user' ? '' : 'bg-slate-50 text-slate-800 border border-slate-200'
               }`}
             >
@@ -3092,7 +3150,7 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
           <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
             {t('aiEstimateTldr')}
           </div>
-          <div className="mt-1.5 grid grid-cols-3 gap-2">
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:gap-2">
             {([
               ['aiEstimateMin', lastEstimate.min],
               ['aiEstimateAvg', lastEstimate.avg],
@@ -3103,10 +3161,10 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
                 type="button"
                 onClick={() => onApplyPrice?.(Number(amount), lastEstimate.currency)}
                 title={t('aiEstimateApplyHint')}
-                className="rounded-lg border border-emerald-300 bg-white px-2 py-1.5 text-center transition hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                className="min-w-0 rounded-lg border border-emerald-300 bg-white px-1.5 py-1.5 text-center transition hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 sm:px-2"
               >
                 <div className="text-[10px] uppercase tracking-wide text-slate-500">{t(labelKey)}</div>
-                <div className="text-sm font-bold text-emerald-900">{money(Number(amount))}</div>
+                <div className="text-xs sm:text-sm font-bold text-emerald-900 break-words">{money(Number(amount))}</div>
               </button>
             ))}
           </div>
@@ -3139,7 +3197,7 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
       </div>
 
       <form
-        className="mt-2 flex items-center gap-2"
+        className="mt-2 flex min-w-0 items-center gap-2"
         onSubmit={(e) => { e.preventDefault(); const v = input.trim(); if (!v || busy) return; setInput(''); send(v) }}
       >
         <input
@@ -3153,7 +3211,7 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
         <button
           type="submit"
           disabled={busy || !input.trim()}
-          className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t('send')}
         </button>
@@ -3196,9 +3254,9 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
   // Enlarged: a responsive full-viewport overlay (works on phones too).
   if (full) {
     return (
-      <div className="fixed inset-0 z-[1400] flex flex-col bg-black/50 p-2 sm:p-6" role="dialog" aria-modal="true">
-        <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-          <div className="flex-1 min-h-0 overflow-hidden p-2 sm:p-3">{body}</div>
+      <div className="fixed inset-0 z-[1400] flex flex-col bg-black/50 p-0 sm:p-6" role="dialog" aria-modal="true">
+        <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white shadow-2xl sm:rounded-2xl">
+          <div className="flex-1 min-h-0 overflow-hidden p-1.5 sm:p-3">{body}</div>
         </div>
       </div>
     )

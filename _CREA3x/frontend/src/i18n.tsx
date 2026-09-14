@@ -847,7 +847,7 @@ const strings = {
     footerPartners: "Partners",
     footerPartnersNote: "Consortium institutions",
     footerCoordinatorRole: "Project coordinator",
-    footerContactName: "CREA3 Consortium <br> (coordinated by University of Naples Federico II)",
+    footerContactName: "Prof. Flora Amato, University of Naples Federico II",
     footerTechRole: "Technical contact",
     partnersIntro: "CREA3 is built by a European network of seven universities, a continental bar federation, and a consumers' association — working together across {cities} cities in {countries} countries.",
     partnersMapHint: "Hover, tap, or focus a marker on the map to see the institution based in each city.",
@@ -1180,6 +1180,7 @@ const strings = {
     reconcileReady: 'All items resolved — ready to generate the proposal.',
   },
   it: {
+    footerContactName: "Prof. Flora Amato, Università di Napoli Federico II",
     aiEstimate: "Stima AI",
     aiEstimateTitle: "Stima del valore di mercato — {name}",
     aiEstimateDisclaimer: "Stima indicativa, non una perizia certificata",
@@ -1423,7 +1424,6 @@ const strings = {
     partnersVisitSite: "Visita il sito ↗",
     mapAria: "Mappa d'Europa che mostra {cities} città ospitanti {total} istituzioni partner di CREA3.",
     mapCaption: "{cities} città · {total} istituzioni partner in {countries} paesi. Seleziona un marcatore per vedere l'istituzione e una foto del sito.",
-    footerContactName: "Consorzio CREA3 <br> (coordinato dall'Università degli Studi di Napoli Federico II)",
     stepComplete: "✓ Questo passaggio è completato.",
     stepInProgress: "In corso.",
     scopeKicker: "Ambito del progetto",
@@ -2339,6 +2339,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   sl: {
+    footerContactName: "Prof. Flora Amato, Univerza v Neaplju Federico II",
     aiEstimate: "AI Ocena",
     aiEstimateTitle: "Ocena tržne vrednosti — {name}",
     aiEstimateDisclaimer: "Indikativna ocena, ni certificirana ocena",
@@ -2582,7 +2583,6 @@ const strings = {
     partnersVisitSite: "Obiščite spletno stran ↗",
     mapAria: "Zemljevid Evrope, ki prikazuje {cities} mesta, ki gostijo {total} partnerskih institucij CREA3.",
     mapCaption: "{cities} mesta · {total} partnerskih institucij v {countries} državah. Izberite marker, da vidite institucijo in fotografijo lokacije.",
-    footerContactName: "CREA3 Konzorcij <br> (usklajeno z Univerzo v Neaplju Federico II)",
     stepComplete: "✓ Ta korak je zaključen.",
     stepInProgress: "V teku.",
     scopeKicker: "Obseg projekta",
@@ -3498,6 +3498,7 @@ const strings = {
     reconcileReady: 'Tutti gli elementi risolti — pronto a generare la proposta.',
   },
   et: {
+    footerContactName: "Prof. Flora Amato, Napoli Federico II Ülikool",
     aiEstimate: "AI Hinnang",
     aiEstimateTitle: "Turuväärtuse hinnang — {name}",
     aiEstimateDisclaimer: "Indikatiivne hinnang, mitte sertifitseeritud hindamine",
@@ -3741,7 +3742,6 @@ const strings = {
     partnersVisitSite: "Külastage saiti ↗",
     mapAria: "Euroopa kaart, kus on näidatud {cities} linna, kus asuvad {total} CREA3 partnerasutust.",
     mapCaption: "{cities} linna · {total} partnerasutust {countries} riigis. Valige marker, et näha asutust ja foto kohast.",
-    footerContactName: "CREA3 konsortsium <br> (koordineeritud Napoli Ülikooli Federico II poolt)",
     stepComplete: "✓ See samm on lõpetatud.",
     stepInProgress: "Töös.",
     scopeKicker: "Projekti ulatus",
@@ -4657,6 +4657,7 @@ const strings = {
     reconcileReady: 'Vse postavke rešene — pripravljeno za pripravo predloga.',
   },
   be: {
+    footerContactName: "Prof. Flora Amato, Université de Naples Federico II",
     aiEstimate: "Estimation IA",
     aiEstimateTitle: "Estimation de la valeur marchande — {name}",
     aiEstimateDisclaimer: "Estimation indicative, pas une évaluation certifiée",
@@ -4900,7 +4901,6 @@ const strings = {
     partnersVisitSite: "Visitez le site ↗",
     mapAria: "Carte de l'Europe montrant {cities} villes accueillant {total} institutions partenaires de CREA3.",
     mapCaption: "{cities} villes · {total} institutions partenaires dans {countries} pays. Sélectionnez un marqueur pour voir l'institution et une photo du site.",
-    footerContactName: "Consortium CREA3 <br> (coordonné par l'Université de Naples Federico II)",
     stepComplete: "✓ Cette étape est terminée.",
     stepInProgress: "En cours.",
     scopeKicker: "Portée du projet",
@@ -5816,6 +5816,7 @@ const strings = {
     reconcileReady: 'Tous les éléments résolus — prêt à générer la proposition.',
   },
   lt: {
+    footerContactName: "Prof. Flora Amato, Neapolio Federico II universitetas",
     aiEstimate: "AI Įvertinimas",
     aiEstimateTitle: "Rinkos vertės įvertinimas — {name}",
     aiEstimateDisclaimer: "Orientacinis įvertinimas, nepatvirtintas vertinimas",
@@ -6059,7 +6060,6 @@ const strings = {
     partnersVisitSite: "Apsilankykite svetainėje ↗",
     mapAria: "Europos žemėlapis, rodantis {cities} miestus, kuriuose yra {total} CREA3 partnerių institucijų.",
     mapCaption: "{cities} miestai · {total} partnerių institucijos {countries} šalyse. Pasirinkite žymeklį, kad pamatytumėte instituciją ir vietos nuotrauką.",
-    footerContactName: "CREA3 konsorciumas <br> (koordinuojamas Neapolio Federico II universiteto)",
     stepComplete: "✓ Šis žingsnis baigtas.",
     stepInProgress: "Vykdomas.",
     scopeKicker: "Projekto apimtis",
@@ -6975,6 +6975,7 @@ const strings = {
     reconcileReady: 'Kõik punktid lahendatud — valmis ettepanekut koostama.',
   },
   hr: {
+    footerContactName: "Prof. Flora Amato, Sveučilište u Napulju Federico II",
     aiEstimate: "AI Procjena",
     aiEstimateTitle: "Procjena tržišne vrijednosti — {name}",
     aiEstimateDisclaimer: "Indikativna procjena, nije ovjereno vještačenje",
@@ -7218,7 +7219,6 @@ const strings = {
     partnersVisitSite: "Posjetite stranicu ↗",
     mapAria: "Karta Europe koja prikazuje {cities} gradova koji domaćini {total} CREA3 partnerskih institucija.",
     mapCaption: "{cities} gradova · {total} partnerskih institucija u {countries} zemalja. Odaberite oznaku da biste vidjeli instituciju i fotografiju lokacije.",
-    footerContactName: "CREA3 Konzorcij <br> (koordinirano od strane Sveučilišta u Napulju Federico II)",
     stepComplete: "✓ Ovaj korak je dovršen.",
     stepInProgress: "U tijeku.",
     scopeKicker: "Opseg projekta",
@@ -8138,6 +8138,7 @@ const strings = {
   // English automatically (see the t() accessor). Expanded further in the
   // full i18n coverage pass.
   nl: {
+    footerContactName: "Prof. Flora Amato, Universiteit van Napels Federico II",
     aiEstimate: "AI Schatting",
     aiEstimateTitle: "Marktwaarde schatting — {name}",
     aiEstimateDisclaimer: "Indicatieve schatting, geen gecertificeerde waardering",
@@ -8381,7 +8382,6 @@ const strings = {
     partnersVisitSite: "Bezoek site ↗",
     mapAria: "Kaart van Europa met {cities} steden die {total} CREA3 partnerinstellingen huisvesten.",
     mapCaption: "{cities} steden · {total} partnerinstellingen in {countries} landen. Selecteer een marker om de instelling en een foto van de locatie te zien.",
-    footerContactName: "CREA3 Consortium <br> (gecoördineerd door de Universiteit van Napels Federico II)",
     stepComplete: "✓ Deze stap is voltooid.",
     stepInProgress: "Bezig.",
     scopeKicker: "Projectomvang",

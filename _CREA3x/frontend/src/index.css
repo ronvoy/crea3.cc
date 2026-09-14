@@ -383,3 +383,7 @@ html.rm .crea3-skel-line { animation: none; }
 .estimate-md blockquote {
   border-left: 3px solid rgba(100,116,139,.35); padding-left: .5rem; margin: .4rem 0; color: inherit; opacity: .85;
 }
+/* Narrow screens: nothing inside the AI Estimate bubble may widen the page */
+.estimate-md { overflow-wrap: anywhere; word-break: break-word; min-width: 0; max-width: 100%; }
+.estimate-md pre, .estimate-md table { max-width: 100%; }
+.estimate-md img { max-width: 100%; height: auto; }

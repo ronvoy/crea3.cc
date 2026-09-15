@@ -387,3 +387,12 @@ html.rm .crea3-skel-line { animation: none; }
 .estimate-md { overflow-wrap: anywhere; word-break: break-word; min-width: 0; max-width: 100%; }
 .estimate-md pre, .estimate-md table { max-width: 100%; }
 .estimate-md img { max-width: 100%; height: auto; }
+
+/* ── Home banner (inlined animated SVGs) ─────────────────────────────────── */
+/* WCAG 2.2.2: the illustrations' own keyframes must stop when the visitor asks
+   for less motion — the OS preference here, the "Stop animations" toggle via
+   the existing html.rm rule above. */
+@media (prefers-reduced-motion: reduce) {
+  .crea3-banner svg, .crea3-banner svg * { animation: none !important; }
+}
+.crea3-banner svg { max-width: 100%; }

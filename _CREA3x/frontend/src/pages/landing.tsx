@@ -6,6 +6,7 @@ import NetworkBackground from '../components/background'
 import SiteFooter from '../components/site-footer'
 import EuropeMap from '../components/europe-map'
 import EuEmblem from '../components/eu-emblem'
+import AnimatedBanner from '../components/animated-banner'
 import HelpWidget from '../components/help-widget'
 import { api } from '../api/client'
 import { useAuth } from '../store/auth'
@@ -118,7 +119,7 @@ export default function Landing() {
             </div>
 
             <div className="min-w-0 rounded-3xl border border-white/15 bg-white/5 p-3 md:p-4">
-              <WorkflowCarousel />
+              <AnimatedBanner />
             </div>
           </div>
         </div>
@@ -341,197 +342,6 @@ function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; 
   )
 }
 
-type WorkflowSlideDef = {
-  id: number
-  titleKey: I18nKey
-  descriptionKey: I18nKey
-  imageSrc: string
-  imageAltKey: I18nKey
-}
 
-type WorkflowSlide = {
-  id: number
-  title: string
-  description: string
-  imageSrc: string
-  imageAlt: string
-}
 
-const WORKFLOW_SLIDES: WorkflowSlideDef[] = [
-  { id: 1, titleKey: 'landingWorkflowStep1Title', descriptionKey: 'landingWorkflowStep1Desc', imageSrc: '/workflow/dispute.png', imageAltKey: 'landingWorkflowStep1Title' },
-  { id: 2, titleKey: 'landingWorkflowStep2Title', descriptionKey: 'landingWorkflowStep2Desc', imageSrc: '/workflow/invite-party.webp', imageAltKey: 'landingWorkflowStep2Title' },
-  { id: 3, titleKey: 'landingWorkflowStep3Title', descriptionKey: 'landingWorkflowStep3Desc', imageSrc: '/workflow/mediation-strategy.webp', imageAltKey: 'landingWorkflowStep3Title' },
-  { id: 4, titleKey: 'landingWorkflowStep4Title', descriptionKey: 'landingWorkflowStep4Desc', imageSrc: '/workflow/proposal.webp', imageAltKey: 'landingWorkflowStep4Title' },
-]
 
-function WorkflowCarousel() {
-  const { t } = useI18n()
-  const slides: WorkflowSlide[] = useMemo(
-    () =>
-      WORKFLOW_SLIDES.map((s) => ({
-        id: s.id,
-        title: t(s.titleKey),
-        description: t(s.descriptionKey),
-        imageSrc: s.imageSrc,
-        imageAlt: t(s.imageAltKey),
-      })),
-    [t],
-  )
-  const total = slides.length
-
-  const [active, setActive] = useState(0)
-  const intervalRef = useRef<number | null>(null)
-  const wheelLockRef = useRef(0)
-  const pointerStartX = useRef<number | null>(null)
-
-  const stop = useCallback(() => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-  }, [])
-
-  const start = useCallback(() => {
-    stop()
-    intervalRef.current = window.setInterval(() => {
-      setActive((i) => (i + 1) % total)
-    }, 5000)
-  }, [stop, total])
-
-  const step = useCallback(
-    (delta: number) => {
-      setActive((i) => (i + delta + total) % total)
-      start()
-    },
-    [start, total],
-  )
-
-  const goTo = useCallback(
-    (index: number) => {
-      setActive(((index % total) + total) % total)
-      start()
-    },
-    [start, total],
-  )
-
-  useEffect(() => {
-    start()
-    return stop
-  }, [start, stop])
-
-  const onWheel = (e: React.WheelEvent) => {
-    const delta = e.deltaX !== 0 ? e.deltaX : e.shiftKey ? e.deltaY : 0
-    if (delta === 0) return
-    if (Math.abs(delta) < 20) return
-    const now = Date.now()
-    if (now - wheelLockRef.current < 650) return
-    wheelLockRef.current = now
-    delta > 0 ? step(1) : step(-1)
-  }
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    pointerStartX.current = e.clientX
-    stop()
-  }
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    const startX = pointerStartX.current
-    pointerStartX.current = null
-    if (startX === null) {
-      start()
-      return
-    }
-    const dx = e.clientX - startX
-    if (Math.abs(dx) >= 70) {
-      dx < 0 ? step(1) : step(-1)
-      return
-    }
-    start()
-  }
-
-  return (
-    <div
-      className="select-none"
-      onWheel={onWheel}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerCancel={() => {
-        pointerStartX.current = null
-        start()
-      }}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault()
-          step(-1)
-        }
-        if (e.key === 'ArrowRight') {
-          e.preventDefault()
-          step(1)
-        }
-      }}
-      aria-label={t('ariaCarousel')}
-    >
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/10">
-        <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${active * 100}%)` }}>
-          {slides.map((s, i) => (
-            <div key={s.id} className="w-full shrink-0">
-              <div className="relative h-80 md:h-[34rem]">
-                <img src={s.imageSrc} alt={s.imageAlt} className="h-full w-full object-cover" loading="lazy" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-                  <div
-                    className="rounded-xl bg-black/50 px-3 py-1.5 text-xl font-semibold leading-snug shadow-lg backdrop-blur-sm md:text-2xl"
-                    style={{ color: '#ffffff', textShadow: '0 1px 3px rgba(0,0,0,0.85)' }}
-                  >
-                    {s.title}
-                  </div>
-                  <Pill className="border border-white/15 bg-black/40 !text-white backdrop-blur-sm">
-                    {i + 1} / {total}
-                  </Pill>
-                </div>
-              </div>
-              <div className="p-4">
-                {/* text-white/80 auto-darkens to slate in light mode via index.css */}
-                <p className="text-sm leading-relaxed text-white/80">{s.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={`Go to step ${i + 1}`}
-              onClick={() => goTo(i)}
-              className={`h-2 w-2 rounded-full transition-all ${i === active ? 'scale-110 bg-white/80' : 'bg-white/25 hover:bg-white/40'}`}
-            />
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            className="h-9 w-9 rounded-full border border-white/15 bg-white/10 p-0 text-white hover:bg-white/15"
-            onClick={() => step(-1)}
-            aria-label={t('ariaPrev')}
-          >
-            ‹
-          </Button>
-          <Button
-            variant="ghost"
-            className="h-9 w-9 rounded-full border border-white/15 bg-white/10 p-0 text-white hover:bg-white/15"
-            onClick={() => step(1)}
-            aria-label={t('ariaNext')}
-          >
-            ›
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}

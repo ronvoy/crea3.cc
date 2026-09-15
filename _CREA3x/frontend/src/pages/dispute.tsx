@@ -91,6 +91,25 @@ function dotClass(status: StepStatus) {
   return 'bg-rose-500'
 }
 
+/**
+ * Valuation jobs run in the background on the server (a full estimate can take
+ * 30–90 s, longer than a tunnel/proxy allows a single request). This starts
+ * the job and polls sub-second reads until it finishes.
+ */
+async function runEstimateJob(disputeId: string | number, path: string, body: any): Promise<any> {
+  const start = await api(path, { method: 'POST', body })
+  const jobId = start?.job_id
+  if (!jobId) return start                       // legacy synchronous reply
+  const deadline = Date.now() + 5 * 60 * 1000
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 900))
+    const st = await api(`/api/disputes/${disputeId}/goods/estimate-jobs/${jobId}`)
+    if (st.status === 'done') return st.result
+    if (st.status === 'error') throw new Error(st.error || 'The valuation assistant is unavailable right now.')
+  }
+  throw new Error('The estimate is taking too long. Please try again.')
+}
+
 // Currencies offered for an asset's value (code + display symbol).
 const CURRENCIES = [
   { code: 'EUR', symbol: '€' }, { code: 'USD', symbol: '$' }, { code: 'GBP', symbol: '£' },
@@ -586,10 +605,8 @@ export default function DisputeDetail() {
     if (!gname.trim() || draftBusy) return
     setDraftBusy(true); setErr(null); setDraftEst(null); setDraftText(''); setDraftApplied(null)
     try {
-      const r = await api(`/api/disputes/${disputeId}/goods/estimate-draft`, {
-        method: 'POST',
-        body: { name: gname.trim(), description: gdesc.trim(), currency: gcur, lang },
-      })
+      const r = await runEstimateJob(disputeId, `/api/disputes/${disputeId}/goods/estimate-draft`,
+        { name: gname.trim(), description: gdesc.trim(), currency: gcur, lang })
       setDraftEst(r.estimate || null)
       setDraftText(r.text || '')
       setDraftFallback(!!r.fallback)
@@ -3015,19 +3032,28 @@ function EstimatePanel({ disputeId, good, t, lang, currency, onApplyPrice, onApp
   const [repBusy, setRepBusy] = useState(false)
   const [repDone, setRepDone] = useState<string | null>(null)
 
+  async function reloadThread() {
+    try {
+      const r = await api(`/api/disputes/${disputeId}/goods/${good.id}/estimate`)
+      setMsgs(r?.messages || [])
+    } catch { /* keep what we have */ }
+  }
+
   async function send(message: string) {
     setBusy(true); setErr(null)
     if (message.trim()) setMsgs((m) => [...m, { role: 'user', text: message.trim() }])
     try {
-      const r = await api(`/api/disputes/${disputeId}/goods/${good.id}/estimate`, {
-        method: 'POST', body: { message, lang, currency: currency || '' },
-      })
+      const r = await runEstimateJob(disputeId, `/api/disputes/${disputeId}/goods/${good.id}/estimate`,
+        { message, lang, currency: currency || '' })
       setMsgs((m) => [...m, {
         id: r.id, role: 'assistant', text: r.text, fallback: !!r.fallback,
         estimate: r.estimate || null, details: r.details || null,
       }])
     } catch (e: any) {
       setErr(e?.message || t('aiWidgetUnavailable'))
+      // The answer may have been stored even though this request failed
+      // (e.g. a proxy timeout) — show whatever the server has.
+      await reloadThread()
     } finally {
       setBusy(false)
     }

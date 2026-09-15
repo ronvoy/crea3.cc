@@ -5,9 +5,6 @@ import { openCookiePreferences } from './cookie-consent'
 
 const website = import.meta.env.VITE_PROJECT_WEBSITE || ''
 
-// Project coordinator email (overridable via .env). The display name is localized
-// via i18n (footerContactName); an env override still wins when set.
-const contactEmail = import.meta.env.VITE_PROJECT_CONTACT1_EMAIL || 'support@crea3.cc'
 const supportEmail = import.meta.env.VITE_SUPPORT_EMAIL || 'support@crea3.cc'
 
 // Render a name that may contain literal <br> tags as real line breaks.
@@ -20,16 +17,18 @@ function renderWithBreaks(text: string) {
   ))
 }
 
-function Contact({ name, email, role }: { name: string; email: string; role: string }) {
+function Contact({ name, email, role }: { name: string; email?: string; role: string }) {
   return (
     <Box sx={{ mt: 1.5, '&:first-of-type': { mt: 0 } }}>
-      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.06em' }}>
+      <Typography variant="overline" sx={{ letterSpacing: '0.06em', fontWeight: 700, color: 'text.primary' }}>
         {role}
       </Typography>
       <Typography variant="body2" sx={{ fontWeight: 500 }}>{renderWithBreaks(name)}</Typography>
-      <MuiLink href={`mailto:${email}`} underline="hover" variant="body2">
-        {email}
-      </MuiLink>
+      {email ? (
+        <MuiLink href={`mailto:${email}`} underline="hover" variant="body2">
+          {email}
+        </MuiLink>
+      ) : null}
     </Box>
   )
 }
@@ -42,8 +41,8 @@ export default function SiteFooter({ compact = false }: { compact?: boolean }) {
         <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
           <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { md: '1fr 1fr' }, alignItems: 'flex-start' }}>
             <Box>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>{t('footerProjectContact')}</Typography>
-              <Contact name={import.meta.env.VITE_PROJECT_CONTACT1_NAME || t('footerContactName')} email={contactEmail} role={t('footerCoordinatorRole')} />
+              {/* Coordinator only: no section heading, no e-mail (support has its own block below) */}
+              <Contact name={import.meta.env.VITE_PROJECT_CONTACT1_NAME || t('footerContactName')} role={t('footerCoordinatorRole')} />
               {website ? (
                 <Typography variant="body2" sx={{ mt: 1.5 }}>
                   <MuiLink href={website} target="_blank" rel="noreferrer" underline="hover" color="text.secondary">

@@ -20,6 +20,10 @@ When neither source knows current price levels, a live web lookup
 import json
 import logging
 import re
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -30,7 +34,7 @@ from ..core import legal_ai as _la
 from ..core import llm
 from ..core import web_search
 from ..core.config import settings
-from ..db import get_session
+from ..db import engine, get_session
 from ..models import Dispute, DisputeAgent, EstimatorChat, Good, User
 from .deps import get_current_user
 
@@ -38,6 +42,56 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/disputes", tags=["estimator"])
 
 MAX_TURNS = 40
+
+
+# ── background jobs ──────────────────────────────────────────────────────────
+# A valuation can take 30–90 s (LLM + live web lookup). Through a tunnel /
+# reverse proxy that is longer than the request cap, so the HTTP call was
+# returning 502 while the backend kept working and stored the answer — which
+# is why it "appeared after a refresh". The generation now runs in a thread:
+# the POST returns a job id at once and the client polls sub-second reads.
+@dataclass
+class _Job:
+    id: str
+    user_id: int
+    created_at: float
+    status: str = "queued"           # queued | running | done | error
+    result: dict | None = None
+    error: str | None = None
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+
+_JOBS: dict[str, _Job] = {}
+_JOBS_LOCK = threading.Lock()
+_JOB_TTL = 15 * 60
+
+
+def _new_job(user_id: int) -> _Job:
+    with _JOBS_LOCK:
+        now = time.time()
+        for k in [k for k, j in _JOBS.items() if now - j.created_at > _JOB_TTL]:
+            _JOBS.pop(k, None)
+        job = _Job(id=uuid.uuid4().hex, user_id=user_id, created_at=now)
+        _JOBS[job.id] = job
+    return job
+
+
+def _run_job(job: _Job, fn) -> None:
+    def _work():
+        with job.lock:
+            job.status = "running"
+        try:
+            out = fn()
+            with job.lock:
+                job.result, job.status = out, "done"
+        except HTTPException as exc:
+            with job.lock:
+                job.error, job.status = str(exc.detail), "error"
+        except Exception as exc:                # pragma: no cover
+            logger.warning("estimator job failed", exc_info=True)
+            with job.lock:
+                job.error, job.status = f"{type(exc).__name__}: {exc}"[:200], "error"
+    threading.Thread(target=_work, daemon=True).start()
 
 
 # ── asset-category playbooks ─────────────────────────────────────────────────
@@ -425,26 +479,32 @@ def post_estimate_chat(
 
     currency = (body.currency or (good.meta or {}).get("currency") or "EUR").upper()[:3]
     system = _system_prompt(good, brief, body.lang, currency)
-    if _needs_web(question, brief):
-        hits = web_search.search(
-            f"{good.name} {(good.meta or {}).get('description', '') or ''} market value price")
-        ctx = web_search.as_context(hits)
-        if ctx:
-            system += "\n\n" + ctx
-
     history = [{"role": r.role, "content": r.text} for r in history_rows]
-    text, used_fallback = _generate(system, question, history, body.lang)
+    lang, uid, gname = body.lang, user.id, good.name
+    gdesc = (good.meta or {}).get("description", "") or ""
 
-    clean, estimate, details = _extract_blocks(text or "")
-    row = EstimatorChat(
-        good_id=good_id, dispute_id=dispute_id, user_id=user.id,
-        role="assistant", text=clean, fallback=used_fallback,
-        meta={"first_turn": first_turn, "estimate": estimate, "details": details},
-    )
-    session.add(row)
-    session.commit()
-    session.refresh(row)
-    return _row_out(row)
+    def _work() -> dict:
+        sys_prompt = system
+        if _needs_web(question, brief):
+            ctx = web_search.as_context(web_search.search(f"{gname} {gdesc} market value price"))
+            if ctx:
+                sys_prompt += "\n\n" + ctx
+        text, used_fallback = _generate(sys_prompt, question, history, lang)
+        clean, estimate, details = _extract_blocks(text or "")
+        with Session(engine) as s2:
+            row = EstimatorChat(
+                good_id=good_id, dispute_id=dispute_id, user_id=uid,
+                role="assistant", text=clean, fallback=used_fallback,
+                meta={"first_turn": first_turn, "estimate": estimate, "details": details},
+            )
+            s2.add(row)
+            s2.commit()
+            s2.refresh(row)
+            return _row_out(row)
+
+    job = _new_job(user.id)
+    _run_job(job, _work)
+    return {"job_id": job.id, "status": job.status}
 
 
 @router.delete("/{dispute_id}/goods/{good_id}/estimate")
@@ -497,15 +557,23 @@ def estimate_draft(
         "not stated (say briefly which assumptions you made). Keep it to a few lines and always end "
         "with the ESTIMATE_SUMMARY line."
     )
-    if _needs_web(question, brief):
-        ctx = web_search.as_context(
-            web_search.search(f"{stub.name} {stub.meta['description']} market value price"))
-        if ctx:
-            system += "\n\n" + ctx
+    lang = body.lang
+    do_web = _needs_web(question, brief)
+    sname, sdesc = stub.name, stub.meta["description"]
 
-    text, used_fallback = _generate(system, question, [], body.lang, max_tokens=900)
-    clean, estimate, _details = _extract_blocks(text or "")
-    return {"text": clean, "estimate": estimate, "fallback": used_fallback}
+    def _work() -> dict:
+        sys_prompt = system
+        if do_web:
+            ctx = web_search.as_context(web_search.search(f"{sname} {sdesc} market value price"))
+            if ctx:
+                sys_prompt += "\n\n" + ctx
+        text, used_fallback = _generate(sys_prompt, question, [], lang, max_tokens=900)
+        clean, estimate, _details = _extract_blocks(text or "")
+        return {"text": clean, "estimate": estimate, "fallback": used_fallback}
+
+    job = _new_job(user.id)
+    _run_job(job, _work)
+    return {"job_id": job.id, "status": job.status}
 
 
 @router.post("/{dispute_id}/goods/{good_id}/estimate/seed")
@@ -620,3 +688,13 @@ def report_estimate(
         logger.warning("estimator report email failed: %s", exc)
         raise HTTPException(status_code=502, detail="Could not send the report.")
     return {"ok": True}
+
+
+@router.get("/{dispute_id}/goods/estimate-jobs/{job_id}")
+def estimate_job_status(dispute_id: int, job_id: str, user: User = Depends(get_current_user)):
+    """Poll a valuation job — sub-second, so it is safe through any tunnel."""
+    job = _JOBS.get(job_id)
+    if not job or job.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Unknown or expired job.")
+    with job.lock:
+        return {"job_id": job.id, "status": job.status, "result": job.result, "error": job.error}

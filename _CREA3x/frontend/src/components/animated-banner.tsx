@@ -12,16 +12,21 @@ import { useI18n } from '../i18n'
  * the OS preference) freeze them like any other animation — WCAG 2.2.2.
  * Every file's classes / keyframes / ids are prefixed per file (b01-…, b02-…)
  * so the five stylesheets never collide once they share one document.
+ *
+ * The SVGs carry NO text: the heading / subtitle that used to be drawn inside
+ * each file (top 86px strip) lives in a translucent overlay box rendered here,
+ * so it is localized like the rest of the site and slides in with each
+ * illustration. The illustrations' own animations are untouched.
  */
 
-type Slide = { id: string; src: string; titleKey: string; captionKey: string }
+type Slide = { id: string; src: string; titleKey: string; captionKey: string; headingKey: string; subKey: string }
 
 const SLIDES: Slide[] = [
-  { id: 'crea3',       src: '/banner/01_crea3.svg',            titleKey: 'bannerCrea3Title',    captionKey: 'bannerCrea3Caption' },
-  { id: 'balance',     src: '/banner/02_bilancia_equita.svg',  titleKey: 'bannerBalanceTitle',  captionKey: 'bannerBalanceCaption' },
-  { id: 'complexity',  src: '/banner/03_cubo_complessita.svg', titleKey: 'bannerCubeTitle',     captionKey: 'bannerCubeCaption' },
-  { id: 'pieces',      src: '/banner/04_tessere_incastro.svg', titleKey: 'bannerPiecesTitle',   captionKey: 'bannerPiecesCaption' },
-  { id: 'bridge',      src: '/banner/05_ponte_accordo.svg',    titleKey: 'bannerBridgeTitle',   captionKey: 'bannerBridgeCaption' },
+  { id: 'crea3',       src: '/banner/01_crea3.svg',            titleKey: 'bannerCrea3Title',    captionKey: 'bannerCrea3Caption',   headingKey: 'bannerCrea3Heading',   subKey: 'bannerCrea3Sub' },
+  { id: 'balance',     src: '/banner/02_bilancia_equita.svg',  titleKey: 'bannerBalanceTitle',  captionKey: 'bannerBalanceCaption', headingKey: 'bannerBalanceHeading', subKey: 'bannerBalanceSub' },
+  { id: 'complexity',  src: '/banner/03_cubo_complessita.svg', titleKey: 'bannerCubeTitle',     captionKey: 'bannerCubeCaption',    headingKey: 'bannerCubeHeading',    subKey: 'bannerCubeSub' },
+  { id: 'pieces',      src: '/banner/04_tessere_incastro.svg', titleKey: 'bannerPiecesTitle',   captionKey: 'bannerPiecesCaption',  headingKey: 'bannerPiecesHeading',  subKey: 'bannerPiecesSub' },
+  { id: 'bridge',      src: '/banner/05_ponte_accordo.svg',    titleKey: 'bannerBridgeTitle',   captionKey: 'bannerBridgeCaption',  headingKey: 'bannerBridgeHeading',  subKey: 'bannerBridgeSub' },
 ]
 
 const INTERVAL_MS = 7000
@@ -35,8 +40,9 @@ function sanitize(svg: string): string {
     .slice(start, end + 6)
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/\son\w+="[^"]*"/gi, '')
-    // fill the slide box; the files declare width="100%" but no height
-    .replace(/<svg\b/, '<svg preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block"')
+    // fill the slide box; the files declare width="100%" but no height. The
+    // overlay box (below) is the accessible text, so the drawing is decorative.
+    .replace(/<svg\b/, '<svg preserveAspectRatio="xMidYMid meet" aria-hidden="true" style="width:100%;height:100%;display:block"')
 }
 
 function prefersReducedMotion(): boolean {
@@ -75,7 +81,13 @@ export default function AnimatedBanner() {
     return () => { if (timer.current) window.clearInterval(timer.current) }
   }, [paused, total])
 
-  const slides = useMemo(() => SLIDES.map((s) => ({ ...s, title: t(s.titleKey as any), caption: t(s.captionKey as any) })), [t])
+  const slides = useMemo(() => SLIDES.map((s) => ({
+    ...s,
+    title: t(s.titleKey as any),
+    caption: t(s.captionKey as any),
+    heading: t(s.headingKey as any),
+    sub: t(s.subKey as any),
+  })), [t])
   const current = slides[active]
 
   return (
@@ -104,7 +116,7 @@ export default function AnimatedBanner() {
     >
       {/* Slide stage — a fixed aspect box so the layout never jumps between
           illustrations of different heights; each SVG scales to fit inside. */}
-      <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: '680 / 506' }}>
+      <div className="relative w-full overflow-hidden rounded-2xl bg-[#FAFAF7]" style={{ aspectRatio: '680 / 506' }}>
         {slides.map((s, i) => (
           <div
             key={s.id}
@@ -122,6 +134,18 @@ export default function AnimatedBanner() {
             )}
           </div>
         ))}
+
+        {/* Text overlay — translucent box over the (now empty) title strip of
+            the illustration. Keyed by slide so it re-mounts and slides in on
+            every change; the keyframe lives in index.css and is disabled under
+            reduced motion. Sizes step up with the viewport so it fits a phone. */}
+        <div
+          key={current.id}
+          className="crea3-banner-text pointer-events-none absolute left-[4%] right-[4%] top-[3%] rounded-xl border border-white/70 bg-white/75 px-3 py-2 text-center shadow-sm backdrop-blur-sm sm:left-[7%] sm:right-[7%] sm:px-5 sm:py-3"
+        >
+          <div className="text-sm font-semibold leading-tight text-slate-900 sm:text-lg md:text-xl">{current.heading}</div>
+          <div className="mt-0.5 text-[11px] leading-snug text-slate-600 sm:mt-1 sm:text-sm">{current.sub}</div>
+        </div>
       </div>
 
       {/* Caption + controls */}

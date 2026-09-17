@@ -2073,7 +2073,7 @@ function CourtReferences({ disputeId, t }: { disputeId: number; t: (k: any) => s
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
                   <th className="py-1.5 pr-3">{t('courtColCourt')}</th>
@@ -2084,16 +2084,16 @@ function CourtReferences({ disputeId, t }: { disputeId: number; t: (k: any) => s
               <tbody>
                 {state.courts.map((c: any, i: number) => (
                   <tr key={i} className="border-b border-slate-100 align-top">
-                    <td className="py-1.5 pr-3 font-medium text-slate-800">
-                      {c.country} — {c.court_name || t('courtUnspecified')}
+                    <td className="py-1.5 pr-3 font-medium text-slate-800 break-words">
+                      {c.country}{c.court_name ? ` — ${c.court_name}` : ''}
                     </td>
                     <td className="py-1.5 pr-3">
                       {c.case_url ? (
                         <a href={c.case_url} target="_blank" rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline">{c.case_id || '-'}</a>
+                          className="text-blue-600 hover:underline break-all">{c.case_id || '-'}</a>
                       ) : (c.case_id || '-')}
                     </td>
-                    <td className="py-1.5 text-slate-600">{humanDuration(c.duration, t)}</td>
+                    <td className="py-1.5 text-slate-600 whitespace-nowrap">{humanDuration(c.duration, t)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2460,8 +2460,8 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
   return (
     <div className="mt-4 space-y-5">
       {/* Allocation table: Asset | common reconciled price | per-agent reconciled
-          price | per-agent allocation %. Each asset row expands (▸) to show who
-          it is assigned to and whether it is divisible. */}
+          price. Each asset row expands (▸) to show the per-party allocation %,
+          who initialized it, whether it is divisible, set values and balancing. */}
       <div>
         <div className="text-sm font-semibold text-slate-900 mb-2">{t('whoGetsWhat')}</div>
         <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -2470,22 +2470,18 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
             allocations.forEach((a) => Object.keys(a.party_valuations || {}).forEach((k) => ids.add(k)))
             Object.keys(comp).forEach((k) => ids.add(k))
             const agentIds = Array.from(ids).sort()
-            const nCols = 2 + agentIds.length * 2
+            const nCols = 2 + agentIds.length
             return (
-              <table className="w-full min-w-[640px] text-xs sm:text-sm">
+              <table className="w-full min-w-[420px] text-xs sm:text-sm">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
                     <th rowSpan={2} className="text-left font-medium px-3 py-2 align-bottom sticky left-0 bg-slate-50 z-10">{t('assetWord')}</th>
                     <th rowSpan={2} className="text-right font-medium px-3 py-2 align-bottom border-l border-slate-200">{t('priceCommonCol')}</th>
                     <th colSpan={agentIds.length} className="text-center font-semibold px-2 py-1.5 border-l border-slate-200">{t('priceReconciledCol')}</th>
-                    <th colSpan={agentIds.length} className="text-center font-semibold px-2 py-1.5 border-l border-slate-200">{t('allocationCol')}</th>
                   </tr>
                   <tr className="text-[11px]">
                     {agentIds.map((aid) => (
-                      <th key={`r${aid}`} className="font-medium px-2 py-1 text-right border-l border-slate-200">{nameByAid[aid] || `#${aid}`}</th>
-                    ))}
-                    {agentIds.map((aid) => (
-                      <th key={`p${aid}`} className="font-medium px-2 py-1 text-center border-l border-slate-200">{nameByAid[aid] || `#${aid}`}</th>
+                      <th key={`r${aid}`} className="font-medium px-2 py-1 text-right border-l border-slate-200 whitespace-nowrap">{nameByAid[aid] || `#${aid}`}</th>
                     ))}
                   </tr>
                 </thead>
@@ -2516,16 +2512,6 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
                               </td>
                             )
                           })}
-                          {agentIds.map((aid) => {
-                            let pct: number | null = null
-                            if (a.divisible && a.fractions) pct = Math.round(Number(a.fractions[aid] || 0) * 100)
-                            else pct = String(a.assigned_agent_id) === aid ? 100 : 0
-                            return (
-                              <td key={`al${aid}`} className={`px-2 py-2 text-center border-l border-slate-100 ${pct ? 'font-semibold text-emerald-700' : 'text-slate-400'}`}>
-                                {pct ? `${pct}%` : '—'}
-                              </td>
-                            )
-                          })}
                         </tr>
                         {isOpen ? (
                           <tr className="border-t border-slate-100 bg-slate-50/70">
@@ -2535,6 +2521,21 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
                                 {/* Indivisible is PARAMOUNT: one party marking it
                                     indivisible makes the asset indivisible. */}
                                 <span><b>{t('divisibleLabel')}:</b> {a.divisible ? t('yesShort') : t('noShort')}</span>
+                                {/* Allocation % per party (moved here from the table
+                                    columns so the table stays narrow on mobile). */}
+                                <span>
+                                  <b>{t('allocationCol')}:</b>{' '}
+                                  {agentIds.map((aid, k) => {
+                                    const pct = a.divisible && a.fractions
+                                      ? Math.round(Number(a.fractions[aid] || 0) * 100)
+                                      : (String(a.assigned_agent_id) === aid ? 100 : 0)
+                                    return (
+                                      <span key={aid} className={pct ? 'font-semibold text-emerald-700' : 'text-slate-400'}>
+                                        {k > 0 ? <span className="text-slate-400 font-normal"> · </span> : ''}{nameByAid[aid] || `#${aid}`}: {pct ? `${pct}%` : '—'}
+                                      </span>
+                                    )
+                                  })}
+                                </span>
                                 <span>
                                   <b>{t('setValuesLabel')}:</b>{' '}
                                   {agentIds.map((aid, k) => (

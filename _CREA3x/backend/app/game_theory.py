@@ -34,8 +34,13 @@ For each party i with entitlement s_i (shares sum to 1):
   1. Fair share (in i's own currency):     fair_i = s_i * V_i,
      where V_i = sum over all g of v_i(g)  (i's perceived value of EVERYTHING
      that was declared by anyone).
-  2. Items are awarded to the highest valuer. Let received_i be the sum of
-     i's *own* valuations of the items i won.
+  2. Items are awarded to the highest valuer. When two parties value an item
+     the SAME (the common case after reconciliation, where a disputed value
+     becomes the mean for both), the award is chosen jointly with the other
+     equally-valued items so that (a) the balancing payment left after the
+     divisible goods are split is as small as possible and (b) within that,
+     the parties' PREFERENCES (stars) are honoured as much as possible.
+     Let received_i be the sum of i's *own* valuations of the items i won.
   3. Initial surplus (own currency):        surplus_i = received_i - fair_i.
   4. The surpluses are *paid into / drawn from* a common cash pot. Because the
      total of fair shares need not equal the total awarded value, there is a
@@ -91,6 +96,7 @@ def allocate_knaster(
     value: Dict[Tuple[int, int], float],
     entitlement: Dict[int, float],
     divisible_goods: List[int] | None = None,
+    preference: Dict[Tuple[int, int], float] | None = None,
 ) -> GTResult:
     """Run the sealed-bids (Knaster) procedure, with optional divisible goods.
 
@@ -99,8 +105,12 @@ def allocate_knaster(
     divisible_goods lists good ids that may be split into fractions; the engine
     chooses each fraction to balance the parties' entitlement-weighted shares,
     which reduces the cash transfer.
+    preference[(agent, good)] is agent's declared preference strength for good
+    (star rating; missing = 0). It never changes money: it only decides who
+    receives an indivisible good that the parties value EQUALLY.
     """
     divisible = set(divisible_goods or [])
+    pref = preference or {}
 
     # --- normalize entitlement ---
     ent = {a: float(entitlement.get(a, 0.0)) for a in agent_ids}
@@ -119,61 +129,215 @@ def allocate_knaster(
     winner_by_good: Dict[int, int] = {}
     received = {a: 0.0 for a in agent_ids}
 
-    # --- Step 2a: award INDIVISIBLE items to the highest valuer ---
-    # Tie-break: give to the party currently furthest below their
-    # entitlement-weighted share of value, to keep the split balanced.
-    def _tie_key(a: int) -> tuple:
-        share = ent.get(a, 0.0) or 1e-9
-        return (received[a] / share, -(ent.get(a, 0.0)), a)
-
     indivisible_ids = [g for g in good_ids if g not in divisible]
-    for g in indivisible_ids:
-        best_v = None
-        candidates: List[int] = []
-        for a in agent_ids:
-            v = value.get((a, g), 0.0)
-            if best_v is None or v > best_v:
-                best_v, candidates = v, [a]
-            elif v == best_v:
-                candidates.append(a)
-        best_a = min(candidates, key=_tie_key) if candidates else None
-        if best_a is not None:
-            winner_by_good[g] = best_a
-            fractions_by_good[g] = {a: (1.0 if a == best_a else 0.0) for a in agent_ids}
-            received[best_a] += value.get((best_a, g), 0.0)
+    divisible_sorted = sorted(
+        divisible, key=lambda x: -max(value.get((a, x), 0.0) for a in agent_ids) if agent_ids else 0
+    )
 
-    # --- Step 2b: split DIVISIBLE goods to balance entitlement-weighted shares ---
-    # For two parties this has a clean closed form: choose the fraction x of the
-    # good to party A (rest to B) so that, after adding it, both move toward an
-    # equal advantage over their fair share. We greedily assign each divisible
-    # good's fraction to the party most "behind", which for 2 parties yields the
-    # share that equalizes the running gap as far as that good allows.
+    # ======================================================================
+    # TWO PARTIES: a global search over the money-tied indivisibles, then a
+    # preference-aware split of the divisibles, then the cash settlement.
+    #
+    # Money is primary: an indivisible good a party values strictly more is
+    # theirs (Knaster efficiency). After reconciliation, though, both parties
+    # usually carry the SAME value for a good, so most awards are "free" and a
+    # greedy per-good choice (stars, then balance) can paint the engine into a
+    # corner: e.g. a 4-vs-3 star edge on a plot of land tips one party so far
+    # ahead that the whole divisible pool cannot compensate and cash must still
+    # change hands. The free awards are therefore chosen TOGETHER, ranked by:
+    #   1. the balancing payment that remains after the divisibles have done
+    #      their best (lower is better — parties should exchange as little
+    #      cash as possible; differences under 1% of the estate are ignored);
+    #   2. star satisfaction: for each free indivisible, the winner's stars
+    #      minus the loser's, plus for each divisible the preferring party's
+    #      fraction weighted by the star contrast (higher is better);
+    #   3. how balanced the indivisibles alone are (so the divisibles stay
+    #      close to their preferred holders instead of absorbing a big gap);
+    #   4. a fixed order, for determinism.
+    # Divisibles, given the indivisible awards, start split in proportion to
+    # the ratings (tie -> entitlement split); the party who is then AHEAD of
+    # their fair share hands fractions back — assets the other party rated at
+    # least as high first, largest first — until both sit at their entitlement
+    # share or the pool runs out.
+    # ======================================================================
     fair_pre = {a: ent[a] * perceived_total[a] for a in agent_ids}
-    for g in sorted(divisible, key=lambda x: -max(value.get((a, x), 0.0) for a in agent_ids) if agent_ids else 0):
-        if not agent_ids:
-            break
-        if len(agent_ids) == 2:
-            a, b = agent_ids[0], agent_ids[1]
-            va, vb = value.get((a, g), 0.0), value.get((b, g), 0.0)
-            # current gap of received vs fair share
-            gap_a = received[a] - fair_pre[a]
-            gap_b = received[b] - fair_pre[b]
-            # Give the good (value va to A, vb to B) so as to equalize gaps.
-            # If A gets fraction x: A's gap += x*va, B's gap += (1-x)*vb.
-            # Set gap_a + x*va == gap_b + (1-x)*vb  ->  x = (gap_b - gap_a + vb)/(va+vb)
-            denom = va + vb
-            if denom <= 0:
-                x = ent[a]  # neither values it; split by entitlement
+
+    def _stars(a: int, g: int) -> float:
+        return float(pref.get((a, g), 0.0) or 0.0)
+
+    if len(agent_ids) == 2:
+        A, B = agent_ids[0], agent_ids[1]
+        fixed: Dict[int, int] = {}
+        free: List[int] = []
+        for g in indivisible_ids:
+            va_, vb_ = value.get((A, g), 0.0), value.get((B, g), 0.0)
+            if va_ > vb_:
+                fixed[g] = A
+            elif vb_ > va_:
+                fixed[g] = B
             else:
-                x = (gap_b - gap_a + vb) / denom
-                x = max(0.0, min(1.0, x))
-            fractions_by_good[g] = {a: x, b: 1.0 - x}
-            received[a] += x * va
-            received[b] += (1.0 - x) * vb
-            # the party with the larger fraction is recorded as nominal "winner"
-            winner_by_good[g] = a if x >= 0.5 else b
+                free.append(g)
+
+        dva = {g: value.get((A, g), 0.0) for g in divisible_sorted}
+        dvb = {g: value.get((B, g), 0.0) for g in divisible_sorted}
+        contrast = {g: _stars(A, g) - _stars(B, g) for g in divisible_sorted}
+        estate = max(perceived_total.values()) if perceived_total else 0.0
+        cash_unit = max(estate * 0.01, 1.0)
+
+        def _split_divisibles(rec_a: float, rec_b: float) -> Dict[int, float]:
+            """Fractions of each divisible good to A, given indivisible totals.
+
+            Start from a split IN PROPORTION TO THE RATINGS (entitlement-weighted,
+            so equal ratings give the entitlement split), then correct toward the
+            fair shares while disturbing those splits as little as possible: the
+            party who is ahead hands back fractions first of the assets the other
+            party rated equal or higher, largest first, then of the rest, largest
+            first. A large asset absorbs a correction with a small percentage
+            change; flipping a small asset 100% is the last resort.
+            """
+            x: Dict[int, float] = {}
+            for g in divisible_sorted:
+                sa_, sb_ = _stars(A, g), _stars(B, g)
+                wa, wb = ent[A] * sa_, ent[B] * sb_
+                if dva[g] + dvb[g] <= 0 or wa + wb <= 0:
+                    x[g] = ent[A]                  # no signal: split by entitlement
+                else:
+                    x[g] = wa / (wa + wb)
+            if not divisible_sorted:
+                return x
+
+            def _gaps() -> Tuple[float, float]:
+                ga = rec_a - fair_pre[A] + sum(x[g] * dva[g] for g in divisible_sorted)
+                gb = rec_b - fair_pre[B] + sum((1.0 - x[g]) * dvb[g] for g in divisible_sorted)
+                return ga, gb
+
+            ga, gb = _gaps()
+            if abs(ga - gb) > 1e-9:
+                ahead_is_a = ga > gb
+                # (other party rated it >= me) first, then largest value first
+                def _give_back_order(g: int) -> tuple:
+                    c = contrast[g] if ahead_is_a else -contrast[g]   # my star lead
+                    return (0 if c <= 0 else 1, -(dva[g] + dvb[g]))
+                movable = [g for g in divisible_sorted if (x[g] > 0 if ahead_is_a else x[g] < 1.0)]
+                for g in sorted(movable, key=_give_back_order):
+                    denom = dva[g] + dvb[g]
+                    if denom <= 0:
+                        continue
+                    # moving fraction d from the ahead party changes the gaps by
+                    # -d*v_ahead and +d*v_behind; equalize -> d = |ga-gb|/denom
+                    d = abs(ga - gb) / denom
+                    if ahead_is_a:
+                        d = min(d, x[g]); x[g] -= d
+                    else:
+                        d = min(d, 1.0 - x[g]); x[g] += d
+                    ga, gb = _gaps()
+                    if abs(ga - gb) < 1e-9:
+                        break
+            return x
+
+        def _evaluate(assign: Dict[int, int]) -> tuple:
+            rec_a = sum(value.get((A, g), 0.0) for g, w in assign.items() if w == A)
+            rec_b = sum(value.get((B, g), 0.0) for g, w in assign.items() if w == B)
+            x = _split_divisibles(rec_a, rec_b)
+            tot_a = rec_a + sum(x[g] * dva[g] for g in divisible_sorted)
+            tot_b = rec_b + sum((1.0 - x[g]) * dvb[g] for g in divisible_sorted)
+            sur_a, sur_b = tot_a - fair_pre[A], tot_b - fair_pre[B]
+            pot_ = sur_a + sur_b
+            cash_a = -sur_a + ent[A] * pot_
+            satisfaction = sum(
+                (_stars(w, g) - _stars(B if w == A else A, g)) for g, w in assign.items() if g in free
+            ) + sum(
+                abs(contrast[g]) * (x[g] if contrast[g] > 0 else (1.0 - x[g]))
+                for g in divisible_sorted if contrast[g] != 0
+            )
+            pre_gap = abs((rec_a - fair_pre[A]) - (rec_b - fair_pre[B]))
+            key = (
+                round(abs(cash_a) / cash_unit),   # 1. balancing payment (1% buckets)
+                -round(satisfaction, 6),          # 2. star satisfaction
+                round(pre_gap, 2),                # 3. indivisibles alone balanced
+                tuple(0 if assign[g] == A else 1 for g in free),  # 4. determinism
+            )
+            return key, x
+
+        best_key = None
+        best_assign: Dict[int, int] = {}
+        best_x: Dict[int, float] = {}
+        if len(free) <= 12:
+            # exhaustive: every way to award the money-tied indivisibles
+            for mask in range(1 << len(free)):
+                assign = dict(fixed)
+                for i, g in enumerate(free):
+                    assign[g] = B if (mask >> i) & 1 else A
+                key, x = _evaluate(assign)
+                if best_key is None or key < best_key:
+                    best_key, best_assign, best_x = key, assign, x
         else:
-            # 3+ parties: split a divisible good by entitlement (simple, stable).
+            # many tied goods: greedy start (stars, then balance), then improve
+            # by single flips until no flip lowers the objective.
+            assign = dict(fixed)
+            rec = {A: sum(value.get((w, g), 0.0) for g, w in fixed.items() if w == A),
+                   B: sum(value.get((w, g), 0.0) for g, w in fixed.items() if w == B)}
+            for g in free:
+                sa_, sb_ = _stars(A, g), _stars(B, g)
+                if sa_ != sb_:
+                    w = A if sa_ > sb_ else B
+                else:
+                    w = min((A, B), key=lambda p: (rec[p] / (ent[p] or 1e-9), -ent[p], p))
+                assign[g] = w
+                rec[w] += value.get((w, g), 0.0)
+            best_key, best_x = _evaluate(assign)
+            best_assign = assign
+            improved, rounds = True, 0
+            while improved and rounds < 50:
+                improved, rounds = False, rounds + 1
+                for g in free:
+                    trial = dict(best_assign)
+                    trial[g] = B if trial[g] == A else A
+                    key, x = _evaluate(trial)
+                    if key < best_key:
+                        best_key, best_assign, best_x, improved = key, trial, x, True
+
+        for g in indivisible_ids:
+            w = best_assign[g]
+            winner_by_good[g] = w
+            fractions_by_good[g] = {a: (1.0 if a == w else 0.0) for a in agent_ids}
+            received[w] += value.get((w, g), 0.0)
+        for g in divisible_sorted:
+            xa = max(0.0, min(1.0, best_x.get(g, ent[A])))
+            fractions_by_good[g] = {A: xa, B: 1.0 - xa}
+            received[A] += xa * dva[g]
+            received[B] += (1.0 - xa) * dvb[g]
+            # the party with the larger fraction is recorded as nominal "winner"
+            winner_by_good[g] = A if xa >= 0.5 else B
+
+    # ======================================================================
+    # 1 or 3+ PARTIES: greedy per-good awards (highest valuer; on equal money
+    # more stars, then the party furthest below their share, then higher
+    # entitlement, then lowest id) and divisibles split by entitlement.
+    # ======================================================================
+    else:
+        def _tie_key(a: int, g: int) -> tuple:
+            share = ent.get(a, 0.0) or 1e-9
+            return (-_stars(a, g), received[a] / share, -(ent.get(a, 0.0)), a)
+
+        for g in indivisible_ids:
+            best_v = None
+            candidates: List[int] = []
+            for a in agent_ids:
+                v = value.get((a, g), 0.0)
+                if best_v is None or v > best_v:
+                    best_v, candidates = v, [a]
+                elif v == best_v:
+                    candidates.append(a)
+            best_a = min(candidates, key=lambda a: _tie_key(a, g)) if candidates else None
+            if best_a is not None:
+                winner_by_good[g] = best_a
+                fractions_by_good[g] = {a: (1.0 if a == best_a else 0.0) for a in agent_ids}
+                received[best_a] += value.get((best_a, g), 0.0)
+
+        for g in divisible_sorted:
+            if not agent_ids:
+                break
             fractions_by_good[g] = {a: ent[a] for a in agent_ids}
             for a in agent_ids:
                 received[a] += ent[a] * value.get((a, g), 0.0)
@@ -202,7 +366,10 @@ def allocate_knaster(
     notes: List[str] = []
     notes.append(
         "Allocation by the Knaster method of sealed bids: each indivisible asset is awarded to the "
-        "party who values it most; divisible assets are split to balance the parties' shares; and a "
+        "party who values it most; equally-valued assets are placed so that the balancing payment is "
+        "as small as possible and, within that, each goes to the party who rated it higher; divisible "
+        "assets are split in proportion to the ratings, then re-balanced (largest asset first) so each "
+        "party's total matches their entitlement share; and a "
         "cash settlement equalizes each party's advantage over their own perceived fair share."
     )
 

@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from ..models import AllocationProposal, AuditEvent, Dispute, DisputeAgent, Good, Preference
 
-ALGO_VERSION = "v6-knaster-consistent-allocation"
+ALGO_VERSION = "v10-knaster-star-proportional-split"
 
 
 def _stable_json(obj: Any) -> str:
@@ -249,9 +249,12 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
 
     # ---- Step 1: assign each good to the party who values it most (their own
     # valuation in money). When two parties value a good equally (e.g. both use
-    # the estimated value), the party who expressed the stronger PREFERENCE
-    # (more stars) receives it; remaining ties break by entitlement then lowest
-    # id. Stars affect only WHO gets a contested good, never the monetary value.
+    # the estimated value, or the reconciled mean), the party who expressed the
+    # stronger PREFERENCE (more stars) receives it; remaining ties break by
+    # entitlement then lowest id. Stars affect only WHO gets a contested good,
+    # never the monetary value. NOTE: the engine (Step 2) is the source of truth
+    # for the award and applies the SAME preference tie-break — the pass here
+    # only gathers per-good transparency data.
     allocations: List[Dict[str, Any]] = []
     raw_value_by_agent: Dict[int, float] = {aid: 0.0 for aid in agent_ids}
     valuation_gap_total = 0.0
@@ -382,12 +385,20 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
     # party valued is still part of that party's declared estate. Divisible goods
     # are split by the engine to balance shares and reduce the cash transfer.
     divisible_good_ids = [gid for gid in good_ids if bool(goods_by_id[gid].get("divisible"))]
+    # Stars (preference strength) decide who receives an indivisible good the
+    # parties value EQUALLY — which, after reconciliation to the mean, is most
+    # goods. Without this the engine's balance-only tie-break ignored the
+    # parties' ratings and the award looked arbitrary.
+    stars_by_ag: Dict[Tuple[int, int], float] = {
+        (aid, gid): float(_stars_for(aid, gid)) for aid in agent_ids for gid in good_ids
+    }
     gt = allocate_knaster(
         agent_ids=agent_ids,
         good_ids=good_ids,
         value=value,
         entitlement=entitlement,
         divisible_goods=divisible_good_ids,
+        preference=stars_by_ag,
     )
 
     # The engine is the SINGLE source of truth for WHO receives each asset.
@@ -534,8 +545,11 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
         "for dividing indivisible assets among parties. Each asset's monetary value is the value entered "
         "for it (its estimated value, or an explicit amount a party stated); star ratings express each "
         "party's preference and never change an asset's monetary value. Each indivisible asset is awarded "
-        "to the party who values it most; when both value it equally, the tie is broken to keep the overall "
-        "division balanced, which minimises the balancing payment. Then "
+        "to the party who values it most; assets both value equally are placed together so that the "
+        "balancing payment is as small as possible and, within that, each goes to the party who rated it "
+        "higher (stronger preference). Divisible assets are split in proportion to the parties' ratings, "
+        "then fractions are shifted (largest asset first, so the splits change as little as possible) until "
+        "each party's total matches their entitlement share, which minimises the balancing payment. Then "
         "a cash settlement is computed from the entered values so that, after payment, every party ends "
         "with the same advantage over their own fair share (their entitlement share of the total value). "
         "Where the parties declared different sets of assets, matched and mismatched (one-sided) assets "

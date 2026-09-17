@@ -1,0 +1,4 @@
+# Route every request that is not a real file through the PHP proxy.
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

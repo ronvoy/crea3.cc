@@ -238,12 +238,12 @@ def test_indivisible_awards_chosen_so_divisibles_can_balance():
     assert sum(abs(v) for v in r.cash_by_agent.values()) < 500          # no meaningful cash
 
 
-def test_divisibles_split_by_star_ratio_and_corrected_from_largest():
+def test_divisibles_split_by_star_ratio_then_scaled_proportionally():
     # Real case (dispute 39): PS5 (indivisible) to ronvoy (5 vs 2). Gold 4k and
-    # silver 12k are divisible; deepa rates both 5, ronvoy 4 and 3. Each starts
-    # at its star ratio (gold 44/56, silver 38/62 for ronvoy/deepa) and the
-    # correction toward 50/50 comes off SILVER (the largest), so gold stays
-    # mostly deepa's and silver moves slightly toward ronvoy — no cash.
+    # silver 12k are divisible; deepa rates both 5, ronvoy 4 and 3. Pass 1 gives
+    # ronvoy 4/9 of gold and 3/8 of silver; he is then behind, so BOTH his shares
+    # are scaled up by the same factor (~1.2): the 4/9 : 3/8 ratio between them
+    # is preserved, nothing flips, and the totals meet 50/50 with no cash.
     R, D = 52, 53
     val = {}
     for g, v in {55: 4000, 56: 12000, 57: 875}.items():
@@ -254,7 +254,52 @@ def test_divisibles_split_by_star_ratio_and_corrected_from_largest():
         entitlement={R: 0.5, D: 0.5}, divisible_goods=[55, 56], preference=stars,
     )
     assert r.winner_by_good[57] == R
-    assert abs(r.fractions_by_good[55][D] - 5 / 9) < 0.01     # gold untouched, deepa keeps 56%
-    assert 0.5 < r.fractions_by_good[56][D] < 0.625           # silver trimmed toward ronvoy
+    g_r, s_r = r.fractions_by_good[55][R], r.fractions_by_good[56][R]
+    assert abs((g_r / s_r) - ((4 / 9) / (3 / 8))) < 0.01       # ratio preserved
+    assert 4 / 9 < g_r < 0.6 and 3 / 8 < s_r < 0.5             # both scaled up, none flipped
     assert abs(r.received_by_agent[R] - r.received_by_agent[D]) < 1.0
     assert sum(abs(v) for v in r.cash_by_agent.values()) < 1.0
+
+
+def test_behind_party_shares_scaled_by_common_factor():
+    # Real case: PS5 (indivisible, 750) to ronvoy (5 vs 2). Gold 7.5k is rated
+    # 5/5 by both, silver 17.5k is 2 (ronvoy) vs 5 (deepa). Pass 1: gold 50/50,
+    # silver 2/7 to ronvoy. Ronvoy is behind, so both his shares scale by the
+    # same factor (~1.39): gold 69%, silver 40% -- ratio 0.5 : 2/7 preserved,
+    # no asset flips, 50/50 reached, no cash.
+    R, D = 1, 2
+    val = {}
+    for g, v in {1: 750, 2: 7500, 3: 17500}.items():
+        val[(R, g)] = val[(D, g)] = float(v)
+    stars = {(R, 1): 5, (D, 1): 2, (R, 2): 5, (D, 2): 5, (R, 3): 2, (D, 3): 5}
+    r = allocate_knaster(
+        agent_ids=[R, D], good_ids=[1, 2, 3], value=val,
+        entitlement={R: 0.5, D: 0.5}, divisible_goods=[2, 3], preference=stars,
+    )
+    assert r.winner_by_good[1] == R
+    g_r, s_r = r.fractions_by_good[2][R], r.fractions_by_good[3][R]
+    assert abs((g_r / s_r) - (0.5 / (2 / 7))) < 0.01           # ratio preserved
+    assert 0.5 < g_r < 0.75 and 2 / 7 < s_r < 0.45
+    assert abs(r.received_by_agent[R] - r.received_by_agent[D]) < 1.0
+    assert sum(abs(v) for v in r.cash_by_agent.values()) < 1.0
+
+
+def test_scaling_caps_at_100_and_respreads_then_cash_for_the_rest():
+    # A holds a 300k house (indivisible, both 5 stars -> money-tied, but A wins
+    # on the balance search either way). Divisibles: 40k cash (A 1 / B 4) and
+    # 20k art (A 3 / B 3). B is far behind: cash caps at 100% to B, art then
+    # takes the remainder up to 100%, and the still-missing value is CASH:
+    # both parties end exactly at their 50% entitlement.
+    val = {(1, 1): 300000, (2, 1): 300000, (1, 2): 40000, (2, 2): 40000, (1, 3): 20000, (2, 3): 20000}
+    stars = {(1, 1): 5, (2, 1): 4, (1, 2): 1, (2, 2): 4, (1, 3): 3, (2, 3): 3}
+    r = allocate_knaster(
+        agent_ids=[1, 2], good_ids=[1, 2, 3], value=val,
+        entitlement={1: 0.5, 2: 0.5}, divisible_goods=[2, 3], preference=stars,
+    )
+    assert r.winner_by_good[1] == 1
+    assert abs(r.fractions_by_good[2][2] - 1.0) < 1e-6
+    assert abs(r.fractions_by_good[3][2] - 1.0) < 1e-6
+    assert r.transfer == (1, 2, 120000.0)
+    fair = 0.5 * 360000
+    for a in (1, 2):
+        assert abs(r.received_by_agent[a] + r.cash_by_agent[a] - fair) < 1.0

@@ -1893,16 +1893,20 @@ export default function DisputeDetail() {
 
 // Two interactive pie charts (Chart.js): value received by each party, and the
 // asset pool by value. Same data feeds the generated PDF (server-side reportlab).
-function AllocationCharts({ allocations, money, t }: {
+function AllocationCharts({ allocations, money, t, comp, nameByAid }: {
   allocations: any[]
   money: (n: number) => string
   t: (k: any) => string
+  comp?: Record<string, number>          // net cash per agent id: + receives, - pays
+  nameByAid?: Record<string, string>
 }) {
-  const { agentItems, assetItems } = useMemo(() => {
+  const { agentItems, assetItems, cashNote } = useMemo(() => {
+    // Same numbers as the allocation table: reconciled (perceived) price x the
+    // party's share of each asset.
     const perAgent: Record<string, number> = {}
     const assets: Array<{ name: string; value: number }> = []
     for (const a of allocations || []) {
-      const val = Number(a.estimated_value || 0)
+      const val = Number(a.perceived_value ?? a.reconciled_value ?? a.estimated_value ?? 0)
       if (val > 0) assets.push({ name: a.good_name || '—', value: val })
       if (val <= 0) continue
       const frby = a.fraction_by_name
@@ -1917,21 +1921,54 @@ function AllocationCharts({ allocations, money, t }: {
       }
     }
     const agentItems = Object.entries(perAgent).map(([name, value]) => ({ name, value })).filter((x) => x.value > 0)
-    return { agentItems, assetItems: assets }
-  }, [allocations])
+    // Cash settlement (stage 4): shown as its own slice for the party who
+    // RECEIVES it, plus a plain-language note naming payer and receiver.
+    let cashNote: string | null = null
+    const entries = Object.entries(comp || {}).map(([aid, v]) => [aid, Number(v)] as const)
+    const receiver = entries.find(([, v]) => v > 0.5)
+    const payer = entries.find(([, v]) => v < -0.5)
+    if (receiver) {
+      const rName = nameByAid?.[receiver[0]] || `#${receiver[0]}`
+      const amount = receiver[1]
+      // Sits right after the receiver's own slice, in the SAME colour (pulled
+      // out a little) so it reads as a split of that party's sector.
+      const rIdx = agentItems.findIndex((x) => x.name === rName)
+      const cashItem = { name: t('statsCashSlice').replace('{name}', rName), value: amount, cashOf: rIdx >= 0 ? rIdx : agentItems.length }
+      agentItems.splice(rIdx >= 0 ? rIdx + 1 : agentItems.length, 0, cashItem as any)
+      const estate = assets.reduce((s, x) => s + x.value, 0) || 1
+      const pName = payer ? (nameByAid?.[payer[0]] || `#${payer[0]}`) : '—'
+      cashNote = t('statsCashNote')
+        .replace('{payer}', pName).replace('{receiver}', rName)
+        .replace('{amount}', money(amount)).replace('{pct}', String(Math.round((amount / estate) * 100)))
+    }
+    return { agentItems, assetItems: assets, cashNote }
+  }, [allocations, comp, nameByAid, t])
 
   if (!agentItems.length && !assetItems.length) return null
 
-  const makeData = (items: Array<{ name: string; value: number }>) => ({
-    labels: items.map((i) => i.name),
-    datasets: [{
-      data: items.map((i) => i.value),
-      backgroundColor: items.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]),
-      borderColor: '#ffffff',
-      borderWidth: 2,
-    }],
-  })
-  const makeOptions = (items: Array<{ name: string; value: number }>) => {
+  type Item = { name: string; value: number; cashOf?: number }
+  const makeData = (items: Item[]) => {
+    // Party slices take palette colours in order; a cash slice reuses its
+    // receiver's colour EXACTLY and is pulled out a little, so the party's
+    // sector shows split into "assets" and "cash" by the white divider.
+    const colours: string[] = []
+    let paletteIdx = 0
+    items.forEach((it) => {
+      if (it.cashOf != null) colours.push(colours[it.cashOf] || CHART_PALETTE[0])
+      else colours.push(CHART_PALETTE[paletteIdx++ % CHART_PALETTE.length])
+    })
+    return {
+      labels: items.map((i) => i.name),
+      datasets: [{
+        data: items.map((i) => i.value),
+        backgroundColor: colours,
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        offset: items.map((i) => (i.cashOf != null ? 10 : 0)),
+      }],
+    }
+  }
+  const makeOptions = (items: Item[]) => {
     const total = items.reduce((s, i) => s + i.value, 0) || 1
     return {
       responsive: true,
@@ -1960,6 +1997,9 @@ function AllocationCharts({ allocations, money, t }: {
           <div style={{ height: 260 }}>
             {agentItems.length ? <Pie data={makeData(agentItems)} options={makeOptions(agentItems)} /> : <div className="text-xs text-slate-400">—</div>}
           </div>
+          {cashNote ? (
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">💶 {cashNote}</div>
+          ) : null}
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="text-xs font-medium text-slate-600 mb-2">{t('statsAssetsTitle')}</div>
@@ -2578,16 +2618,39 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
                 </tbody>
                 {allocations.length > 0 ? (
                   <tfoot className="bg-slate-50 text-slate-800">
-                    {/* Total of the common "Price (reconciled)" column only; the
-                        per-party allocation columns are not summed. */}
+                    {/* Totals: the common "Price (reconciled)" column, and each
+                        party's allocated value with its share of the estate next
+                        to their entitlement — so the two can be compared directly
+                        (any difference is what the cash settlement covers). */}
                     <tr className="border-t-2 border-slate-200 font-semibold">
                       <td className="px-3 py-2 sticky left-0 bg-slate-50 z-10">{t('totalWord')}</td>
-                      <td className="px-3 py-2 text-right border-l border-slate-100 whitespace-nowrap">
-                        {money(allocations.reduce((acc, a) => acc + Number(a.perceived_value ?? a.reconciled_value ?? a.estimated_value ?? 0), 0))}
-                      </td>
-                      {agentIds.map((aid) => (
-                        <td key={`tot${aid}`} className="px-2 py-2 border-l border-slate-100" />
-                      ))}
+                      {(() => {
+                        const priceOf = (a: any) => Number(a.perceived_value ?? a.reconciled_value ?? a.estimated_value ?? 0)
+                        const grand = allocations.reduce((acc, a) => acc + priceOf(a), 0)
+                        return (
+                          <>
+                            <td className="px-3 py-2 text-right border-l border-slate-100 whitespace-nowrap">{money(grand)}</td>
+                            {agentIds.map((aid) => {
+                              const got = allocations.reduce((acc, a) => {
+                                const frac = a.divisible && a.fractions
+                                  ? Number(a.fractions[aid] || 0)
+                                  : (String(a.assigned_agent_id) === aid ? 1 : 0)
+                                return acc + frac * priceOf(a)
+                              }, 0)
+                              const sharePct = grand > 0 ? Math.round((got / grand) * 100) : 0
+                              const entPct = Math.round((entByAid[aid] ?? (agentIds.length ? 1 / agentIds.length : 0)) * 100)
+                              return (
+                                <td key={`tot${aid}`} className="px-2 py-2 text-right border-l border-slate-100 whitespace-nowrap">
+                                  <div className="text-emerald-700">{money(got)}</div>
+                                  <div className={`text-[11px] font-normal ${Math.abs(sharePct - entPct) > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+                                    ({sharePct}% · {t('entitledToPct').replace('{pct}', String(entPct))})
+                                  </div>
+                                </td>
+                              )
+                            })}
+                          </>
+                        )
+                      })()}
                     </tr>
                   </tfoot>
                 ) : null}
@@ -2624,7 +2687,7 @@ function AllocationView({ proposal, t, agents, disputeId, lang }: { proposal: an
       </div>
 
       {/* Division statistics — two interactive pie charts */}
-      <AllocationCharts allocations={allocations} money={money} t={t} />
+      <AllocationCharts allocations={allocations} money={money} t={t} comp={comp} nameByAid={nameByAid} />
 
       {/* What if … — AI scenario analysis (agree / disagree / differ) */}
       {disputeId ? (

@@ -155,10 +155,10 @@ def allocate_knaster(
     #      close to their preferred holders instead of absorbing a big gap);
     #   4. a fixed order, for determinism.
     # Divisibles, given the indivisible awards, start split in proportion to
-    # the ratings (tie -> entitlement split); the party who is then AHEAD of
-    # their fair share hands fractions back — assets the other party rated at
-    # least as high first, largest first — until both sit at their entitlement
-    # share or the pool runs out.
+    # the ratings (tie -> entitlement split); if a party is then BEHIND their
+    # fair share, all their divisible shares are scaled up by one common factor
+    # (preference ratios preserved, capped at 100%) until both sit at their
+    # entitlement share or the pool runs out; the rest is cash.
     # ======================================================================
     fair_pre = {a: ent[a] * perceived_total[a] for a in agent_ids}
 
@@ -187,13 +187,14 @@ def allocate_knaster(
         def _split_divisibles(rec_a: float, rec_b: float) -> Dict[int, float]:
             """Fractions of each divisible good to A, given indivisible totals.
 
-            Start from a split IN PROPORTION TO THE RATINGS (entitlement-weighted,
-            so equal ratings give the entitlement split), then correct toward the
-            fair shares while disturbing those splits as little as possible: the
-            party who is ahead hands back fractions first of the assets the other
-            party rated equal or higher, largest first, then of the rest, largest
-            first. A large asset absorbs a correction with a small percentage
-            change; flipping a small asset 100% is the last resort.
+            Pass 1: every divisible good is split IN PROPORTION TO THE RATINGS
+            (entitlement-weighted, so equal ratings give the entitlement split).
+            Pass 2: if a party is still behind their fair share, ALL of that
+            party's divisible shares are scaled up by ONE common factor (an asset
+            that reaches 100% is capped and the remainder re-spread over the
+            others), so the proportions between their shares — their preference
+            ratios — are preserved and no single asset flips. What the pool
+            cannot absorb is left for the cash settlement.
             """
             x: Dict[int, float] = {}
             for g in divisible_sorted:
@@ -206,33 +207,49 @@ def allocate_knaster(
             if not divisible_sorted:
                 return x
 
-            def _gaps() -> Tuple[float, float]:
-                ga = rec_a - fair_pre[A] + sum(x[g] * dva[g] for g in divisible_sorted)
-                gb = rec_b - fair_pre[B] + sum((1.0 - x[g]) * dvb[g] for g in divisible_sorted)
-                return ga, gb
+            ga = rec_a - fair_pre[A] + sum(x[g] * dva[g] for g in divisible_sorted)
+            gb = rec_b - fair_pre[B] + sum((1.0 - x[g]) * dvb[g] for g in divisible_sorted)
+            diff = ga - gb                        # >0: A ahead, B behind
+            if abs(diff) <= 1e-9:
+                return x
 
-            ga, gb = _gaps()
-            if abs(ga - gb) > 1e-9:
-                ahead_is_a = ga > gb
-                # (other party rated it >= me) first, then largest value first
-                def _give_back_order(g: int) -> tuple:
-                    c = contrast[g] if ahead_is_a else -contrast[g]   # my star lead
-                    return (0 if c <= 0 else 1, -(dva[g] + dvb[g]))
-                movable = [g for g in divisible_sorted if (x[g] > 0 if ahead_is_a else x[g] < 1.0)]
-                for g in sorted(movable, key=_give_back_order):
-                    denom = dva[g] + dvb[g]
-                    if denom <= 0:
-                        continue
-                    # moving fraction d from the ahead party changes the gaps by
-                    # -d*v_ahead and +d*v_behind; equalize -> d = |ga-gb|/denom
-                    d = abs(ga - gb) / denom
-                    if ahead_is_a:
-                        d = min(d, x[g]); x[g] -= d
-                    else:
-                        d = min(d, 1.0 - x[g]); x[g] += d
-                    ga, gb = _gaps()
-                    if abs(ga - gb) < 1e-9:
+            behind_is_a = diff < 0
+            # receiver's fraction per good; moving fraction d of good g to the
+            # receiver shrinks |ga-gb| by d * (va+vb)
+            recv = {g: (x[g] if behind_is_a else 1.0 - x[g]) for g in divisible_sorted}
+            weight = {g: dva[g] + dvb[g] for g in divisible_sorted}
+            remaining = abs(diff)
+            active = [g for g in divisible_sorted if weight[g] > 0 and recv[g] < 1.0 - 1e-12]
+            for _ in range(len(divisible_sorted) + 2):
+                if remaining <= 1e-9 or not active:
+                    break
+                base = sum(recv[g] * weight[g] for g in active)
+                if base > 1e-12:
+                    # common factor k: sum (recv*k - recv) * weight == remaining
+                    k = 1.0 + remaining / base
+                    capped = [g for g in active if recv[g] * k >= 1.0]
+                    if not capped:
+                        for g in active:
+                            recv[g] *= k
+                        remaining = 0.0
                         break
+                else:
+                    # receiver holds nothing of the active goods (rated 0):
+                    # spread by equal percentage points instead
+                    pts = remaining / sum(weight[g] for g in active)
+                    capped = [g for g in active if recv[g] + pts >= 1.0]
+                    if not capped:
+                        for g in active:
+                            recv[g] += pts
+                        remaining = 0.0
+                        break
+                for g in capped:
+                    remaining -= (1.0 - recv[g]) * weight[g]
+                    recv[g] = 1.0
+                active = [g for g in active if g not in capped]
+            for g in divisible_sorted:
+                r = max(0.0, min(1.0, recv[g]))
+                x[g] = r if behind_is_a else 1.0 - r
             return x
 
         def _evaluate(assign: Dict[int, int]) -> tuple:
@@ -368,8 +385,9 @@ def allocate_knaster(
         "Allocation by the Knaster method of sealed bids: each indivisible asset is awarded to the "
         "party who values it most; equally-valued assets are placed so that the balancing payment is "
         "as small as possible and, within that, each goes to the party who rated it higher; divisible "
-        "assets are split in proportion to the ratings, then re-balanced (largest asset first) so each "
-        "party's total matches their entitlement share; and a "
+        "assets are split in proportion to the ratings, then the party behind has all their shares scaled "
+        "up by one common factor (preference ratios preserved) so each party's total matches their "
+        "entitlement share; and a "
         "cash settlement equalizes each party's advantage over their own perceived fair share."
     )
 

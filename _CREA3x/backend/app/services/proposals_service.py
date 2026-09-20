@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from ..models import AllocationProposal, AuditEvent, Dispute, DisputeAgent, Good, Preference
 
-ALGO_VERSION = "v10-knaster-star-proportional-split"
+ALGO_VERSION = "v13-knaster-proportional-scaling"
 
 
 def _stable_json(obj: Any) -> str:
@@ -547,9 +547,11 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
         "party's preference and never change an asset's monetary value. Each indivisible asset is awarded "
         "to the party who values it most; assets both value equally are placed together so that the "
         "balancing payment is as small as possible and, within that, each goes to the party who rated it "
-        "higher (stronger preference). Divisible assets are split in proportion to the parties' ratings, "
-        "then fractions are shifted (largest asset first, so the splits change as little as possible) until "
-        "each party's total matches their entitlement share, which minimises the balancing payment. Then "
+        "higher (stronger preference). Divisible assets are split in proportion to the parties' ratings; "
+        "if a party is then below their entitlement share, all of that party's divisible shares are "
+        "scaled up by one common factor (so the proportions between their preferences are preserved and "
+        "no single asset flips) until each party's total matches their entitlement share, which "
+        "minimises the balancing payment. Then "
         "a cash settlement is computed from the entered values so that, after payment, every party ends "
         "with the same advantage over their own fair share (their entitlement share of the total value). "
         "Where the parties declared different sets of assets, matched and mismatched (one-sided) assets "

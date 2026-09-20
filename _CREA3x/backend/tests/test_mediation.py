@@ -89,3 +89,19 @@ def test_only_proposer_can_remove(setup_dispute):
     assert client.delete(f"/api/disputes/{did}/mediation/slots/{slot_id}").status_code == 403
     _as("mario@x.it", "mario", 1)
     assert client.delete(f"/api/disputes/{did}/mediation/slots/{slot_id}").status_code == 200
+
+
+def test_majority_price_rule():
+    from app.reconciliation import _majority_price
+    vals = {1: 1000.0, 2: 2000.0}; mean = 1500.0
+    # A accepts B, B keeps B -> B
+    assert _majority_price(vals, mean, [2000.0, 2000.0]) == (2000.0, "majority")
+    # A accepts B, B picks mean -> B
+    assert _majority_price(vals, mean, [2000.0, 1500.0]) == (2000.0, "majority")
+    # A keeps A, B accepts A -> A ;  A keeps A, B picks mean -> A
+    assert _majority_price(vals, mean, [1000.0, 1000.0]) == (1000.0, "majority")
+    assert _majority_price(vals, mean, [1000.0, 1500.0]) == (1000.0, "majority")
+    # cross-accept -> mean ; both keep -> mean ; both mean -> mean
+    assert _majority_price(vals, mean, [2000.0, 1000.0]) == (1500.0, "mean")
+    assert _majority_price(vals, mean, [1000.0, 2000.0]) == (1500.0, "mean")
+    assert _majority_price(vals, mean, [1500.0, 1500.0]) == (1500.0, "mean")

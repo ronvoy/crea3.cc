@@ -183,6 +183,25 @@ export default function DisputeDetail() {
   // from the good's reference value and from stars.
   const [myValues, setMyValues] = useState<Record<string, { value_amount: number | null; divisible: boolean | null }>>({})
   const [valueDraft, setValueDraft] = useState<Record<number, string>>({})
+  // Price guardrail per good for THIS party (null = not loaded; applies=false
+  // for the good's creator, who sets the reference and is not bound).
+  const [guardrails, setGuardrails] = useState<Record<number, any>>({})
+  async function loadGuardrail(goodId: number) {
+    try {
+      const g = await api(`/api/disputes/${disputeId}/goods/${goodId}/guardrail`)
+      setGuardrails((m) => ({ ...m, [goodId]: g }))
+    } catch { /* non-blocking: the server still enforces it */ }
+  }
+  // Client-side check mirroring the server rule; returns an error string or null.
+  function guardrailError(goodId: number, value: number | null): string | null {
+    const g = guardrails[goodId]
+    if (value == null || !g || !g.applies) return null
+    if (value < g.lower - 1e-9 || value > g.upper + 1e-9) {
+      return t('guardrailError').replace('{lo}', fmtMoney(g.lower)).replace('{hi}', fmtMoney(g.upper))
+    }
+    return null
+  }
+  const fmtMoney = (n: number) => `€${Number(n || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`
   const [divisibleDraft, setDivisibleDraft] = useState<Record<number, boolean>>({})
   const [valueEditIds, setValueEditIds] = useState<Set<number>>(() => new Set())
   const [lockStatus, setLockStatus] = useState<{ all_locked: boolean; my_locked: boolean; pending_count?: number; pending_names?: string[]; parties: { name: string; locked: boolean }[] }>({ all_locked: false, my_locked: false, parties: [] })
@@ -661,6 +680,7 @@ export default function DisputeDetail() {
   // price + divisibility opinion, then reloads once.
   function openGoodEdit(g: any) {
     setEditingGoodId(g.id)
+    loadGuardrail(g.id)
     setEditGoodName(g.name)
     setEditGoodDesc(g.meta?.description || '')
     setValueDraft((d) => ({ ...d, [g.id]: myValueFor(g.id) }))
@@ -674,6 +694,8 @@ export default function DisputeDetail() {
     if (value_amount !== null && (Number.isNaN(value_amount) || value_amount < 0)) {
       setErr(t('valueMustBeNumber')); return
     }
+    const gErr = guardrailError(g.id, value_amount)
+    if (gErr) { setErr(gErr); return }
     const divisible = divisibleDraft[g.id] !== undefined ? divisibleDraft[g.id] : myDivisibleFor(g.id)
     try {
       const canEditStructure = canEditWorkflow && !lockStatus.my_locked
@@ -806,6 +828,8 @@ export default function DisputeDetail() {
     if (value_amount !== null && (Number.isNaN(value_amount) || value_amount < 0)) {
       setErr(t('valueMustBeNumber')); return
     }
+    const gErr = guardrailError(goodId, value_amount)
+    if (gErr) { setErr(gErr); return }
     const divisible = divisibleDraft[goodId] !== undefined ? divisibleDraft[goodId] : myDivisibleFor(goodId)
     try {
       await api(`/api/disputes/${disputeId}/goods/${goodId}/valuation`, {
@@ -1491,6 +1515,25 @@ export default function DisputeDetail() {
                                             inputMode="decimal"
                                           />
                                         </div>
+                                        {/* Price guardrail (non-creators only): the band this
+                                            party's value must stay within. Turns red when the
+                                            draft is outside it. */}
+                                        {guardrails[g.id]?.applies ? (() => {
+                                          const gr = guardrails[g.id]
+                                          const draft = Number((valueDraft[g.id] ?? myValueFor(g.id) ?? '').trim())
+                                          const bad = !Number.isNaN(draft) && (valueDraft[g.id] ?? '') !== '' && (draft < gr.lower || draft > gr.upper)
+                                          return (
+                                            <div className={`mt-1 text-[11px] leading-snug ${bad ? 'text-red-600' : 'text-slate-500'}`}>
+                                              <b>{t('guardrailTitle')}:</b> {fmtMoney(gr.lower)} – {fmtMoney(gr.upper)}{' '}
+                                              <span className="text-slate-400">
+                                                ({t('guardrailHint')
+                                                  .replace('{ref}', fmtMoney(gr.reference))
+                                                  .replace('{ai}', gr.ai_max != null ? t('guardrailAi').replace('{max}', fmtMoney(gr.ai_max)) : '')
+                                                  .replace('{tol}', String(gr.tolerance_pct))})
+                                              </span>
+                                            </div>
+                                          )
+                                        })() : null}
                                       </div>
                                       {isFull ? (
                                         <textarea

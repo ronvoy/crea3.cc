@@ -4,10 +4,11 @@ Before a proposal is generated, both parties are asked to reconcile the two
 kinds of disagreement the platform detects from their raw inputs:
 
   1. VALUE disagreements - both parties valued the same good, but differently.
-     Each party is asked whether they agree to reconcile by taking the MEAN of
-     the two valuations. If ALL parties agree, the good's reconciled valuation
-     for both becomes that mean (the spread disappears). If anyone disagrees,
-     the spread is preserved and still highlighted in the report.
+     Each party records the price they accept (the mean, the other side's
+     price, or their own). The final price is decided by majority vote over the
+     parties' prices — accepting the other side's price is a vote for it, the
+     mean is neutral — and settles on the mean when the votes tie or nobody
+     voted for a specific price (see _majority_price).
 
   2. OMITTED items - a good was acknowledged (rated/valued) by one party but not
      the other. The omitting party is asked to OPTIONALLY express their own
@@ -103,6 +104,30 @@ def _agent_value(aid: int, good: Good, creator_id: int | None, pref: Preference 
     return None
 
 
+def _majority_price(vals: Dict[int, float], mean: float, recorded: List[float]) -> Tuple[float, str]:
+    """Final price of a divergent good once every party has recorded a value.
+
+    Each recorded value is a VOTE: for the party price it matches (own or the
+    other side's), or for itself if it is some other amount; a value equal to the
+    mean is neutral. Returns (price, 'majority') when one price has strictly the
+    most votes, otherwise (mean, 'mean').
+    """
+    prices = [round(float(v), 2) for v in vals.values()]
+    votes: Dict[float, int] = {}
+    for rv in recorded:
+        match = next((p for p in prices if abs(rv - p) <= 0.01), None)
+        if match is None and abs(rv - mean) <= 0.01:
+            continue                          # the mean is a neutral vote
+        key = match if match is not None else round(float(rv), 2)
+        votes[key] = votes.get(key, 0) + 1
+    if votes:
+        top = max(votes.values())
+        winners = [k for k, c in votes.items() if c == top]
+        if len(winners) == 1:
+            return winners[0], "majority"
+    return round(float(mean), 2), "mean"
+
+
 def compute_reconciliation_items(session: Session, dispute_id: int) -> Dict[str, Any]:
     """Return the open reconciliation items plus each party's response state.
 
@@ -146,10 +171,16 @@ def compute_reconciliation_items(session: Session, dispute_id: int) -> Dict[str,
 
         # VALUE disagreement — both parties valued the good differently. Each
         # party records the value THEY accept: the mean, the other party's value,
-        # or their own (keep). A common reconciled value exists only when every
-        # party's recorded value is the same. So: both pick the mean -> mean; one
-        # keeps their own and the other agrees with it -> that value; anything else
-        # -> divergent (each party's own preference is used).
+        # or their own (keep). Once everyone has responded the final price is
+        # decided by MAJORITY VOTE over the parties' stated prices: a recorded
+        # value equal to a party's price is a vote for that price (accepting the
+        # other side's price adds a vote to it), a recorded value equal to the
+        # mean is neutral. The price with the most votes wins; a tie between
+        # prices (e.g. each accepted the other's) or no votes at all (both chose
+        # the mean) settles on the mean. Examples, A says X and B says Y:
+        #   A->Y, B->Y or mean  => Y      A->X, B->X or mean  => X
+        #   A->Y, B->X          => mean   A->mean, B->mean    => mean
+        #   A->X, B->Y (both keep) => mean (default).
         if len(vals) >= 2:
             vmax, vmin = max(vals.values()), min(vals.values())
             denom = max(abs(vmax), 1.0)
@@ -167,8 +198,10 @@ def compute_reconciliation_items(session: Session, dispute_id: int) -> Dict[str,
                         item_resp[str(aid)] = rv
                         recorded.append(rv)
                 all_responded = all(item_resp[str(aid)] is not None for aid in ack_ids)
-                settled = bool(all_responded and recorded and (max(recorded) - min(recorded) <= 0.01))
-                settled_value = round(recorded[0], 2) if settled else None
+                settled, settled_value, settled_kind = False, None, None
+                if all_responded and recorded:
+                    settled_value, settled_kind = _majority_price(vals, all_mean, recorded)
+                    settled = True
                 value_items.append({
                     "good_id": gid,
                     "good_name": g.name,
@@ -176,8 +209,9 @@ def compute_reconciliation_items(session: Session, dispute_id: int) -> Dict[str,
                     "mean": all_mean,
                     "gap": round(vmax - vmin, 2),
                     "responses": item_resp,          # {agent_id: recorded_value | None}
-                    "settled_to_mean": settled,       # settled to a common value
+                    "settled_to_mean": settled,       # settled to a common (final) value
                     "settled_value": settled_value,
+                    "settled_kind": settled_kind,     # 'majority' | 'mean' | None
                     "all_responded": all_responded,
                 })
 

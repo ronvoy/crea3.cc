@@ -339,6 +339,10 @@ class Settings(BaseSettings):
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))
     smtp_ssl: bool = Field(default=False, validation_alias=AliasChoices("SMTP_SSL", "smtp_ssl"))
 
+    # Price guardrails: JSON list of [upper_bound_exclusive, tolerance] pairs
+    # (see core/guardrails.py). Empty = built-in default slabs.
+    price_guardrail_slabs: str = Field(default="", validation_alias=AliasChoices("PRICE_GUARDRAIL_SLABS", "price_guardrail_slabs"))
+
     # ----------------------------
     # Public link for invitations (overridable)
     # ----------------------------

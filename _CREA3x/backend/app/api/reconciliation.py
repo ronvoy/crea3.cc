@@ -46,9 +46,11 @@ def _editable(dispute: Dispute):
 def respond_value(dispute_id: int, payload: ValueResponseIn, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Record this party's response to a divergent valuation.
 
-    Symmetric: EITHER party that valued the good may accept the mean or keep the
-    divergent values. The mean is applied only when all parties accept. Repeated
-    calls simply update the caller's own response (idempotent)."""
+    Symmetric: EITHER party that valued the good may accept the mean, accept the
+    other side's price, or keep their own. Once all have responded the final
+    price is the majority-voted price, or the mean on a tie (see
+    reconciliation._majority_price). Repeated calls simply update the caller's
+    own response (idempotent)."""
     dispute = can_access_dispute(dispute_id, user, session)
     participant = require_participant_role(get_participant(dispute_id, user, session), deny_roles=("mediator",))
     _editable(dispute)

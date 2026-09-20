@@ -12,6 +12,7 @@ type ValueItem = {
   responses: Record<string, number | null>
   settled_to_mean: boolean
   settled_value: number | null
+  settled_kind?: 'majority' | 'mean' | null
   all_responded: boolean
 }
 type OmittedItem = {
@@ -166,7 +167,7 @@ export default function ReconciliationPanel({
             const near = (a: any, b: any) => a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.01
             const myChoice: string | null = !iResponded ? null : (near(myResp, item.mean) ? 'mean' : near(myResp, otherVal) ? 'other' : near(myResp, myOwn) ? 'keep' : null)
             const overall = item.settled_to_mean
-              ? <span className="text-emerald-700">{t('reconcileSettledAt')}: <b>{money(item.settled_value ?? item.mean)}</b></span>
+              ? <span className="text-emerald-700">{t('reconcileSettledAt')}: <b>{money(item.settled_value ?? item.mean)}</b> <span className="text-xs text-slate-500">({item.settled_kind === 'majority' ? t('reconcileByMajority') : t('reconcileByMean')})</span></span>
               : item.all_responded
                 ? <span className="text-slate-600">{t('reconcileDivergentKept')}</span>
                 : <span className="text-amber-700">{t('reconcileWaitingOther')}</span>

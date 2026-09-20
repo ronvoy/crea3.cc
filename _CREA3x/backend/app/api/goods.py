@@ -132,6 +132,70 @@ def my_valuations(dispute_id: int, user: User = Depends(get_current_user), sessi
     return out
 
 
+def _guardrail_for(session: Session, dispute_id: int, good: Good, participant: DisputeAgent) -> dict:
+    """The price band that applies to THIS party for a good (see core/guardrails).
+
+    The good's creator (the initial person) sets the reference and is not
+    bound; every other party is. The reference is the creator's own latest
+    price; the AI Estimator's latest min/max for the good widen the band.
+    """
+    from ..core import guardrails
+    from ..models import EstimatorChat
+
+    creator_id = (good.meta or {}).get("created_by_agent_id")
+    applies = creator_id is not None and int(creator_id) != int(participant.id)
+    reference = float(good.estimated_value or 0.0)
+    if creator_id is not None:
+        cp = session.exec(
+            select(Preference).where(
+                Preference.dispute_id == dispute_id,
+                Preference.good_id == good.id,
+                Preference.agent_id == int(creator_id),
+            )
+        ).first()
+        if cp is not None and cp.bid_amount is not None:
+            reference = float(cp.bid_amount)
+    ai_min = ai_max = None
+    rows = session.exec(
+        select(EstimatorChat).where(
+            EstimatorChat.dispute_id == dispute_id,
+            EstimatorChat.good_id == good.id,
+        ).order_by(EstimatorChat.created_at.desc())  # type: ignore[attr-defined]
+    ).all()
+    for r in rows:
+        est = (r.meta or {}).get("estimate") or {}
+        try:
+            mn = float(est.get("min")) if est.get("min") is not None else None
+            mx = float(est.get("max")) if est.get("max") is not None else None
+        except (TypeError, ValueError):
+            mn = mx = None
+        if mn is not None or mx is not None:
+            ai_min, ai_max = mn, mx
+            break
+    band = guardrails.compute_band(reference, ai_min, ai_max)
+    band["applies"] = bool(applies)
+    band["creator_agent_id"] = creator_id
+    return band
+
+
+@router.get("/{good_id}/guardrail")
+def get_my_guardrail(
+    dispute_id: int,
+    good_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """The allowed price band for the CURRENT party's valuation of a good."""
+    can_access_dispute(dispute_id, user, session)
+    participant = get_participant(dispute_id, user, session)
+    if not participant:
+        raise HTTPException(status_code=403, detail="Not a participant of this dispute")
+    good = session.get(Good, good_id)
+    if not good or good.dispute_id != dispute_id:
+        raise HTTPException(status_code=404, detail="Good not found")
+    return _guardrail_for(session, dispute_id, good, participant)
+
+
 @router.post("/{good_id}/valuation")
 def set_my_valuation(
     dispute_id: int,
@@ -165,6 +229,23 @@ def set_my_valuation(
     val = float(payload.value_amount) if payload.value_amount is not None else None
     if val is not None and val < 0:
         raise HTTPException(status_code=400, detail="Value must be >= 0.")
+
+    # Price guardrail: a party other than the good's creator must stay within
+    # the band around the reference price / AI estimate (see core/guardrails).
+    if val is not None:
+        from ..core import guardrails
+        band = _guardrail_for(session, dispute_id, good, participant)
+        if band["applies"] and not guardrails.within(band, val):
+            cur = (good.meta or {}).get("currency") or "EUR"
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Value out of the allowed range: {band['lower']:,.0f}–{band['upper']:,.0f} {cur} "
+                    f"(reference {band['reference']:,.0f}"
+                    + (f", AI estimate up to {band['ai_max']:,.0f}" if band.get("ai_max") is not None else "")
+                    + f", ±{band['tolerance_pct']:g}% for this price slab)."
+                ),
+            )
 
     # Per-party divisibility opinion is stored on the good's meta, keyed by agent.
     if payload.divisible is not None:

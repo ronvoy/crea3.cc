@@ -22,7 +22,7 @@ import {
 } from '@mui/material'
 import AccessibilityNewOutlinedIcon from '@mui/icons-material/AccessibilityNewOutlined'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
-import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined'
+import GTranslateIcon from '@mui/icons-material/GTranslate'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import CloseIcon from '@mui/icons-material/Close'
@@ -223,9 +223,9 @@ export default function SettingsDock() {
           </IconButton>
         </Tooltip>
         <Tooltip title={t('openSettings')} placement="left">
-          {/* Language globe (the drawer opens on the language picker) */}
+          {/* Translate glyph ("文/A") — the drawer opens on the language picker */}
           <IconButton aria-label={t('openSettings')} onClick={() => setOpen(true)}>
-            <LanguageOutlinedIcon />
+            <GTranslateIcon />
           </IconButton>
         </Tooltip>
         <Tooltip title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'} placement="left">

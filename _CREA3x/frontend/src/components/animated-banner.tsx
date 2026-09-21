@@ -13,10 +13,11 @@ import { useI18n } from '../i18n'
  * Every file's classes / keyframes / ids are prefixed per file (b01-…, b02-…)
  * so the five stylesheets never collide once they share one document.
  *
- * The SVGs carry NO text: the heading / subtitle that used to be drawn inside
- * each file (top 86px strip) lives in a translucent overlay box rendered here,
- * so it is localized like the rest of the site and slides in with each
- * illustration. The illustrations' own animations are untouched.
+ * The SVGs carry NO text (sanitize() also strips any text/title/desc a new
+ * export might contain): the heading / subtitle lives in a translucent overlay
+ * box rendered here, so it is localized like the rest of the site and slides
+ * in with each illustration. The illustrations' own animations are untouched.
+ * All five files share a 680x408 frame on a white background.
  */
 
 type Slide = { id: string; src: string; titleKey: string; captionKey: string; headingKey: string; subKey: string }
@@ -31,6 +32,10 @@ const SLIDES: Slide[] = [
 
 const INTERVAL_MS = 7000
 
+/** The illustrations' native frame (all five files share it). */
+const SVG_W = 680
+const SVG_H = 408
+
 /** Strip anything that must not be injected, keep the <svg> element only. */
 function sanitize(svg: string): string {
   const start = svg.indexOf('<svg')
@@ -40,8 +45,14 @@ function sanitize(svg: string): string {
     .slice(start, end + 6)
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/\son\w+="[^"]*"/gi, '')
-    // fill the slide box; the files declare width="100%" but no height. The
-    // overlay box (below) is the accessible text, so the drawing is decorative.
+    // Any text an export may carry (headline, <title>/<desc>) is dropped: the
+    // localized overlay box is the only text, and the drawing is decorative.
+    .replace(/<text\b[\s\S]*?<\/text>/gi, '')
+    .replace(/<title\b[\s\S]*?<\/title>/gi, '')
+    .replace(/<desc\b[\s\S]*?<\/desc>/gi, '')
+    .replace(/\saria-labelledby="[^"]*"/gi, '')
+    .replace(/\srole="img"/gi, '')
+    // fill the slide box; the files declare width="100%" but no height.
     .replace(/<svg\b/, '<svg preserveAspectRatio="xMidYMid meet" aria-hidden="true" style="width:100%;height:100%;display:block"')
 }
 
@@ -116,7 +127,7 @@ export default function AnimatedBanner() {
     >
       {/* Slide stage — a fixed aspect box so the layout never jumps between
           illustrations of different heights; each SVG scales to fit inside. */}
-      <div className="relative w-full overflow-hidden rounded-2xl bg-[#FAFAF7]" style={{ aspectRatio: '680 / 506' }}>
+      <div className="relative w-full overflow-hidden rounded-2xl bg-white" style={{ aspectRatio: `${SVG_W} / ${SVG_H}` }}>
         {slides.map((s, i) => (
           <div
             key={s.id}

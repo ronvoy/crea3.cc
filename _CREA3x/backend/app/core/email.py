@@ -44,6 +44,43 @@ def _deliver(msg) -> None:
             pass
 
 
+def smtp_check(timeout: float = 15.0) -> dict:
+    """Connect + authenticate against the configured SMTP server WITHOUT sending.
+
+    Returns {"ok": bool, "host", "port", "ssl", "starttls", "user", "auth": bool,
+    "error": str | None}. Used at startup (logged) and by the admin panel, so a
+    wrong password or an unreachable host is visible instead of silently
+    dropping verification / password-reset codes.
+    """
+    info = {
+        "ok": False, "host": settings.smtp_host, "port": settings.smtp_port,
+        "ssl": bool(settings.smtp_ssl), "starttls": bool(settings.smtp_tls),
+        "user": settings.smtp_user or "", "auth": bool(settings.smtp_user and settings.smtp_pass),
+        "from": settings.smtp_from, "error": None,
+    }
+    try:
+        if settings.smtp_ssl:
+            server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=timeout)
+        else:
+            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=timeout)
+        try:
+            server.ehlo()
+            if settings.smtp_tls and not settings.smtp_ssl:
+                server.starttls()
+                server.ehlo()
+            if settings.smtp_user and settings.smtp_pass:
+                server.login(settings.smtp_user, settings.smtp_pass)
+            info["ok"] = True
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                pass
+    except Exception as exc:
+        info["error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+    return info
+
+
 def _send_email(*, to_email: str, subject: str, body_text: str) -> None:
     msg = MIMEText(body_text, "plain", "utf-8")
     msg["Subject"] = subject

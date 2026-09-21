@@ -254,6 +254,16 @@ def _detect_junk_mailbox(M) -> str:
     return _detect_mailbox(M, "\\Junk", "junk", "INBOX.Junk")
 
 
+@router.get("/mail/smtp-check")
+def mail_smtp_check(_admin: str = Depends(require_admin_panel)):
+    """Connect + authenticate against the configured SMTP server (no send).
+
+    Lets an administrator see immediately whether verification / reset codes
+    can be delivered, and the exact server error if not."""
+    from ..core.email import smtp_check
+    return smtp_check()
+
+
 @router.get("/mail/config")
 def mail_config(account: str = Query("info"), _admin: str = Depends(require_admin_panel)):
     """SMTP settings + detected mailbox names for the selected account.

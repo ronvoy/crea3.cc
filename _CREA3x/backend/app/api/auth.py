@@ -174,7 +174,7 @@ def register(payload: RegisterIn, request: Request, session: Session = Depends(g
                 code_sent = True
                 break
             except Exception as exc:
-                logger.warning("Verification email attempt %d failed for %s: %s", attempt, email, exc)
+                logger.error("Verification email attempt %d failed for %s: %s: %s", attempt, email, type(exc).__name__, exc)
                 if attempt == 1:
                     _time.sleep(1.5)
         if not code_sent:
@@ -241,7 +241,12 @@ def resend_verification(payload: ResendIn, request: Request, session: Session = 
     try:
         send_verification_code_email(to_email=user.email, code=code)
     except Exception as exc:
-        logger.warning("Resend verification failed for %s: %s", email, exc)
+        logger.error("Resend verification failed for %s: %s: %s", email, type(exc).__name__, exc)
+        # Let the user retry immediately and tell the UI nothing was delivered.
+        user.email_verification_sent_at = None
+        session.add(user)
+        session.commit()
+        return {"ok": False, "status": "send_failed", "dev_code": code if _is_dev() else ""}
     return {"ok": True, "status": "sent", "dev_code": code if _is_dev() else ""}
 
 
@@ -268,7 +273,13 @@ def forgot_password(payload: ForgotPasswordIn, request: Request, session: Sessio
     try:
         send_password_reset_code_email(to_email=user.email, code=code)
     except Exception as exc:
-        logger.warning("Reset email failed for %s: %s", email, exc)
+        # The response stays generic (no account enumeration), but the failure
+        # must be loud in the logs and the cooldown cleared so a retry works
+        # once SMTP is fixed.
+        logger.error("Password-reset email failed for %s: %s: %s", email, type(exc).__name__, exc)
+        user.password_reset_sent_at = None
+        session.add(user)
+        session.commit()
 
     if _is_dev():
         return {"ok": True, "dev_code": code}

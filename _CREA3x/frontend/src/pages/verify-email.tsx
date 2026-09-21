@@ -64,6 +64,10 @@ export default function VerifyEmailPage() {
       if (data?.status === 'already_verified') {
         setResend('already')
         setResendMsg(t('loginResendAlready'))
+      } else if (data?.status === 'send_failed') {
+        // SMTP rejected the send: say so instead of "check your inbox".
+        setResend('error')
+        setResendMsg(t('loginResendFailed'))
       } else {
         setResend('sent')
         setResendMsg(t('loginResendSent'))

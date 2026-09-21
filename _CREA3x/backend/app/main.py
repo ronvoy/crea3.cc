@@ -1,6 +1,7 @@
 import os
 
 import httpx
+import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -58,6 +59,25 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # SMTP sanity check (background, never blocks startup): a wrong password or
+    # an unreachable host would otherwise only surface as a WARNING when a user
+    # registers, and the verification / reset code would silently never arrive.
+    def _smtp_probe():
+        try:
+            from .core.email import smtp_check
+            r = smtp_check()
+            if r["ok"]:
+                logging.getLogger("crea3.mail").info(
+                    "SMTP OK: %s:%s ssl=%s starttls=%s user=%s", r["host"], r["port"], r["ssl"], r["starttls"], r["user"] or "-")
+            else:
+                logging.getLogger("crea3.mail").error(
+                    "SMTP CHECK FAILED — verification and password-reset emails will NOT be delivered. "
+                    "%s:%s ssl=%s starttls=%s user=%s -> %s  (fix SMTP_* in backend/.env)",
+                    r["host"], r["port"], r["ssl"], r["starttls"], r["user"] or "-", r["error"])
+        except Exception as exc:  # pragma: no cover
+            logging.getLogger("crea3.mail").warning("SMTP probe skipped: %s", exc)
+    import threading
+    threading.Thread(target=_smtp_probe, name="smtp-probe", daemon=True).start()
     # Seed the Knowledge Base 'workflow' section with the CREA3 workflow doc on
     # first run (no-op if it already has documents). Never blocks startup.
     try:

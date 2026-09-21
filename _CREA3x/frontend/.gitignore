@@ -1,0 +1,4 @@
+
+# Build copy of the tutorial video: Vite re-copies public/crea3-tutorial.mp4 into dist/ on every build,
+# so only the public/ original is versioned (avoids a second 29 MB blob in git).
+dist/crea3-tutorial.mp4

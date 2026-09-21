@@ -39,7 +39,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 export default function AdminDashboardPage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge" | "consent">("stats");
+  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge" | "consent" | "themes">("stats");
   const [theme, setTheme] = useState<Theme>((localStorage.getItem("admin_theme") as Theme) || "dark");
   const [refreshTick, setRefreshTick] = useState(0);
   const c = palette(theme);
@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {(["stats", "mail", "users", "consent", "database", "knowledge"] as const).map((tt) => (
+          {(["stats", "mail", "users", "consent", "database", "knowledge", "themes"] as const).map((tt) => (
             <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt === "knowledge" ? "Knowledge Base" : tt[0].toUpperCase() + tt.slice(1)}</button>
           ))}
           <button onClick={() => setRefreshTick((n) => n + 1)} title="Refresh current tab" style={{ ...tb(false), background: c.accent, color: "#fff", borderColor: c.accent }}>⟳ Refresh</button>
@@ -73,6 +73,7 @@ export default function AdminDashboardPage() {
         {tab === "database" && <DatabaseTab c={c} refreshTick={refreshTick} />}
         {tab === "knowledge" && <KnowledgeBaseTab c={c} refreshTick={refreshTick} />}
         {tab === "consent" && <ConsentTab c={c} refreshTick={refreshTick} />}
+        {tab === "themes" && <ThemesTab c={c} refreshTick={refreshTick} />}
       </main>
     </div>
   );
@@ -1085,6 +1086,163 @@ function ConsentTab({ c, refreshTick }: { c: C; refreshTick: number }) {
         <div style={{ marginTop: 10 }}>
           <Pager c={c} page={page} pageSize={pageSize} total={rows.length} setPage={setPage} setPageSize={setPageSize} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ── Themes tab ──────────────────────────────────────────────────────────────
+// Every look users published from the side dock ("Share preset"), with its
+// settings laid out for review; one can be made the platform-wide default, and
+// a master switch decides whether visitors may customise at all (this
+// overrides UI_CUSTOMIZATION / VITE_UI_CUSTOMIZATION from the .env files).
+function ThemesTab({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const s = S(c);
+  const [data, setData] = useState<any>({ presets: [], global_preset: null, customization_enabled: true, customization_source: "env" });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [openName, setOpenName] = useState<string | null>(null);
+
+  async function load() {
+    setErr(null);
+    try { setData(await adminApi("/api/admin/themes")); } catch (e: any) { setErr(e.message); }
+  }
+  useEffect(() => { load(); }, [refreshTick]);
+
+  async function run(path: string, body: any, method = "POST") {
+    setBusy(true); setErr(null);
+    try { await adminApi(path, { method, body: body === undefined ? undefined : JSON.stringify(body) }); await load(); }
+    catch (e: any) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+  const setGlobal = (name: string | null) => run("/api/admin/themes/global", { name });
+  const setCustomization = (enabled: boolean | null) => run("/api/admin/themes/customization", { enabled });
+  const del = (name: string) => { if (confirm(`Delete preset "${name}" for everyone?`)) run(`/api/admin/themes/${encodeURIComponent(name)}`, undefined, "DELETE"); };
+
+  const enabled = data.customization_enabled !== false;
+  const swatch = (hex: string) => hex ? <span title={hex} style={{ display: "inline-block", width: 14, height: 14, borderRadius: 3, background: hex, border: `1px solid ${c.border2}`, verticalAlign: "middle", marginRight: 4 }} /> : <span style={{ color: c.faint }}>palette</span>;
+  const pct = (v: any) => (v === undefined || v === null || v === "" ? "—" : `${v}%`);
+
+  // Human-readable summary of a preset payload (the UiCustom + anim JSON).
+  function rows(p: any): Array<[string, React.ReactNode]> {
+    const a = p.anim || {};
+    return [
+      ["Font", p.font || "default"],
+      ["Page background", p.bgImage ? `image (${p.bgImageMode || "cover"})` : (p.background || "default")],
+      ["Page colour", p.pageColor ? <>{swatch(p.pageColor)}{p.pageColor}</> : "palette"],
+      ["Card", <>{p.cardStyle || "glass"} · {p.cardBackground || "page"} · opacity {pct(p.surfaceOpacity)} {p.cardColor ? <>· {swatch(p.cardColor)}{p.cardColor}</> : null}</>],
+      ["Header bar", <>{p.headerBackground || "page"} · opacity {pct(p.headerOpacity)} {p.headerColor ? <>· {swatch(p.headerColor)}{p.headerColor}</> : null}</>],
+      ["Side navigation", <>{p.navBackground || "page"} · opacity {pct(p.navOpacity)} {p.navColor ? <>· {swatch(p.navColor)}{p.navColor}</> : null}</>],
+      ["Animations", Object.keys(a).length
+        ? `${a.enabled === false ? "off" : "on"}${a.duration != null ? ` · ${a.duration} ms` : ""}${a.stagger != null ? ` · stagger ${a.stagger} ms` : ""}${a.distance != null ? ` · ${a.distance} px` : ""}${a.targets ? ` · ${Object.keys(a.targets).length} per-target overrides` : ""}`
+        : "defaults"],
+    ];
+  }
+
+  return (
+    <div>
+      {err && <div style={s.err}>{err}</div>}
+
+      {/* Master switch */}
+      <div style={{ ...s.card, borderLeft: `4px solid ${enabled ? c.accent : "#dc2626"}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
+            <h3 style={{ margin: 0 }}>Visitor customisation — master switch</h3>
+            <div style={{ color: c.muted, fontSize: 13, marginTop: 4 }}>
+              {enabled
+                ? "ON — the side dock (globe icon) shows the full theme editor: font, backgrounds, colours, card style, animations, save/share presets."
+                : "OFF — the side dock shows only language, light/dark and the presets published here; the editor is hidden for everyone."}
+              <span style={{ color: c.faint }}> Source: {data.customization_source === "admin" ? "set here (overrides .env)" : "UI_CUSTOMIZATION in .env"}.</span>
+            </div>
+          </div>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 10, cursor: busy ? "wait" : "pointer", userSelect: "none" }}>
+            <span style={{ fontSize: 13, color: c.muted }}>{enabled ? "Enabled" : "Disabled"}</span>
+            <span onClick={() => !busy && setCustomization(!enabled)} role="switch" aria-checked={enabled}
+              style={{ width: 52, height: 28, borderRadius: 14, background: enabled ? c.accent : c.border2, position: "relative", transition: "background .2s" }}>
+              <span style={{ position: "absolute", top: 3, left: enabled ? 27 : 3, width: 22, height: 22, borderRadius: 11, background: "#fff", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.4)" }} />
+            </span>
+          </label>
+          {data.customization_source === "admin" ? (
+            <button style={s.ghost} disabled={busy} onClick={() => setCustomization(null)} title="Forget the admin override and follow the .env default again">Revert to .env</button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Global theme */}
+      <div style={s.card}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <h3 style={{ margin: 0 }}>Global theme</h3>
+          <span style={{ color: c.faint, fontSize: 12 }}>
+            The preset every visitor starts from. Setting it pushes the look to everyone once (they can still personalise if the switch above is on).
+          </span>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 13 }}>Current: <b>{data.global_preset || "— platform default —"}</b></span>
+            {data.global_preset ? <button style={s.ghost} disabled={busy} onClick={() => setGlobal(null)}>Clear</button> : null}
+          </div>
+        </div>
+      </div>
+
+      {/* Presets */}
+      <div style={s.card}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+          <h3 style={{ margin: 0 }}>Published presets ({(data.presets || []).length})</h3>
+          <span style={{ color: c.faint, fontSize: 12 }}>Everything users saved with "Share preset" in the side dock. Click a row to see its settings.</span>
+        </div>
+        {!(data.presets || []).length ? <div style={{ color: c.muted }}>No presets published yet.</div> : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Name</th><th style={s.th}>Author</th><th style={s.th}>Font</th><th style={s.th}>Background</th>
+                  <th style={s.th}>Card</th><th style={s.th}>Animations</th><th style={s.th}>Updated</th><th style={s.th}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.presets || []).map((p: any) => {
+                  const pl = p.payload || {}; const isGlobal = data.global_preset === p.name; const open = openName === p.name;
+                  return (
+                    <Fragment key={p.name}>
+                      <tr onClick={() => setOpenName(open ? null : p.name)} style={{ cursor: "pointer", background: isGlobal ? `${c.accent}22` : undefined }}>
+                        <td style={s.td}><b>{p.name}</b>{isGlobal ? <span style={{ marginLeft: 8, fontSize: 11, color: c.accent, border: `1px solid ${c.accent}`, borderRadius: 6, padding: "1px 6px" }}>GLOBAL</span> : null}</td>
+                        <td style={s.td}>{p.author || "—"}</td>
+                        <td style={s.td}>{pl.font || "default"}</td>
+                        <td style={s.td}>{pl.bgImage ? "image" : (pl.background || "default")}{pl.pageColor ? <> {swatch(pl.pageColor)}</> : null}</td>
+                        <td style={s.td}>{pl.cardStyle || "glass"} · {pct(pl.surfaceOpacity)}</td>
+                        <td style={s.td}>{pl.anim ? (pl.anim.enabled === false ? "off" : "on") : "defaults"}</td>
+                        <td style={s.td}>{p.updated_at ? new Date(p.updated_at).toLocaleString() : "—"}</td>
+                        <td style={{ ...s.td, whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                          {isGlobal
+                            ? <button style={s.ghost} disabled={busy} onClick={() => setGlobal(null)}>Unset global</button>
+                            : <button style={s.btn} disabled={busy} onClick={() => setGlobal(p.name)}>Set as global</button>}
+                          <button style={{ ...s.ghost, marginLeft: 6, color: "#dc2626" }} disabled={busy} onClick={() => del(p.name)}>Delete</button>
+                        </td>
+                      </tr>
+                      {open ? (
+                        <tr>
+                          <td style={{ ...s.td, background: c.panel }} colSpan={8}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "6px 24px", padding: "6px 4px" }}>
+                              {rows(pl).map(([k, v], i) => (
+                                <div key={i} style={{ display: "flex", gap: 10, fontSize: 13 }}>
+                                  <span style={{ color: c.muted, minWidth: 130 }}>{k}</span><span>{v}</span>
+                                </div>
+                              ))}
+                              {pl.bgImage ? (
+                                <div style={{ gridColumn: "1 / -1" }}>
+                                  <img alt="" src={String(pl.bgImage).startsWith("data:") ? pl.bgImage : pl.bgImage} style={{ maxHeight: 90, borderRadius: 6, border: `1px solid ${c.border2}` }} />
+                                </div>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

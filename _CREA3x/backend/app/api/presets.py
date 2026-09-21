@@ -61,6 +61,46 @@ def _out(p: UiPreset) -> dict:
     }
 
 
+GLOBAL_KEY = "ui.global_theme"          # {"name": str|None}
+CUSTOM_KEY = "ui.customization_enabled"  # {"enabled": bool}
+
+
+def read_global_look(session: Session) -> Dict[str, Any]:
+    """The platform-wide look every visitor starts from, plus the master switch.
+
+    customization_enabled: admin override if set, else UI_CUSTOMIZATION from .env.
+    global_preset / payload: the preset the admin marked as global (None = none).
+    """
+    from ..models import AppSetting
+    from ..core.config import settings as _settings
+    cust = session.get(AppSetting, CUSTOM_KEY)
+    enabled = bool(cust.value.get("enabled")) if cust and "enabled" in (cust.value or {}) else bool(_settings.ui_customization)
+    glob = session.get(AppSetting, GLOBAL_KEY)
+    name = (glob.value or {}).get("name") if glob else None
+    payload = None
+    updated = None
+    if name:
+        row = session.exec(select(UiPreset).where(UiPreset.name == name)).first()
+        if row:
+            payload = row.payload
+            updated = (glob.updated_at.isoformat() if glob and glob.updated_at else None)
+        else:
+            name = None
+    return {
+        "customization_enabled": enabled,
+        "customization_source": "admin" if (cust and "enabled" in (cust.value or {})) else "env",
+        "global_preset": name,
+        "payload": payload,
+        "global_set_at": updated,
+    }
+
+
+@router.get("/global")
+def global_look(session: Session = Depends(get_session)):
+    """Public: the admin-chosen global theme and whether visitors may customise."""
+    return read_global_look(session)
+
+
 @router.get("")
 def list_presets(session: Session = Depends(get_session)):
     """Every shared preset — available to anonymous visitors too."""

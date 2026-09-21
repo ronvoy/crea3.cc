@@ -3,11 +3,11 @@ import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import { useA11y } from './components/a11y-provider'
 import { API_BASE, getAccessToken } from './api/client'
 import {
-  DEFAULT_CUSTOM, UiCustom, SavedTheme, getBg, getFont, withOpacity, darkVariant,
-} from './theme-custom'
+  DEFAULT_CUSTOM, UiCustom, SavedTheme, getBg, getFont, withOpacity, darkVariant, CUSTOMIZATION_ENABLED } from './theme-custom'
 
 // ── Look store: typeface, background palette, surface opacity, card style ────
 const LS_CUSTOM = 'crea3_ui_custom_v1'
+const LS_GLOBAL_APPLIED = 'crea3-global-preset-applied'
 const LS_SAVED = 'crea3_ui_saved_themes_v1'
 
 type LookCtx = {
@@ -24,6 +24,14 @@ type LookCtx = {
   publishShared: (name: string, anim?: any) => Promise<void>
   applyShared: (name: string) => any
   deleteShared: (name: string) => Promise<void>
+  /** Admin master switch (server) AND build flag: may this visitor customise? */
+  customizationEnabled: boolean
+  /** Name of the admin-chosen platform-wide preset, if any. */
+  globalPreset: string | null
+  /** Animation config of a freshly applied global preset — the dock (which owns
+      the animation provider) consumes it once and clears it. */
+  pendingGlobalAnim: any
+  clearPendingGlobalAnim: () => void
 }
 const LookContext = createContext<LookCtx | null>(null)
 export function useLook(): LookCtx {
@@ -89,7 +97,41 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   }
   useEffect(() => { refreshShared() }, [])
 
+  // Platform-wide look chosen in the admin panel + the customisation master
+  // switch. A newly set global preset is applied ONCE per visitor (keyed by the
+  // time the admin set it), so the admin can push a look to everyone while a
+  // visitor may still personalise afterwards when customisation is enabled.
+  const [serverCustomization, setServerCustomization] = useState<boolean>(true)
+  const [globalPreset, setGlobalPreset] = useState<string | null>(null)
+  const [pendingGlobalAnim, setPendingGlobalAnim] = useState<any>(null)
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/presets/global`)
+        if (!res.ok) return
+        const g = await res.json()
+        setServerCustomization(g?.customization_enabled !== false)
+        setGlobalPreset(g?.global_preset || null)
+        if (g?.global_preset && g?.payload) {
+          const stamp = `${g.global_preset}@${g.global_set_at || ''}`
+          let applied = ''
+          try { applied = localStorage.getItem(LS_GLOBAL_APPLIED) || '' } catch { /* ignore */ }
+          if (applied !== stamp) {
+            const { anim, ...lookPart } = g.payload || {}
+            writeCustom({ ...DEFAULT_CUSTOM, ...lookPart })
+            if (anim) setPendingGlobalAnim(anim)
+            try { localStorage.setItem(LS_GLOBAL_APPLIED, stamp) } catch { /* ignore */ }
+          }
+        }
+      } catch { /* offline: keep the local look */ }
+    })()
+  }, [])
+
   const look: LookCtx = {
+    customizationEnabled: CUSTOMIZATION_ENABLED && serverCustomization,
+    globalPreset,
+    pendingGlobalAnim,
+    clearPendingGlobalAnim: () => setPendingGlobalAnim(null),
     custom,
     setCustom: (patch) => writeCustom({ ...custom, ...patch }),
     reset: () => writeCustom({ ...DEFAULT_CUSTOM }),

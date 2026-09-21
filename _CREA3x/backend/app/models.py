@@ -270,6 +270,17 @@ class UiPreset(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow)
 
 
+class AppSetting(SQLModel, table=True):
+    """Small key/value store for platform-wide switches set from the admin panel
+    (e.g. the global UI theme and the customisation master switch). Values are
+    JSON so a setting can be a flag, a name or a whole payload."""
+    __tablename__ = "app_setting"
+    key: str = Field(primary_key=True, max_length=64)
+    value: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    updated_by: str = Field(default="", max_length=60)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 class CookieConsent(SQLModel, table=True):
     """GDPR/ePrivacy cookie-consent record (append-only audit of choices).
 

@@ -22,7 +22,7 @@ import {
 } from '@mui/material'
 import AccessibilityNewOutlinedIcon from '@mui/icons-material/AccessibilityNewOutlined'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
-import GTranslateIcon from '@mui/icons-material/GTranslate'
+import LanguageOutlinedIcon from '@mui/icons-material/LanguageOutlined'
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
 import CloseIcon from '@mui/icons-material/Close'
@@ -34,7 +34,7 @@ import { useI18n, Lang } from '../i18n'
 import { useLook } from '../theme'
 import { API_BASE } from '../api/client'
 import { useAnimations, EFFECTS, EASES } from './animator'
-import { FONTS, BACKGROUNDS, CUSTOMIZATION_ENABLED, compressImage, hsvToHex, hexToHsv } from '../theme-custom'
+import { FONTS, BACKGROUNDS, compressImage, hsvToHex, hexToHsv } from '../theme-custom'
 import TextField from '@mui/material/TextField'
 
 const LANG_OPTIONS: Array<{ code: Lang; label: string; flag: string }> = [
@@ -104,14 +104,22 @@ export default function SettingsDock() {
     }
   }
   const anim = useAnimations()
+  // A global preset pushed by the admin carries an animation config too; the
+  // theme provider cannot reach the animation provider, so apply it here.
+  useEffect(() => {
+    if (look.pendingGlobalAnim) {
+      anim.applyConfig(look.pendingGlobalAnim)
+      look.clearPendingGlobalAnim()
+    }
+  }, [look.pendingGlobalAnim])
 
   const [open, setOpen] = useState(false)
   const [a11yOpen, setA11yOpen] = useState(false)
-  // Tutorial video: the vertical Shorts cut is used on phone-sized viewports,
-  // the landscape one on tablet/desktop.
+  // Tutorial video: the platform's own MP4 (public/crea3-tutorial.mp4) played
+  // in the modal on every viewport — no third-party embed, works offline.
   const [videoOpen, setVideoOpen] = useState(false)
   const isMobile = useMediaQuery('(max-width:600px)')
-  const videoId = isMobile ? 'q6Du9fNiL6M' : 'RE3c2oEhjPg'
+  const tutorialSrc = '/crea3-tutorial.mp4'
 
   // Draggable rail: stays pinned to the right edge, moves only vertically.
   // Default position is ~30% down from the top; the last position is remembered.
@@ -223,9 +231,9 @@ export default function SettingsDock() {
           </IconButton>
         </Tooltip>
         <Tooltip title={t('openSettings')} placement="left">
-          {/* Translate glyph ("文/A") — the drawer opens on the language picker */}
+          {/* Globe — the drawer opens on the language picker */}
           <IconButton aria-label={t('openSettings')} onClick={() => setOpen(true)}>
-            <GTranslateIcon />
+            <LanguageOutlinedIcon />
           </IconButton>
         </Tooltip>
         <Tooltip title={lightMode ? 'Switch to dark mode' : 'Switch to light mode'} placement="left">
@@ -244,7 +252,7 @@ export default function SettingsDock() {
         </Tooltip>
       </Paper>
 
-      {/* Tutorial video — responsive embed (Shorts on mobile, standard elsewhere) */}
+      {/* Tutorial video — local MP4 in a responsive modal (phone, tablet, desktop) */}
       <Dialog
         open={videoOpen}
         onClose={() => setVideoOpen(false)}
@@ -265,18 +273,22 @@ export default function SettingsDock() {
           <Box
             sx={{
               position: 'relative', width: '100%', borderRadius: 2, overflow: 'hidden', bgcolor: 'black',
-              // 9:16 for the vertical Shorts cut, 16:9 for the landscape video.
-              pt: isMobile ? '177.78%' : '56.25%',
+              // 16:9 box; the player letterboxes inside it. On phones the box is
+              // capped to the viewport height so the controls stay reachable.
+              pt: '56.25%', maxHeight: isMobile ? '70vh' : undefined,
             }}
           >
             {videoOpen ? (
               <Box
-                component="iframe"
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
+                component="video"
+                src={tutorialSrc}
                 title={t('tutorialVideo')}
-                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                allowFullScreen
-                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+                controls
+                autoPlay
+                playsInline
+                preload="metadata"
+                controlsList="nodownload"
+                sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', bgcolor: 'black' }}
               />
             ) : null}
           </Box>
@@ -368,6 +380,11 @@ export default function SettingsDock() {
               {t('dockLangNote')}
             </Typography>
 
+            {/* Appearance / animation / presets — only when the admin master
+                switch (Admin → Themes) and the build flag allow customisation.
+                When off, the drawer is just the language picker and support. */}
+            {look.customizationEnabled ? (
+              <>
             <Divider sx={{ my: 2.5 }} />
 
             {/* ── Appearance ────────────────────────────────────────────── */}
@@ -395,7 +412,7 @@ export default function SettingsDock() {
                           ) : null}
                         </Box>
                         <Button size="small" onClick={() => applySharedPreset(p.name)}>{t('presetApply')}</Button>
-                        {CUSTOMIZATION_ENABLED ? (
+                        {look.customizationEnabled ? (
                           <Button size="small" color="error" onClick={() => look.deleteShared(p.name)}>
                             {t('presetDelete')}
                           </Button>
@@ -420,7 +437,7 @@ export default function SettingsDock() {
               </FormControl>
             ) : null}
 
-            {CUSTOMIZATION_ENABLED ? (
+            {look.customizationEnabled ? (
               <>
                 {/* Typeface — applies to every page and text node */}
                 <FormControl fullWidth size="small" sx={{ mt: 1.5 }}>
@@ -535,16 +552,12 @@ export default function SettingsDock() {
                   <Button size="small" onClick={look.reset}>{t('appearanceReset')}</Button>
                 </Box>
               </>
-            ) : (
-              <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
-                {t('themeLocked')}
-              </Typography>
-            )}
+            ) : null}
 
             <Divider sx={{ my: 2.5 }} />
 
             {/* ── Animation (configured in public/animation.yaml) ────────── */}
-            {CUSTOMIZATION_ENABLED ? (
+            {look.customizationEnabled ? (
             <>
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
               {t('animTitle')}
@@ -633,7 +646,7 @@ export default function SettingsDock() {
             ) : null}
 
             {/* ── Presets: theme + animation saved together ──────────────── */}
-            {CUSTOMIZATION_ENABLED ? (
+            {look.customizationEnabled ? (
               <>
                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
                   {t('presetsTitle')}
@@ -685,6 +698,9 @@ export default function SettingsDock() {
                 {imgErr ? <Typography variant="caption" color="error" component="div" sx={{ mt: 1 }}>{imgErr}</Typography> : null}
 
                 <Divider sx={{ my: 2.5 }} />
+              </>
+            ) : null}
+
               </>
             ) : null}
 

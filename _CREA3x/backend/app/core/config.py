@@ -339,6 +339,11 @@ class Settings(BaseSettings):
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))
     smtp_ssl: bool = Field(default=False, validation_alias=AliasChoices("SMTP_SSL", "smtp_ssl"))
 
+    # UI customisation master switch (default when the admin has not set it in
+    # the panel): 1 = visitors may edit fonts/colours/animations in the side
+    # dock; 0 = only language / light-dark / presets published by the admin.
+    ui_customization: bool = Field(default=True, validation_alias=AliasChoices("UI_CUSTOMIZATION", "VITE_UI_CUSTOMIZATION", "ui_customization"))
+
     # Price guardrails: JSON list of [upper_bound_exclusive, tolerance] pairs
     # (see core/guardrails.py). Empty = built-in default slabs.
     price_guardrail_slabs: str = Field(default="", validation_alias=AliasChoices("PRICE_GUARDRAIL_SLABS", "price_guardrail_slabs"))

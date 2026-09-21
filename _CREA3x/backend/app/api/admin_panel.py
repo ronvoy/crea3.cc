@@ -254,6 +254,83 @@ def _detect_junk_mailbox(M) -> str:
     return _detect_mailbox(M, "\\Junk", "junk", "INBOX.Junk")
 
 
+# ── Themes: every published preset, the global one, and the master switch ─────
+@router.get("/themes")
+def themes_list(_admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """All presets users published from the side dock (full payload for review),
+    plus which one is global and whether visitor customisation is enabled."""
+    from ..models import UiPreset
+    from .presets import read_global_look
+    rows = session.exec(select(UiPreset).order_by(UiPreset.updated_at.desc())).all()  # type: ignore[attr-defined]
+    return {
+        **read_global_look(session),
+        "presets": [
+            {
+                "id": p.id, "name": p.name, "author": p.created_by_name or "",
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                "payload": p.payload or {},
+            }
+            for p in rows
+        ],
+    }
+
+
+class GlobalThemeIn(BaseModel):
+    name: str | None = None          # None / "" clears the global theme
+
+
+@router.post("/themes/global")
+def themes_set_global(body: GlobalThemeIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Mark a published preset as the platform-wide look (or clear it)."""
+    from ..models import AppSetting, UiPreset
+    from .presets import GLOBAL_KEY, read_global_look
+    name = (body.name or "").strip()[:40] or None
+    if name and not session.exec(select(UiPreset).where(UiPreset.name == name)).first():
+        raise HTTPException(status_code=404, detail="Preset not found.")
+    row = session.get(AppSetting, GLOBAL_KEY) or AppSetting(key=GLOBAL_KEY)
+    row.value = {"name": name}
+    row.updated_by = str(_admin)[:60]
+    row.updated_at = datetime.utcnow()
+    session.add(row)
+    session.commit()
+    return read_global_look(session)
+
+
+class CustomizationIn(BaseModel):
+    enabled: bool | None = None      # None = revert to the .env default
+
+
+@router.post("/themes/customization")
+def themes_set_customization(body: CustomizationIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Master switch: may visitors change fonts / colours / animations in the
+    side dock? Overrides UI_CUSTOMIZATION from .env until reverted."""
+    from ..models import AppSetting
+    from .presets import CUSTOM_KEY, read_global_look
+    row = session.get(AppSetting, CUSTOM_KEY) or AppSetting(key=CUSTOM_KEY)
+    row.value = {} if body.enabled is None else {"enabled": bool(body.enabled)}
+    row.updated_by = str(_admin)[:60]
+    row.updated_at = datetime.utcnow()
+    session.add(row)
+    session.commit()
+    return read_global_look(session)
+
+
+@router.delete("/themes/{name}")
+def themes_delete(name: str, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    from ..models import AppSetting, UiPreset
+    from .presets import GLOBAL_KEY
+    row = session.exec(select(UiPreset).where(UiPreset.name == name.strip()[:40])).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Preset not found.")
+    glob = session.get(AppSetting, GLOBAL_KEY)
+    if glob and (glob.value or {}).get("name") == row.name:
+        glob.value = {"name": None}; session.add(glob)
+    session.delete(row)
+    session.commit()
+    return {"ok": True}
+
+
 @router.get("/mail/smtp-check")
 def mail_smtp_check(_admin: str = Depends(require_admin_panel)):
     """Connect + authenticate against the configured SMTP server (no send).

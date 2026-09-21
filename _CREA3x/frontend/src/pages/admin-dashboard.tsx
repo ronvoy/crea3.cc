@@ -39,7 +39,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 export default function AdminDashboardPage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge" | "consent" | "themes">("stats");
+  const [tab, setTab] = useState<"users" | "stats" | "mail" | "database" | "knowledge" | "consent" | "system">("stats");
   const [theme, setTheme] = useState<Theme>((localStorage.getItem("admin_theme") as Theme) || "dark");
   const [refreshTick, setRefreshTick] = useState(0);
   const c = palette(theme);
@@ -58,7 +58,7 @@ export default function AdminDashboardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          {(["stats", "mail", "users", "consent", "database", "knowledge", "themes"] as const).map((tt) => (
+          {(["stats", "mail", "users", "consent", "database", "knowledge", "system"] as const).map((tt) => (
             <button key={tt} onClick={() => setTab(tt)} style={tb(tab === tt)}>{tt === "knowledge" ? "Knowledge Base" : tt[0].toUpperCase() + tt.slice(1)}</button>
           ))}
           <button onClick={() => setRefreshTick((n) => n + 1)} title="Refresh current tab" style={{ ...tb(false), background: c.accent, color: "#fff", borderColor: c.accent }}>⟳ Refresh</button>
@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
         {tab === "database" && <DatabaseTab c={c} refreshTick={refreshTick} />}
         {tab === "knowledge" && <KnowledgeBaseTab c={c} refreshTick={refreshTick} />}
         {tab === "consent" && <ConsentTab c={c} refreshTick={refreshTick} />}
-        {tab === "themes" && <ThemesTab c={c} refreshTick={refreshTick} />}
+        {tab === "system" && <SystemTab c={c} refreshTick={refreshTick} />}
       </main>
     </div>
   );
@@ -1243,6 +1243,196 @@ function ThemesTab({ c, refreshTick }: { c: C; refreshTick: number }) {
             </table>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+// ── System tab ───────────────────────────────────────────────────────────────
+// Two collapsible blocks: Themes (global look + visitor customisation switch)
+// and CI/CD (pull a branch and rebuild/restart the platform and the chatbot via
+// the deployer sidecar — see infra/deployer and docker-compose.yml).
+function Section({ c, title, hint, open, onToggle, children }: { c: C; title: string; hint: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+  const s = S(c);
+  return (
+    <div style={{ ...s.card, padding: 0, overflow: "hidden" }}>
+      <button onClick={onToggle} aria-expanded={open}
+        style={{ width: "100%", textAlign: "left", background: open ? `${c.accent}18` : c.panel, color: c.text, border: 0, borderBottom: open ? `1px solid ${c.border}` : 0, padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ display: "inline-block", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", color: c.accent, fontSize: 14 }}>▶</span>
+        <span style={{ fontSize: 16, fontWeight: 700 }}>{title}</span>
+        <span style={{ color: c.muted, fontSize: 12 }}>{hint}</span>
+      </button>
+      {open ? <div style={{ padding: 16 }}>{children}</div> : null}
+    </div>
+  );
+}
+
+function SystemTab({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const [open, setOpen] = useState<{ themes: boolean; cicd: boolean }>(() => {
+    try { return JSON.parse(localStorage.getItem("admin_system_open") || "") || { themes: true, cicd: true }; } catch { return { themes: true, cicd: true }; }
+  });
+  useEffect(() => { localStorage.setItem("admin_system_open", JSON.stringify(open)); }, [open]);
+  return (
+    <div>
+      <Section c={c} title="Themes" hint="global look · visitor customisation switch · published presets" open={open.themes} onToggle={() => setOpen((o) => ({ ...o, themes: !o.themes }))}>
+        <ThemesTab c={c} refreshTick={refreshTick} />
+      </Section>
+      <Section c={c} title="CI / CD" hint="pull a branch from origin and rebuild / restart the platform and the chatbot" open={open.cicd} onToggle={() => setOpen((o) => ({ ...o, cicd: !o.cicd }))}>
+        <CicdSection c={c} refreshTick={refreshTick} />
+      </Section>
+    </div>
+  );
+}
+
+function CicdSection({ c, refreshTick }: { c: C; refreshTick: number }) {
+  const s = S(c);
+  const [status, setStatus] = useState<any>(null);
+  const [unavailable, setUnavailable] = useState<string | null>(null);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branch, setBranch] = useState<string>("");
+  const [targets, setTargets] = useState<{ platform: boolean; chatbot: boolean }>({ platform: true, chatbot: false });
+  const [pull, setPull] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [job, setJob] = useState<any>(null);          // the job being followed
+  const [log, setLog] = useState<string[]>([]);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const logRef = useRef<HTMLPreElement | null>(null);
+
+  async function loadStatus() {
+    setErr(null);
+    try {
+      const st = await adminApi("/api/admin/system/deploy/status");
+      setStatus(st); setUnavailable(null);
+      if (!branch && st?.repo?.branch) setBranch(st.repo.branch);
+      try { setHistory((await adminApi("/api/admin/system/deploy/jobs"))?.jobs || []); } catch { /* optional */ }
+    } catch (e: any) { setUnavailable(e.message); }
+  }
+  async function loadBranches() {
+    setBusy(true); setErr(null);
+    try { const b = await adminApi("/api/admin/system/deploy/branches"); setBranches(b.branches || []); if (b.error) setErr(b.error); }
+    catch (e: any) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+  useEffect(() => { loadStatus(); }, [refreshTick]);
+
+  // Follow a job: poll the log; the backend itself restarts during a platform
+  // deploy, so polling errors are expected for a minute — keep retrying.
+  useEffect(() => {
+    if (!job || ["done", "failed", "unhealthy"].includes(job.status)) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const j = await adminApi(`/api/admin/system/deploy/jobs/${job.id}?offset=${log.length}`);
+        if (!alive) return;
+        setReconnecting(false);
+        if (j.log?.length) setLog((l) => [...l, ...j.log]);
+        setJob((prev: any) => ({ ...prev, ...j, log: undefined }));
+        if (["done", "failed", "unhealthy"].includes(j.status)) loadStatus();
+      } catch { if (alive) setReconnecting(true); }
+    };
+    const id = setInterval(tick, 2000);
+    return () => { alive = false; clearInterval(id); };
+  }, [job?.id, job?.status, log.length]);
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [log.length]);
+
+  async function deploy() {
+    const t = Object.entries(targets).filter(([, v]) => v).map(([k]) => k);
+    if (!branch || !t.length) return;
+    if (!confirm(`Deploy branch "${branch}" → ${t.join(" + ")}?\n\n${pull ? "git fetch + checkout + pull --ff-only, then " : ""}${t.includes("platform") ? "rebuild the SPA and the backend image and restart crea3x-backend" : ""}${t.length === 2 ? ", and " : ""}${t.includes("chatbot") ? "docker compose up -d --build for the chatbot" : ""}.\nThe platform will be unavailable for about a minute.`)) return;
+    setBusy(true); setErr(null); setLog([]);
+    try { const j = await adminApi("/api/admin/system/deploy", { method: "POST", body: JSON.stringify({ branch, targets: t, pull }) }); setJob(j); }
+    catch (e: any) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+  const follow = (j: any) => { setLog([]); setJob({ ...j, status: j.status === "running" || j.status === "queued" ? j.status : j.status }); if (["done", "failed", "unhealthy"].includes(j.status)) adminApi(`/api/admin/system/deploy/jobs/${j.id}`).then((x) => setLog(x.log || [])).catch(() => {}); };
+  const badge = (st: string) => <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, border: `1px solid ${c.border2}`, color: st === "done" ? "#16a34a" : st === "failed" ? "#dc2626" : st === "unhealthy" ? "#f59e0b" : c.accent }}>{st}</span>;
+
+  if (unavailable) {
+    return (
+      <div>
+        <div style={s.err}>CI/CD unavailable — {unavailable}</div>
+        <div style={{ color: c.muted, fontSize: 13, lineHeight: 1.6 }}>
+          The deployer sidecar is started by <code>./run_be.sh</code> (service <code>deployer</code> in <code>docker-compose.yml</code>). It needs the Docker socket,
+          the repository mounted at its host path (<code>HOST_REPO_DIR</code>) and a deploy key in <code>~/.ssh</code> for <code>git fetch origin</code>.
+          Restart the platform with <code>./run_be.sh</code> on the server and refresh.
+        </div>
+        <button style={{ ...s.btn, marginTop: 10 }} onClick={loadStatus}>Retry</button>
+      </div>
+    );
+  }
+  const repo = status?.repo || {};
+  return (
+    <div>
+      {err && <div style={s.err}>{err}</div>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
+        {[
+          ["Checkout", repo.repo || "—"],
+          ["Branch", repo.branch ? `${repo.branch} @ ${repo.head}` : "—"],
+          ["Last commit", repo.subject ? `${repo.subject} — ${repo.author}` : "—"],
+          ["Local changes", repo.dirty_files ? `${repo.dirty_files} modified file(s) (pull may fail)` : "clean"],
+        ].map(([k, v], i) => (
+          <div key={i} style={{ ...s.card, marginBottom: 0, borderLeft: `4px solid ${c.accent}` }}>
+            <div style={{ color: c.muted, fontSize: 12 }}>{k}</div><div style={{ fontSize: 14, fontWeight: 600, wordBreak: "break-word" }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 12 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: c.muted, minWidth: 260 }}>
+          Branch to deploy (origin)
+          <div style={{ display: "flex", gap: 6 }}>
+            <select style={{ ...s.input, flex: 1 }} value={branch} onChange={(e) => setBranch(e.target.value)}>
+              {branch && !branches.some((b) => b.name === branch) ? <option value={branch}>{branch} (current)</option> : null}
+              {branches.map((b) => <option key={b.name} value={b.name}>{b.name} — {b.head} · {b.subject?.slice(0, 40)}</option>)}
+            </select>
+            <button style={s.ghost} disabled={busy} onClick={loadBranches} title="git fetch origin --prune and list branches">{busy ? "…" : "⟳ Fetch branches"}</button>
+          </div>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}><input type="checkbox" checked={pull} onChange={(e) => setPull(e.target.checked)} /> git pull first</label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}><input type="checkbox" checked={targets.platform} onChange={(e) => setTargets((t) => ({ ...t, platform: e.target.checked }))} /> CREA3 platform (run_be.sh)</label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}><input type="checkbox" checked={targets.chatbot} onChange={(e) => setTargets((t) => ({ ...t, chatbot: e.target.checked }))} /> Legal chatbot (compose up --build)</label>
+        <button style={{ ...s.btn, background: "#16a34a", borderColor: "#16a34a" }} disabled={busy || status?.running || !branch || !(targets.platform || targets.chatbot)} onClick={deploy}>
+          {status?.running ? "A deployment is running…" : "▶ Pull & deploy"}
+        </button>
+      </div>
+
+      {job ? (
+        <div style={{ ...s.card, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+            <b>Job {job.id}</b> {badge(job.status)} <span style={{ color: c.muted, fontSize: 12 }}>{job.branch} → {(job.targets || []).join(" + ")}</span>
+            {reconnecting ? <span style={{ color: "#f59e0b", fontSize: 12 }}>backend restarting — reconnecting…</span> : null}
+            <button style={{ ...s.ghost, marginLeft: "auto" }} onClick={() => { setJob(null); setLog([]); }}>Close</button>
+          </div>
+          <pre ref={logRef} style={{ margin: 0, maxHeight: 360, overflow: "auto", background: "#0b1020", color: "#d1e3ff", padding: 12, borderRadius: 8, fontSize: 12, lineHeight: 1.45 }}>{log.join("\n") || "…"}</pre>
+        </div>
+      ) : null}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ ...s.card, marginBottom: 0 }}>
+          <h4 style={{ margin: "0 0 8px" }}>Containers</h4>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <tbody>{(status?.containers || []).map((k: any) => (
+              <tr key={k.name}><td style={s.td}><b>{k.name}</b></td><td style={s.td}>{k.image}</td><td style={{ ...s.td, color: k.state === "running" ? "#16a34a" : "#dc2626" }}>{k.status}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+        <div style={{ ...s.card, marginBottom: 0 }}>
+          <h4 style={{ margin: "0 0 8px" }}>Recent deployments</h4>
+          {!history.length ? <div style={{ color: c.muted, fontSize: 13 }}>None yet.</div> : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <tbody>{history.slice(0, 10).map((j: any) => (
+                <tr key={j.id} onClick={() => follow(j)} style={{ cursor: "pointer" }}>
+                  <td style={s.td}>{j.created_at ? new Date(j.created_at).toLocaleString() : "—"}</td>
+                  <td style={s.td}>{j.branch}</td><td style={s.td}>{(j.targets || []).join(" + ")}</td>
+                  <td style={s.td}>{badge(j.status)}</td><td style={{ ...s.td, color: c.muted }}>{j.by}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

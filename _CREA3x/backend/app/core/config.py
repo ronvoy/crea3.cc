@@ -339,6 +339,10 @@ class Settings(BaseSettings):
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))
     smtp_ssl: bool = Field(default=False, validation_alias=AliasChoices("SMTP_SSL", "smtp_ssl"))
 
+    # Deployer sidecar (admin panel → System → CI/CD); set by run_be.sh.
+    deployer_url: str = Field(default="", validation_alias=AliasChoices("DEPLOYER_URL", "deployer_url"))
+    deployer_token: str = Field(default="", validation_alias=AliasChoices("DEPLOYER_TOKEN", "deployer_token"))
+
     # UI customisation master switch (default when the admin has not set it in
     # the panel): 1 = visitors may edit fonts/colours/animations in the side
     # dock; 0 = only language / light-dark / presets published by the admin.

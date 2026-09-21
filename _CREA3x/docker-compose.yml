@@ -190,7 +190,26 @@ services:
       - "1025:1025"   # SMTP
       - "8025:8025"   # Inbox UI
 
+  # Deployer sidecar (admin panel → System → CI/CD): pulls the repo and rebuilds/
+  # restarts the platform (./run_be.sh) and the chatbot. Talks to the host Docker
+  # daemon through the socket; the repo is mounted at its HOST path so the bind
+  # mounts run_be.sh issues resolve. Not published on the host — the backend
+  # reaches it as http://deployer:9000 with DEPLOYER_TOKEN (both set by run_be.sh).
+  deployer:
+    build: ./infra/deployer
+    restart: unless-stopped
+    environment:
+      DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:-}
+      HOST_REPO_DIR: ${HOST_REPO_DIR:-/repo}
+      PLATFORM_HEALTH: http://crea3x-backend:8000/health
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_REPO_DIR:-..}:${HOST_REPO_DIR:-/repo}
+      - ${HOME}/.ssh:/root/.ssh:ro          # deploy key for `git fetch origin` (SSH remote)
+      - deployer_jobs:/var/lib/deployer
+
 volumes:
+  deployer_jobs:
   keycloak_db:
   crea_backend_data:
   crea_reports:

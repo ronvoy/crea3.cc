@@ -339,9 +339,11 @@ class Settings(BaseSettings):
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))
     smtp_ssl: bool = Field(default=False, validation_alias=AliasChoices("SMTP_SSL", "smtp_ssl"))
 
-    # Deployer sidecar (admin panel → System → CI/CD); set by run_be.sh.
-    deployer_url: str = Field(default="", validation_alias=AliasChoices("DEPLOYER_URL", "deployer_url"))
-    deployer_token: str = Field(default="", validation_alias=AliasChoices("DEPLOYER_TOKEN", "deployer_token"))
+    # CI/CD console (../_CICD); values handed over by run_be.sh from _CICD/.env.
+    cicd_url: str = Field(default="", validation_alias=AliasChoices("CICD_URL", "cicd_url"))          # backend → console (server side)
+    cicd_port: str = Field(default="", validation_alias=AliasChoices("CICD_PORT", "cicd_port"))       # browser → console (same host)
+    cicd_token: str = Field(default="", validation_alias=AliasChoices("CICD_TOKEN", "cicd_token"))
+    cicd_public_url: str = Field(default="", validation_alias=AliasChoices("CICD_PUBLIC_URL", "cicd_public_url"))  # optional override
 
     # UI customisation master switch (default when the admin has not set it in
     # the panel): 1 = visitors may edit fonts/colours/animations in the side

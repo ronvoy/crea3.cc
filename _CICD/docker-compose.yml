@@ -1,0 +1,26 @@
+# CREA3 CI/CD console. Start with ./run_cicd.sh (it picks the port, generates
+# the token and writes ./.env). Reachable at http://<host>:${CICD_PORT}/?token=…
+services:
+  cicd:
+    build: .
+    container_name: crea3-cicd
+    restart: unless-stopped
+    ports:
+      - "${CICD_PORT:-8088}:8088"
+    environment:
+      CICD_TOKEN: ${CICD_TOKEN:-}
+      HOST_REPO_DIR: ${HOST_REPO_DIR:-/repo}
+      CICD_WEBHOOK_SECRET: ${CICD_WEBHOOK_SECRET:-}
+      CICD_AUTO_DEPLOY_BRANCH: ${CICD_AUTO_DEPLOY_BRANCH:-}
+      CICD_AUTO_DEPLOY_TARGETS: ${CICD_AUTO_DEPLOY_TARGETS:-_CREA3x}
+      PLATFORM_HEALTH: http://host.docker.internal:8000/health
+      CHATBOT_HEALTH: http://host.docker.internal:${CHATBOT_PORT:-8094}/health
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_REPO_DIR:-..}:${HOST_REPO_DIR:-/repo}
+      - ${HOME}/.ssh:/root/.ssh:ro          # deploy key for `git fetch origin` (SSH remote)
+      - cicd_jobs:/var/lib/cicd
+volumes:
+  cicd_jobs:

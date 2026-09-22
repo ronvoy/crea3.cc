@@ -94,7 +94,8 @@ echo "Starting chatbot…"
 "${DC[@]}" up -d
 
 # ── Wait for readiness ────────────────────────────────────────────────────────
-URL="http://localhost:${PORT}"
+# CHATBOT_HEALTH_HOST lets the CI/CD console (a container) poll the host port.
+URL="http://${CHATBOT_HEALTH_HOST:-localhost}:${PORT}"
 printf "Waiting for the API on %s " "$URL/health"
 for _ in $(seq 1 40); do
   if curl -fsS "$URL/health" >/dev/null 2>&1; then

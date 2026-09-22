@@ -1,3 +1,6 @@
 
 # Shared UI preset background images (user uploads)
 ui_media/
+
+# Docker mount point for the built SPA (created root-owned by run_be.sh)
+frontend_dist/

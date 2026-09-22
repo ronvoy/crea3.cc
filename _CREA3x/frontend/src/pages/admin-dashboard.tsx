@@ -1286,154 +1286,96 @@ function SystemTab({ c, refreshTick }: { c: C; refreshTick: number }) {
 }
 
 function CicdSection({ c, refreshTick }: { c: C; refreshTick: number }) {
+  // The CI/CD console is a standalone app (../_CICD, its own container and port).
+  // The backend hands us how to reach it + its token (admin-JWT protected), and
+  // we embed it here so branches, commits, stashes and restarts are managed from
+  // the admin panel without SSH. "Open in a new tab" gives the full-window view.
   const s = S(c);
-  const [status, setStatus] = useState<any>(null);
-  const [unavailable, setUnavailable] = useState<string | null>(null);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [branch, setBranch] = useState<string>("");
-  const [targets, setTargets] = useState<{ platform: boolean; chatbot: boolean }>({ platform: true, chatbot: false });
-  const [pull, setPull] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [job, setJob] = useState<any>(null);          // the job being followed
-  const [log, setLog] = useState<string[]>([]);
-  const [reconnecting, setReconnecting] = useState(false);
-  const [history, setHistory] = useState<any[]>([]);
-  const logRef = useRef<HTMLPreElement | null>(null);
+  const [st, setSt] = useState<any>(null);          // checkout + auto-sync state from the console
+  const [busy, setBusy] = useState(false);
+  const [frameKey, setFrameKey] = useState(0);      // bump to reload the embedded console
 
-  async function loadStatus() {
+  async function load() {
     setErr(null);
     try {
-      const st = await adminApi("/api/admin/system/deploy/status");
-      setStatus(st); setUnavailable(null);
-      if (!branch && st?.repo?.branch) setBranch(st.repo.branch);
-      try { setHistory((await adminApi("/api/admin/system/deploy/jobs"))?.jobs || []); } catch { /* optional */ }
-    } catch (e: any) { setUnavailable(e.message); }
+      const l = await adminApi("/api/admin/cicd/link"); setLink(l);
+      if (l?.configured && l?.reachable) { try { setSt(await adminApi("/api/admin/cicd/status")); } catch { /* shown as unknown */ } }
+    } catch (e: any) { setErr(e.message); }
   }
-  async function loadBranches() {
+  useEffect(() => { load(); }, [refreshTick]);
+  useEffect(() => { const id = setInterval(() => { if (link?.reachable) adminApi("/api/admin/cicd/status").then(setSt).catch(() => {}); }, 10000); return () => clearInterval(id); }, [link?.reachable]);
+
+  async function remotePull() {
+    const br = st?.repo?.branch || "current branch";
+    if (!confirm(`Pull "${br}" from origin now?\nLocal changes are added (git add .) and stashed first, then git pull --ff-only.`)) return;
     setBusy(true); setErr(null);
-    try { const b = await adminApi("/api/admin/system/deploy/branches"); setBranches(b.branches || []); if (b.error) setErr(b.error); }
+    try { await adminApi("/api/admin/cicd/pull", { method: "POST", body: "{}" }); setFrameKey((k) => k + 1); setTimeout(load, 1500); }
     catch (e: any) { setErr(e.message); }
     finally { setBusy(false); }
   }
-  useEffect(() => { loadStatus(); }, [refreshTick]);
-
-  // Follow a job: poll the log; the backend itself restarts during a platform
-  // deploy, so polling errors are expected for a minute — keep retrying.
-  useEffect(() => {
-    if (!job || ["done", "failed", "unhealthy"].includes(job.status)) return;
-    let alive = true;
-    const tick = async () => {
-      try {
-        const j = await adminApi(`/api/admin/system/deploy/jobs/${job.id}?offset=${log.length}`);
-        if (!alive) return;
-        setReconnecting(false);
-        if (j.log?.length) setLog((l) => [...l, ...j.log]);
-        setJob((prev: any) => ({ ...prev, ...j, log: undefined }));
-        if (["done", "failed", "unhealthy"].includes(j.status)) loadStatus();
-      } catch { if (alive) setReconnecting(true); }
-    };
-    const id = setInterval(tick, 2000);
-    return () => { alive = false; clearInterval(id); };
-  }, [job?.id, job?.status, log.length]);
-  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [log.length]);
-
-  async function deploy() {
-    const t = Object.entries(targets).filter(([, v]) => v).map(([k]) => k);
-    if (!branch || !t.length) return;
-    if (!confirm(`Deploy branch "${branch}" → ${t.join(" + ")}?\n\n${pull ? "git fetch + checkout + pull --ff-only, then " : ""}${t.includes("platform") ? "rebuild the SPA and the backend image and restart crea3x-backend" : ""}${t.length === 2 ? ", and " : ""}${t.includes("chatbot") ? "docker compose up -d --build for the chatbot" : ""}.\nThe platform will be unavailable for about a minute.`)) return;
-    setBusy(true); setErr(null); setLog([]);
-    try { const j = await adminApi("/api/admin/system/deploy", { method: "POST", body: JSON.stringify({ branch, targets: t, pull }) }); setJob(j); }
+  async function setAutoSync(enabled: boolean) {
+    setBusy(true); setErr(null);
+    try { await adminApi("/api/admin/cicd/autosync", { method: "POST", body: JSON.stringify({ enabled }) }); await load(); }
     catch (e: any) { setErr(e.message); }
     finally { setBusy(false); }
   }
-  const follow = (j: any) => { setLog([]); setJob({ ...j, status: j.status === "running" || j.status === "queued" ? j.status : j.status }); if (["done", "failed", "unhealthy"].includes(j.status)) adminApi(`/api/admin/system/deploy/jobs/${j.id}`).then((x) => setLog(x.log || [])).catch(() => {}); };
-  const badge = (st: string) => <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, border: `1px solid ${c.border2}`, color: st === "done" ? "#16a34a" : st === "failed" ? "#dc2626" : st === "unhealthy" ? "#f59e0b" : c.accent }}>{st}</span>;
 
-  if (unavailable) {
+  const url = useMemo(() => {
+    if (!link?.configured) return null;
+    const base = link.public_url || `${window.location.protocol}//${window.location.hostname}:${link.port}`;
+    return `${base.replace(/\/$/, "")}/?token=${encodeURIComponent(link.token)}`;
+  }, [link]);
+
+  if (err) return <div style={s.err}>{err}</div>;
+  if (!link) return <div style={{ color: c.muted }}>Loading…</div>;
+  if (!link.configured || !url) {
     return (
       <div>
-        <div style={s.err}>CI/CD unavailable — {unavailable}</div>
-        <div style={{ color: c.muted, fontSize: 13, lineHeight: 1.6 }}>
-          The deployer sidecar is started by <code>./run_be.sh</code> (service <code>deployer</code> in <code>docker-compose.yml</code>). It needs the Docker socket,
-          the repository mounted at its host path (<code>HOST_REPO_DIR</code>) and a deploy key in <code>~/.ssh</code> for <code>git fetch origin</code>.
-          Restart the platform with <code>./run_be.sh</code> on the server and refresh.
+        <div style={s.err}>CI/CD console not configured</div>
+        <div style={{ color: c.muted, fontSize: 13, lineHeight: 1.7 }}>
+          On the server, start it once with <code>../_CICD/run_cicd.sh</code> (port 8088 or the next free one; the token is generated into <code>_CICD/.env</code>),
+          then restart the platform with <code>./run_be.sh</code> so the backend learns the port and token. Nothing else to configure.
         </div>
-        <button style={{ ...s.btn, marginTop: 10 }} onClick={loadStatus}>Retry</button>
+        <button style={{ ...s.btn, marginTop: 10 }} onClick={load}>Retry</button>
       </div>
     );
   }
-  const repo = status?.repo || {};
   return (
-    <div>
-      {err && <div style={s.err}>{err}</div>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginBottom: 14 }}>
-        {[
-          ["Checkout", repo.repo || "—"],
-          ["Branch", repo.branch ? `${repo.branch} @ ${repo.head}` : "—"],
-          ["Last commit", repo.subject ? `${repo.subject} — ${repo.author}` : "—"],
-          ["Local changes", repo.dirty_files ? `${repo.dirty_files} modified file(s) (pull may fail)` : "clean"],
-        ].map(([k, v], i) => (
-          <div key={i} style={{ ...s.card, marginBottom: 0, borderLeft: `4px solid ${c.accent}` }}>
-            <div style={{ color: c.muted, fontSize: 12 }}>{k}</div><div style={{ fontSize: 14, fontWeight: 600, wordBreak: "break-word" }}>{v}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 12 }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: c.muted, minWidth: 260 }}>
-          Branch to deploy (origin)
-          <div style={{ display: "flex", gap: 6 }}>
-            <select style={{ ...s.input, flex: 1 }} value={branch} onChange={(e) => setBranch(e.target.value)}>
-              {branch && !branches.some((b) => b.name === branch) ? <option value={branch}>{branch} (current)</option> : null}
-              {branches.map((b) => <option key={b.name} value={b.name}>{b.name} — {b.head} · {b.subject?.slice(0, 40)}</option>)}
-            </select>
-            <button style={s.ghost} disabled={busy} onClick={loadBranches} title="git fetch origin --prune and list branches">{busy ? "…" : "⟳ Fetch branches"}</button>
-          </div>
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}><input type="checkbox" checked={pull} onChange={(e) => setPull(e.target.checked)} /> git pull first</label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}><input type="checkbox" checked={targets.platform} onChange={(e) => setTargets((t) => ({ ...t, platform: e.target.checked }))} /> CREA3 platform (run_be.sh)</label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}><input type="checkbox" checked={targets.chatbot} onChange={(e) => setTargets((t) => ({ ...t, chatbot: e.target.checked }))} /> Legal chatbot (compose up --build)</label>
-        <button style={{ ...s.btn, background: "#16a34a", borderColor: "#16a34a" }} disabled={busy || status?.running || !branch || !(targets.platform || targets.chatbot)} onClick={deploy}>
-          {status?.running ? "A deployment is running…" : "▶ Pull & deploy"}
-        </button>
-      </div>
-
-      {job ? (
-        <div style={{ ...s.card, marginBottom: 12 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-            <b>Job {job.id}</b> {badge(job.status)} <span style={{ color: c.muted, fontSize: 12 }}>{job.branch} → {(job.targets || []).join(" + ")}</span>
-            {reconnecting ? <span style={{ color: "#f59e0b", fontSize: 12 }}>backend restarting — reconnecting…</span> : null}
-            <button style={{ ...s.ghost, marginLeft: "auto" }} onClick={() => { setJob(null); setLog([]); }}>Close</button>
-          </div>
-          <pre ref={logRef} style={{ margin: 0, maxHeight: 360, overflow: "auto", background: "#0b1020", color: "#d1e3ff", padding: 12, borderRadius: 8, fontSize: 12, lineHeight: 1.45 }}>{log.join("\n") || "…"}</pre>
-        </div>
-      ) : null}
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div style={{ ...s.card, marginBottom: 0 }}>
-          <h4 style={{ margin: "0 0 8px" }}>Containers</h4>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <tbody>{(status?.containers || []).map((k: any) => (
-              <tr key={k.name}><td style={s.td}><b>{k.name}</b></td><td style={s.td}>{k.image}</td><td style={{ ...s.td, color: k.state === "running" ? "#16a34a" : "#dc2626" }}>{k.status}</td></tr>
-            ))}</tbody>
-          </table>
-        </div>
-        <div style={{ ...s.card, marginBottom: 0 }}>
-          <h4 style={{ margin: "0 0 8px" }}>Recent deployments</h4>
-          {!history.length ? <div style={{ color: c.muted, fontSize: 13 }}>None yet.</div> : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <tbody>{history.slice(0, 10).map((j: any) => (
-                <tr key={j.id} onClick={() => follow(j)} style={{ cursor: "pointer" }}>
-                  <td style={s.td}>{j.created_at ? new Date(j.created_at).toLocaleString() : "—"}</td>
-                  <td style={s.td}>{j.branch}</td><td style={s.td}>{(j.targets || []).join(" + ")}</td>
-                  <td style={s.td}>{badge(j.status)}</td><td style={{ ...s.td, color: c.muted }}>{j.by}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
+    <div className="cicd">
+      {/* Responsive rules for this block only: the action bar stacks and the
+          buttons go full-width under 640px; the embed follows the viewport. */}
+      <style>{`
+        .cicd .cicd-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px }
+        .cicd .cicd-actions { margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+        .cicd .cicd-frame { width:100%; height:min(760px, 78vh); border-radius:10px; background:#0b1020; display:block; max-width:100% }
+        @media (max-width: 640px) {
+          .cicd .cicd-bar { flex-direction:column; align-items:stretch }
+          .cicd .cicd-actions { margin-left:0; flex-direction:column; align-items:stretch }
+          .cicd .cicd-actions > * { width:100%; text-align:center; box-sizing:border-box }
+          .cicd .cicd-frame { height:70vh; border-radius:8px }
+        }
+      `}</style>
+      <div className="cicd-bar">
+        <span style={{ fontSize: 13, color: link.reachable ? "#16a34a" : "#dc2626", wordBreak: "break-word" }}>
+          {link.reachable ? "● console reachable" : `● console not reachable from the backend (${link.error || "?"}) — the embed below may still work from your browser`}
+        </span>
+        <span style={{ color: c.faint, fontSize: 12 }}>{link.public_url || `port ${link.port}`}</span>
+        <div className="cicd-actions">
+          <button style={{ ...s.btn, background: "#16a34a", borderColor: "#16a34a" }} disabled={busy || !link.reachable || !!st?.running} onClick={remotePull}
+            title="git add . + git stash, then git fetch + pull --ff-only of the current branch">
+            ⬇ Remote pull{st?.repo?.branch ? ` (${st.repo.branch})` : ""}{st?.repo?.behind > 0 ? ` · ${st.repo.behind} behind` : ""}
+          </button>
+          <label style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: c.muted, cursor: "pointer", flexWrap: "wrap" }} title="Every 10 s the console fetches the current branch from origin and pulls when there are new commits">
+            <input type="checkbox" disabled={busy || !link.reachable} checked={!!st?.auto_sync?.enabled} onChange={(e) => setAutoSync(e.target.checked)} />
+            auto-sync every {st?.auto_sync?.interval || 10} s
+            {st?.auto_sync?.enabled ? <span style={{ color: c.faint }}>· {st.auto_sync.last_result || "…"}</span> : null}
+          </label>
+          <a href={url} target="_blank" rel="noopener noreferrer" style={{ ...s.btn, textDecoration: "none", display: "inline-block" }}>Open in a new tab ↗</a>
         </div>
       </div>
+      <iframe key={frameKey} title="CREA3 CI/CD console" src={url} className="cicd-frame" style={{ border: `1px solid ${c.border2}` }} />
     </div>
   );
 }

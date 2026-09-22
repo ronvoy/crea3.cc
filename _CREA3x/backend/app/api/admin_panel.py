@@ -255,19 +255,17 @@ def _detect_junk_mailbox(M) -> str:
     return _detect_mailbox(M, "\\Junk", "junk", "INBOX.Junk")
 
 
-# ── System → CI/CD: proxy to the deployer sidecar ─────────────────────────────
-def _deployer(method: str, path: str, body: dict | None = None, timeout: float = 20.0) -> dict:
-    """Call the sidecar; raises HTTPException(503) when it is not configured or
-    unreachable so the UI can say 'unavailable' instead of failing opaquely."""
+# ── System → CI/CD: the standalone console in ../_CICD ────────────────────────
+def _cicd(method: str, path: str, body: dict | None = None, timeout: float = 20.0) -> dict:
     import json as _json
     import urllib.error
     import urllib.request
-    if not settings.deployer_url or not settings.deployer_token:
-        raise HTTPException(status_code=503, detail="Deployer sidecar not configured (start the platform with ./run_be.sh).")
+    if not settings.cicd_url or not settings.cicd_token:
+        raise HTTPException(status_code=503, detail="CI/CD console not configured (run ../_CICD/run_cicd.sh, then ./run_be.sh).")
     req = urllib.request.Request(
-        settings.deployer_url.rstrip("/") + path, method=method,
+        settings.cicd_url.rstrip("/") + path, method=method,
         data=_json.dumps(body).encode() if body is not None else None,
-        headers={"X-Deployer-Token": settings.deployer_token, "Content-Type": "application/json"},
+        headers={"X-CICD-Token": settings.cicd_token, "Content-Type": "application/json"},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -277,48 +275,72 @@ def _deployer(method: str, path: str, body: dict | None = None, timeout: float =
             detail = _json.loads(e.read() or b"{}").get("error") or e.reason
         except Exception:
             detail = e.reason
-        raise HTTPException(status_code=e.code if e.code in (401, 404, 409) else 502, detail=f"Deployer: {detail}")
+        raise HTTPException(status_code=e.code if e.code in (401, 404, 409) else 502, detail=f"CI/CD: {detail}")
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Deployer unreachable: {type(e).__name__}: {str(e)[:120]}")
+        raise HTTPException(status_code=503, detail=f"CI/CD console unreachable: {type(e).__name__}: {str(e)[:120]}")
 
 
-@router.get("/system/deploy/status")
-def system_deploy_status(_admin: str = Depends(require_admin_panel)):
-    return {"available": True, **_deployer("GET", "/status")}
+@router.get("/cicd/link")
+def cicd_link(_admin: str = Depends(require_admin_panel)):
+    """How the admin's BROWSER reaches the console: explicit public URL if set,
+    else the same host as the platform on CICD_PORT. The token travels only in
+    this admin-authenticated response, never in the frontend bundle."""
+    if not settings.cicd_token or not (settings.cicd_public_url or settings.cicd_port):
+        return {"configured": False}
+    reachable, err = True, None
+    try:
+        _cicd("GET", "/health")
+    except HTTPException as e:
+        reachable, err = False, e.detail
+    return {"configured": True, "reachable": reachable, "error": err,
+            "public_url": settings.cicd_public_url or None, "port": settings.cicd_port or None, "token": settings.cicd_token}
 
 
-@router.get("/system/deploy/branches")
-def system_deploy_branches(_admin: str = Depends(require_admin_panel)):
-    return _deployer("GET", "/branches", timeout=120)
+@router.get("/cicd/status")
+def cicd_status(_admin: str = Depends(require_admin_panel)):
+    return _cicd("GET", "/api/status")
 
 
-class DeployIn(BaseModel):
-    branch: str = Field(min_length=1, max_length=120)
-    targets: list[str] = Field(default_factory=lambda: ["platform"])
-    pull: bool = True
-
-
-@router.post("/system/deploy")
-def system_deploy(body: DeployIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
-    """Pull a branch and rebuild/restart the chosen targets. Audited."""
+@router.post("/cicd/pull")
+def cicd_pull(_admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Remote pull of the CURRENT branch (git add . + stash, fetch, pull --ff-only). Audited."""
     from ..models import AuditEvent
-    job = _deployer("POST", "/deploy", {"branch": body.branch, "targets": body.targets, "pull": body.pull, "by": str(_admin)[:80]})
-    session.add(AuditEvent(dispute_id=None, actor_user_id=None, event_type="DeploymentTriggered",
-                           payload={"admin": str(_admin)[:80], "branch": body.branch, "targets": body.targets, "job": job.get("id")}))
+    job = _cicd("POST", "/pull", {})
+    session.add(AuditEvent(dispute_id=None, actor_user_id=None, event_type="RemotePullTriggered",
+                           payload={"admin": str(_admin)[:80], "job": job.get("id"), "title": job.get("title")}))
     session.commit()
     return job
 
 
-@router.get("/system/deploy/jobs")
-def system_deploy_jobs(_admin: str = Depends(require_admin_panel)):
-    return _deployer("GET", "/jobs")
+class AutoSyncIn(BaseModel):
+    enabled: bool
 
 
-@router.get("/system/deploy/jobs/{job_id}")
-def system_deploy_job(job_id: str, offset: int = Query(0, ge=0), _admin: str = Depends(require_admin_panel)):
-    if not re.fullmatch(r"[a-f0-9]{12}", job_id):
-        raise HTTPException(status_code=400, detail="bad job id")
-    return _deployer("GET", f"/jobs/{job_id}?offset={offset}")
+@router.get("/cicd/autosync")
+def cicd_autosync_get(_admin: str = Depends(require_admin_panel)):
+    return _cicd("GET", "/api/autosync")
+
+
+@router.post("/cicd/autosync")
+def cicd_autosync_set(body: AutoSyncIn, _admin: str = Depends(require_admin_panel)):
+    return _cicd("POST", "/api/autosync", {"enabled": body.enabled})
+
+
+class CicdDeployIn(BaseModel):
+    branch: str = Field(min_length=1, max_length=120)
+    targets: list[str] = Field(default_factory=lambda: ["_CREA3x"])
+    pull: bool = True
+
+
+@router.post("/cicd/deploy")
+def cicd_deploy(body: CicdDeployIn, _admin: str = Depends(require_admin_panel), session: Session = Depends(get_session)):
+    """Pull + restart through the console (also available from the console UI). Audited."""
+    from ..models import AuditEvent
+    job = _cicd("POST", "/deploy", {"branch": body.branch, "targets": body.targets, "pull": body.pull})
+    session.add(AuditEvent(dispute_id=None, actor_user_id=None, event_type="DeploymentTriggered",
+                           payload={"admin": str(_admin)[:80], "branch": body.branch, "targets": body.targets, "job": job.get("id")}))
+    session.commit()
+    return job
 
 
 # ── Themes: every published preset, the global one, and the master switch ─────

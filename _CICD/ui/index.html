@@ -76,6 +76,7 @@
   <section class="card" id="tokenCard" style="display:none">
     <h2>Token required</h2>
     <div class="stack"><input id="tokenInput" placeholder="CICD_TOKEN (see _CICD/.env or ./run_cicd.sh --url)"><button onclick="saveToken()">Use token</button></div>
+    <div id="tokenHint" class="small muted"></div>
   </section>
 
   <section class="card">
@@ -164,7 +165,14 @@ function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.style.d
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'X-CICD-Token': token, ...(opts.headers || {}) } });
   const data = await r.json().catch(() => ({}));
-  if (r.status === 401) { $('#tokenCard').style.display = ''; throw new Error('bad token'); }
+  if (r.status === 401) {
+    // Stored token no longer matches _CICD/.env — forget it and ask again.
+    try { localStorage.removeItem(LS); } catch (e) {}
+    token = '';
+    $('#tokenCard').style.display = '';
+    $('#tokenHint').textContent = 'The saved token was rejected. Run ./run_cicd.sh --url on the server and open the printed link (or paste CICD_TOKEN from _CICD/.env).';
+    throw new Error('bad token');
+  }
   if (!r.ok) throw new Error(data.error || `${r.status}`);
   return data;
 }

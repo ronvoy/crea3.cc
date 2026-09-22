@@ -41,7 +41,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
-TOKEN = os.environ.get("CICD_TOKEN", "")
+TOKEN_ENV = os.environ.get("CICD_TOKEN", "")
 REPO = os.environ.get("HOST_REPO_DIR", "").rstrip("/") or "/repo"
 PLATFORM_DIR = os.path.join(REPO, "_CREA3x")
 CHATBOT_DIR = os.path.join(REPO, "_CREA3-Chatbot")
@@ -69,6 +69,30 @@ GIT_ENV = {
     "GIT_SSH_COMMAND": "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/tmp/known_hosts",
 }
 REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
+
+# The token is read from the mounted _CICD/.env on every request (cached by
+# mtime): the file is the single source of truth, so restoring env.sh or editing
+# the token takes effect immediately, without recreating the container — the
+# container's own CICD_TOKEN is only a fallback when the file is unreadable.
+_ENV_FILE = os.path.join(REPO, "_CICD", ".env")
+_token_cache: dict = {"mtime": None, "value": ""}
+
+
+def current_token() -> str:
+    try:
+        mtime = os.path.getmtime(_ENV_FILE)
+        if _token_cache["mtime"] != mtime:
+            value = ""
+            with open(_ENV_FILE) as f:
+                for line in f:
+                    if line.startswith("CICD_TOKEN="):
+                        value = line.split("=", 1)[1].strip().strip('"').strip("'")
+            _token_cache.update(mtime=mtime, value=value)
+        if _token_cache["value"]:
+            return _token_cache["value"]
+    except OSError:
+        pass
+    return TOKEN_ENV
 
 try:
     os.makedirs(JOBS_DIR, exist_ok=True)
@@ -428,10 +452,11 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _auth(self, q: dict) -> bool:
-        if not TOKEN:
-            self._json(503, {"error": "CICD_TOKEN not configured"}); return False
+        token = current_token()
+        if not token:
+            self._json(503, {"error": "CICD_TOKEN not configured (set it in _CICD/.env and reload)"}); return False
         given = self.headers.get("X-CICD-Token") or (q.get("token") or [""])[0]
-        if not hmac.compare_digest(given, TOKEN):
+        if not hmac.compare_digest(given, token):
             self._json(401, {"error": "bad token"}); return False
         return True
 
@@ -575,7 +600,8 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"cicd: repo={REPO} ui={UI_DIR} token={'set' if TOKEN else 'MISSING'} port={PORT} auto_deploy={AUTO_BRANCH or '-'} "
+    print(f"cicd: repo={REPO} ui={UI_DIR} token={'from ' + _ENV_FILE if current_token() and current_token() != TOKEN_ENV else ('set' if current_token() else 'MISSING')} "
+          f"port={PORT} auto_deploy={AUTO_BRANCH or '-'} "
           f"auto_sync={'on' if _autosync['enabled'] else 'off'}/{AUTO_SYNC_INTERVAL}s")
     threading.Thread(target=auto_sync_loop, name="auto-sync", daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

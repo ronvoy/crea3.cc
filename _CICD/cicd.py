@@ -52,7 +52,12 @@ AUTO_BRANCH = os.environ.get("CICD_AUTO_DEPLOY_BRANCH", "").strip()
 AUTO_TARGETS = [t for t in os.environ.get("CICD_AUTO_DEPLOY_TARGETS", "_CREA3x").split(",") if t.strip()]
 PORT = int(os.environ.get("CICD_PORT_INTERNAL", "8088"))
 JOBS_DIR = os.environ.get("CICD_JOBS_DIR", "/var/lib/cicd/jobs")
-UI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui")
+# UI directory: by default the copy inside the image, but when the repository is
+# mounted (the normal case) we serve _CICD/ui from it, so a `git pull` or a local
+# edit updates the console without rebuilding the image.
+_UI_IN_IMAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui")
+_UI_IN_REPO = os.path.join(REPO, "_CICD", "ui")
+UI_DIR = os.environ.get("CICD_UI_DIR") or (_UI_IN_REPO if os.path.isfile(os.path.join(_UI_IN_REPO, "index.html")) else _UI_IN_IMAGE)
 TARGETS = ("_CREA3x", "_CREA3-Chatbot")
 STARTED = time.time()
 AUTO_SYNC_INTERVAL = int(os.environ.get("CICD_AUTO_SYNC_INTERVAL", "10"))     # seconds
@@ -570,7 +575,7 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"cicd: repo={REPO} token={'set' if TOKEN else 'MISSING'} port={PORT} auto_deploy={AUTO_BRANCH or '-'} "
+    print(f"cicd: repo={REPO} ui={UI_DIR} token={'set' if TOKEN else 'MISSING'} port={PORT} auto_deploy={AUTO_BRANCH or '-'} "
           f"auto_sync={'on' if _autosync['enabled'] else 'off'}/{AUTO_SYNC_INTERVAL}s")
     threading.Thread(target=auto_sync_loop, name="auto-sync", daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()

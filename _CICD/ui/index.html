@@ -6,53 +6,59 @@
 <title>CREA3 CI/CD</title>
 <style>
   :root { --bg:#0b1020; --panel:#111a2e; --panel2:#0e1526; --border:#223052; --text:#e6edf7; --muted:#8ea0bf; --accent:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
-  * { box-sizing:border-box }
-  html, body { overflow-x:hidden }
-  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  * { box-sizing:border-box; min-width:0 }
+  html, body { overflow-x:hidden; max-width:100% }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif }
   header { display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--border); background:var(--panel2); flex-wrap:wrap }
-  header h1 { font-size:14px; margin:0 } header .sub { color:var(--muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:50vw }
-  main { padding:10px 12px; display:grid; gap:10px; grid-template-columns:1fr }
-  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; min-width:0 }
-  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px }
-  .tb { display:flex; gap:6px; align-items:center; flex-wrap:wrap } .tb + .tb { margin-top:6px }
-  .tb .sep { width:1px; height:22px; background:var(--border); margin:0 2px }
-  .tb label { display:inline-flex; align-items:center; gap:4px; white-space:nowrap }
-  .strip { display:flex; gap:6px 14px; flex-wrap:wrap; align-items:baseline }
-  .strip .kv { display:inline-flex; gap:5px; align-items:baseline; min-width:0 }
-  .strip .k { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em } .strip .v { font-weight:600; word-break:break-word }
-  button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:5px 10px; cursor:pointer; font:inherit; font-weight:600; white-space:nowrap }
+  header h1 { font-size:14px; margin:0 }
+  header .sub { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1 1 120px }
+  /* One column, one section per row — never side by side. */
+  main { padding:10px; display:block }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:0; margin:0 0 10px }
+  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0; padding:10px 12px 0 }
+  .card > details > summary { cursor:pointer; list-style:none; padding:10px 12px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text); display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+  .card > details > summary::-webkit-details-marker { display:none }
+  .card > details > summary::before { content:'▸'; color:var(--accent); font-size:11px }
+  .card > details[open] > summary::before { content:'▾' }
+  .card > details[open] > summary { border-bottom:1px solid var(--border) }
+  .card > details > .body { padding:10px 12px 12px }
+  .sum { font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); font-size:11px }
+  /* Controls: stack on their own rows, full width, no overflow. */
+  .stack { display:flex; flex-direction:column; gap:6px; margin-bottom:8px }
+  .btns { display:flex; gap:6px; flex-wrap:wrap }
+  .btns > button { flex:1 1 150px }
+  .opts { display:flex; flex-direction:column; gap:4px; margin-top:6px }
+  .opts label { display:flex; align-items:center; gap:6px }
+  button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:7px 10px; cursor:pointer; font:inherit; font-weight:600 }
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); font-weight:500 }
-  button.danger { background:var(--bad) } button.ok { background:var(--ok); color:#06210f }
-  button:disabled { opacity:.45; cursor:not-allowed }
-  select, input { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:5px 8px; font:inherit; min-width:0; max-width:100% }
-  select#branchSel { flex:1 1 220px; min-width:160px } input#refInput { flex:1 1 180px; min-width:140px }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0 }
-  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:8px; overflow-x:auto }
-  .tab { background:transparent; border:0; border-bottom:2px solid transparent; border-radius:0; color:var(--muted); padding:6px 10px; font-weight:600 }
-  .tab.active { color:var(--text); border-bottom-color:var(--accent) }
-  .tab .count { font-size:11px; color:var(--muted) }
-  .pane { max-height:300px; min-width:0 }
+  button.ok { background:var(--ok); color:#06210f } button:disabled { opacity:.45; cursor:not-allowed }
+  select, input { width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:7px 9px; font:inherit }
+  .strip { display:flex; flex-direction:column; gap:4px }
+  .strip .kv { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap }
+  .strip .k { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; flex:0 0 110px }
+  .strip .v { font-weight:600; word-break:break-word; flex:1 1 auto }
   .scroll { overflow:auto; -webkit-overflow-scrolling:touch }
-  table { width:100%; border-collapse:collapse; font-size:12px; table-layout:auto }
-  th, td { text-align:left; padding:4px 6px; border-bottom:1px solid var(--border); vertical-align:top; word-break:break-word }
-  th { color:var(--muted); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.05em; position:sticky; top:0; background:var(--panel) }
+  table { width:100%; border-collapse:collapse; font-size:12px }
+  th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--border); vertical-align:top; word-break:break-word }
+  th { color:var(--muted); font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.05em; position:sticky; top:0; background:var(--panel); z-index:1 }
   td.nowrap { white-space:nowrap }
   tr.click { cursor:pointer } tr.click:hover td { background:#16213a }
   .badge { display:inline-block; font-size:10px; padding:0 7px; border-radius:999px; border:1px solid var(--border); color:var(--muted) }
   .badge.ok { color:var(--ok); border-color:var(--ok) } .badge.bad { color:var(--bad); border-color:var(--bad) } .badge.warn { color:var(--warn); border-color:var(--warn) } .badge.run { color:var(--accent); border-color:var(--accent) }
-  pre#log { background:#05080f; color:#cfe1ff; border:1px solid var(--border); border-radius:8px; padding:10px; margin:8px 0 0; max-height:220px; overflow:auto; font-size:11px; line-height:1.4; white-space:pre-wrap; word-break:break-word }
+  pre#log { background:#05080f; color:#cfe1ff; border:1px solid var(--border); border-radius:8px; padding:10px; margin:8px 0 0; max-height:240px; overflow:auto; font-size:11px; line-height:1.4; white-space:pre-wrap; word-break:break-word }
   .sha { font-family:ui-monospace,Menlo,monospace; color:#9cc4ff }
-  .muted { color:var(--muted) } .small { font-size:11px }
-  #toast { position:fixed; right:12px; bottom:12px; background:#1f2937; border:1px solid var(--border); padding:8px 12px; border-radius:8px; display:none; max-width:min(420px, calc(100vw - 24px)) }
-  .err { color:var(--bad) } .dirty { color:var(--warn) } .full { grid-column:1 / -1 }
+  .muted { color:var(--muted) } .small { font-size:11px } .err { color:var(--bad) } .dirty { color:var(--warn) }
   code { background:var(--panel2); padding:0 4px; border-radius:4px }
-  @media (max-width: 640px) {
-    header .sub { display:none }
-    main { padding:8px }
-    .tb .sep { display:none }
-    .tb > button, .tb > select, .tb > input { flex:1 1 45% }
-    .pane { max-height:260px }
-    #toast { left:12px; right:12px }
+  #toast { position:fixed; left:10px; right:10px; bottom:10px; background:#1f2937; border:1px solid var(--border); padding:9px 12px; border-radius:8px; display:none }
+  /* Wider screens: the controls may sit on one line; sections stay stacked. */
+  @media (min-width: 720px) {
+    main { padding:12px 14px }
+    .stack { flex-direction:row; align-items:center }
+    .stack > select, .stack > input { flex:1 1 auto }
+    .btns > button { flex:0 0 auto }
+    .opts { flex-direction:row; gap:14px; flex-wrap:wrap }
+    .strip .kv { flex-wrap:nowrap }
+    #toast { left:auto; right:14px; max-width:420px }
   }
 </style>
 </head>
@@ -67,68 +73,80 @@
 </header>
 
 <main>
-  <section class="card full" id="tokenCard" style="display:none">
+  <section class="card" id="tokenCard" style="display:none">
     <h2>Token required</h2>
-    <div class="row"><input id="tokenInput" placeholder="CICD_TOKEN (see _CICD/.env or ./run_cicd.sh --url)" style="flex:1"><button onclick="saveToken()">Use token</button></div>
+    <div class="stack"><input id="tokenInput" placeholder="CICD_TOKEN (see _CICD/.env or ./run_cicd.sh --url)"><button onclick="saveToken()">Use token</button></div>
   </section>
 
-  <!-- ① Actions (always on top, above Checkout) -->
-  <section class="card full toolbar">
-    <h2>Actions</h2>
-    <div class="tb">
-      <select id="branchSel" title="branch to pull / deploy"></select>
-      <button class="ghost" onclick="loadBranches()" title="git fetch origin --prune">⟳ Fetch</button>
-      <button onclick="pullBranch()" title="auto-stash local changes, fetch, checkout, pull --ff-only">⬇ Pull</button>
-      <button class="ok" onclick="deploy()" title="pull the selected branch, then restart the selected targets">▶ Pull &amp; deploy</button>
-      <span class="sep"></span>
-      <input id="refInput" placeholder="branch / commit to checkout">
-      <button class="ghost" onclick="checkoutRef()">Checkout</button>
-      <span class="sep"></span>
-      <button class="ghost" onclick="act('/pull','Pull the current branch from origin? Local changes are added and stashed first.')">⬇ Remote pull</button>
-      <button class="ghost" onclick="restart('_CREA3x')">↻ Platform</button>
-      <button class="ghost" onclick="restart('_CREA3-Chatbot')">↻ Chatbot</button>
-      <button class="ghost" onclick="act('/stash/push','Stash local changes now?')">Stash</button>
-    </div>
-    <div class="tb small muted">
-      <label><input type="checkbox" id="tPlatform" checked> target: platform</label>
-      <label><input type="checkbox" id="tChatbot"> target: chatbot</label>
-      <span class="sep"></span>
-      <label><input type="checkbox" id="autoSync" onchange="toggleAutoSync(this.checked)"> auto-sync every <span id="autoSyncInterval">10</span> s</label>
-      <span id="autoSyncLine"></span>
-      <span id="autoDeploy"></span>
-    </div>
+  <section class="card">
+    <details open data-sec="checkout">
+      <summary>Checkout <span class="sum" id="sumCheckout"></span></summary>
+      <div class="body"><div class="strip" id="statusGrid"></div></div>
+    </details>
   </section>
 
-  <!-- ② Checkout (below the actions; the details area scrolls on its own) -->
-  <section class="card full">
-    <h2>Checkout</h2>
-    <div class="scroll" style="max-height:140px">
-      <div class="strip" id="statusGrid"></div>
-      <div id="dirtyBox" class="small" style="margin-top:6px"></div>
-    </div>
+  <section class="card">
+    <details open data-sec="actions">
+      <summary>Actions</summary>
+      <div class="body">
+        <div class="stack">
+          <select id="branchSel" title="branch to pull / deploy"></select>
+          <div class="btns">
+            <button class="ghost" onclick="loadBranches()" title="git fetch origin --prune">⟳ Fetch</button>
+            <button onclick="pullBranch()" title="stash local changes, fetch, checkout, pull --ff-only">⬇ Pull</button>
+            <button class="ok" onclick="deploy()" title="pull the selected branch, then restart the selected targets">▶ Pull &amp; deploy</button>
+          </div>
+        </div>
+        <div class="stack">
+          <input id="refInput" placeholder="branch / commit to checkout">
+          <div class="btns"><button class="ghost" onclick="checkoutRef()">Checkout</button></div>
+        </div>
+        <div class="btns">
+          <button class="ghost" onclick="act('/pull','Pull the current branch from origin? Local changes are added and stashed first.')">⬇ Remote pull</button>
+          <button class="ghost" onclick="restart('_CREA3x')">↻ Restart platform</button>
+          <button class="ghost" onclick="restart('_CREA3-Chatbot')">↻ Restart chatbot</button>
+          <button class="ghost" onclick="act('/stash/push','Stash local changes now?')">Stash changes</button>
+        </div>
+        <div class="opts small muted">
+          <label><input type="checkbox" id="tPlatform" checked> deploy target: platform</label>
+          <label><input type="checkbox" id="tChatbot"> deploy target: chatbot</label>
+          <label><input type="checkbox" id="autoSync" onchange="toggleAutoSync(this.checked)"> auto-sync every <span id="autoSyncInterval">10</span> s</label>
+        </div>
+        <div id="autoSyncLine" class="small muted"></div>
+        <div id="autoDeploy" class="small muted"></div>
+      </div>
+    </details>
   </section>
 
-  <!-- ③ Tabs: commits · stashes · containers · jobs -->
-  <section class="card full">
-    <div class="tabs">
-      <button class="tab active" data-tab="commits" onclick="showTab('commits')">Commits <span class="muted small" id="commitsRef"></span></button>
-      <button class="tab" data-tab="stashes" onclick="showTab('stashes')">Stashes <span class="count" id="stashCount"></span></button>
-      <button class="tab" data-tab="containers" onclick="showTab('containers')">Containers</button>
-      <button class="tab" data-tab="jobs" onclick="showTab('jobs')">Jobs <span id="jobTitle" class="muted small"></span></button>
-    </div>
-    <div class="pane scroll" id="pane-commits">
-      <table id="commits"><thead><tr><th></th><th>Commit</th><th>Subject</th><th>Author</th><th>Date</th></tr></thead><tbody></tbody></table>
-    </div>
-    <div class="pane scroll" id="pane-stashes" hidden>
-      <table id="stashes"><thead><tr><th>Ref</th><th>Message</th><th>Date</th><th></th></tr></thead><tbody></tbody></table>
-    </div>
-    <div class="pane scroll" id="pane-containers" hidden>
-      <table id="containers"><thead><tr><th>Name</th><th>Image</th><th>Status</th></tr></thead><tbody></tbody></table>
-    </div>
-    <div class="pane" id="pane-jobs" hidden>
-      <div class="scroll" style="max-height:150px"><table id="jobs"><thead><tr><th>When</th><th>Job</th><th>By</th><th>Status</th></tr></thead><tbody></tbody></table></div>
-      <pre id="log">— select a job or start an action —</pre>
-    </div>
+  <section class="card">
+    <details open data-sec="commits">
+      <summary>Commits <span class="sum" id="commitsRef"></span></summary>
+      <div class="body scroll" style="max-height:300px"><table id="commits"><thead><tr><th>Commit</th><th>Subject</th><th>Author</th><th>Date</th></tr></thead><tbody></tbody></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <details data-sec="stashes">
+      <summary>Stashes <span class="sum" id="stashCount"></span></summary>
+      <div class="body scroll" style="max-height:240px"><table id="stashes"><thead><tr><th>Ref</th><th>Message</th><th>Date</th><th></th></tr></thead><tbody></tbody></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <details data-sec="containers">
+      <summary>Containers <span class="sum" id="containerCount"></span></summary>
+      <div class="body scroll" style="max-height:240px"><table id="containers"><thead><tr><th>Name</th><th>Image</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <details open data-sec="jobs">
+      <summary>Jobs <span class="sum" id="jobTitle"></span></summary>
+      <div class="body">
+        <div class="scroll" style="max-height:140px"><table id="jobs"><thead><tr><th>When</th><th>Job</th><th>By</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <pre id="log">— select a job or start an action —</pre>
+      </div>
+    </details>
   </section>
 </main>
 <div id="toast"></div>
@@ -161,7 +179,8 @@ async function loadStatus() {
   $('#repoLine').textContent = r.ok ? `${r.repo} · ${r.remote}` : (r.error || '');
   $('#runningBadge').innerHTML = status.running ? `<span class="badge run">running: ${esc(status.running.title)}</span>` : '';
   const ab = r.ahead == null ? '—' : `${r.ahead} ahead · ${r.behind} behind origin`;
-  $('#stashCount').textContent = (status.stashes || []).length ? `(${status.stashes.length})` : '';
+  $('#stashCount').textContent = `(${(status.stashes || []).length})`;
+  $('#containerCount').textContent = `(${(status.containers || []).length})`;
   $('#statusGrid').innerHTML = [
     ['Branch', r.detached ? `<span class="warn">detached HEAD</span>` : esc(r.branch)],
     ['HEAD', `<span class="sha">${esc(r.head)}</span>`],
@@ -170,7 +189,7 @@ async function loadStatus() {
     ['Local changes', r.dirty_count ? `<span class="dirty">${r.dirty_count} file(s)</span>` : 'clean'],
     ['Console uptime', `${Math.round(status.uptime_s / 60)} min`],
   ].map(([k, v]) => `<span class="kv"><span class="k">${k}</span><span class="v">${v}</span></span>`).join('');
-  $('#dirtyBox').innerHTML = r.dirty_count ? `<span class="muted">Modified/untracked (stashed automatically before pull/checkout):</span><br><code>${(r.dirty_files || []).map(esc).join('</code> <code>')}</code>` : '';
+  $('#sumCheckout').textContent = r.ok ? `${r.branch}${r.behind > 0 ? ` · ${r.behind} behind` : ''}${r.dirty_count ? ` · ${r.dirty_count} local change${r.dirty_count > 1 ? 's' : ''}` : ''}` : '';
   $('#stashes tbody').innerHTML = (status.stashes || []).map((s) => `<tr><td class="sha">${esc(s.ref)}</td><td>${esc(s.subject)}</td><td>${when(s.date)}</td><td><button class="ghost" onclick="act('/stash/pop/${s.index}','Pop ${esc(s.ref)} onto the working tree?')">pop</button> <button class="ghost" onclick="act('/stash/drop/${s.index}','Drop ${esc(s.ref)} permanently?')">drop</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">none</td></tr>';
   $('#containers tbody').innerHTML = (status.containers || []).map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="muted">${esc(c.image)}</td><td class="${c.state === 'running' ? '' : 'err'}">${esc(c.status)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">none</td></tr>';
   const as = status.auto_sync || {};
@@ -193,7 +212,7 @@ async function loadCommits() {
   const ref = $('#branchSel').value || (status?.repo?.branch) || 'HEAD';
   const c = await api(`/api/commits?ref=${encodeURIComponent(ref)}&limit=60`);
   $('#commitsRef').textContent = c.ref ? `(${c.ref})` : '';
-  $('#commits tbody').innerHTML = (c.commits || []).map((k) => `<tr class="click" title="checkout ${k.short}" onclick="checkoutSha('${k.sha}','${esc(k.short)}')"><td>${k.is_head ? '●' : ''}</td><td class="sha">${esc(k.short)}</td><td>${esc(k.subject)} ${k.refs.length ? `<span class="badge">${esc(k.refs.join(', '))}</span>` : ''}</td><td class="muted nowrap">${esc(k.author)}</td><td class="muted small nowrap">${when(k.date)}</td></tr>`).join('') || `<tr><td colspan="5" class="err">${esc(c.error || 'no commits')}</td></tr>`;
+  $('#commits tbody').innerHTML = (c.commits || []).map((k) => `<tr class="click" title="checkout ${k.short}" onclick="checkoutSha('${k.sha}','${esc(k.short)}')"><td class="sha nowrap">${k.is_head ? '● ' : ''}${esc(k.short)}</td><td>${esc(k.subject)} ${k.refs.length ? `<span class="badge">${esc(k.refs.join(', '))}</span>` : ''}</td><td class="muted nowrap">${esc(k.author)}</td><td class="muted small nowrap">${when(k.date)}</td></tr>`).join('') || `<tr><td colspan="4" class="err">${esc(c.error || 'no commits')}</td></tr>`;
 }
 async function loadJobs() {
   const j = await api('/api/jobs');
@@ -216,21 +235,21 @@ function deploy() { const b = $('#branchSel').value, t = targets(); if (!b || !t
 
 async function toggleAutoSync(on) { try { await api('/api/autosync', { method: 'POST', body: JSON.stringify({ enabled: on }) }); toast(`auto-sync ${on ? 'enabled' : 'disabled'}`); loadStatus(); } catch (e) { toast(e.message, true); } }
 
-// ── tabs + height reporting (for the admin-panel iframe) ─────────────────────
-function showTab(name) {
-  document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('.pane').forEach((p) => { p.hidden = p.id !== `pane-${name}`; });
-  try { localStorage.setItem('crea3-cicd-tab', name); } catch (e) {}
-}
-showTab((() => { try { return localStorage.getItem('crea3-cicd-tab') || 'commits'; } catch (e) { return 'commits'; } })());
+// Remember which sections are open.
+document.querySelectorAll('details[data-sec]').forEach((d) => {
+  const key = 'crea3-cicd-sec-' + d.dataset.sec;
+  try { const v = localStorage.getItem(key); if (v !== null) d.open = v === '1'; } catch (e) {}
+  d.addEventListener('toggle', () => { try { localStorage.setItem(key, d.open ? '1' : '0'); } catch (e) {} });
+});
+const openSection = (name) => { const d = document.querySelector(`details[data-sec="${name}"]`); if (d && !d.open) d.open = true; };
 
 // ── job follow ───────────────────────────────────────────────────────────────
 function follow(id) {
-  following = id; logLen = 0; $('#log').textContent = '…'; clearInterval(pollTimer); showTab('jobs');
+  following = id; logLen = 0; $('#log').textContent = '…'; clearInterval(pollTimer); openSection('jobs');
   const tick = async () => {
     try {
       const j = await api(`/api/jobs/${id}?offset=${logLen}`);
-      $('#jobTitle').innerHTML = `— ${esc(j.title)} ${badge(j.status)} <span class="muted">${esc(j.by || '')}</span>`;
+      $('#jobTitle').innerHTML = `${esc(j.title)} ${badge(j.status)} <span class="muted">${esc(j.by || '')}</span>`;
       if (j.log.length) { if (logLen === 0) $('#log').textContent = ''; $('#log').textContent += j.log.join('\n') + '\n'; logLen = j.log_len; $('#log').scrollTop = $('#log').scrollHeight; }
       if (['done', 'failed', 'unhealthy'].includes(j.status)) { clearInterval(pollTimer); following = null; refreshAll(); }
     } catch (e) { /* the console itself keeps running; transient errors are ignored */ }

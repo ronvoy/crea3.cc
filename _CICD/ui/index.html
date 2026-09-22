@@ -166,11 +166,16 @@ async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'X-CICD-Token': token, ...(opts.headers || {}) } });
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) {
-    // Stored token no longer matches _CICD/.env — forget it and ask again.
+    // Token rejected: forget it and show what the server actually accepts, so
+    // the cause (stale container, unreadable .env, wrong repo mount) is visible.
     try { localStorage.removeItem(LS); } catch (e) {}
     token = '';
     $('#tokenCard').style.display = '';
-    $('#tokenHint').textContent = 'The saved token was rejected. Run ./run_cicd.sh --url on the server and open the printed link (or paste CICD_TOKEN from _CICD/.env).';
+    const parts = ['The token was rejected.'];
+    if (data.given_fp) parts.push(`sent ${data.given_fp}, server accepts ${(data.accepts || []).join(' / ') || 'nothing'}.`);
+    if (data.env_file_readable === false) parts.push(`It cannot read ${data.env_file} (${data.env_file_error || 'unreadable'}) — check HOST_REPO_DIR / the repo mount.`);
+    else parts.push('Run ./run_cicd.sh --url on the server and open the printed link, or paste CICD_TOKEN from _CICD/.env.');
+    $('#tokenHint').textContent = parts.join(' ');
     throw new Error('bad token');
   }
   if (!r.ok) throw new Error(data.error || `${r.status}`);

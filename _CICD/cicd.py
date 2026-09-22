@@ -78,6 +78,34 @@ _ENV_FILE = os.path.join(REPO, "_CICD", ".env")
 _token_cache: dict = {"mtime": None, "value": ""}
 
 
+def token_fp(value: str) -> str:
+    """Short, non-reversible fingerprint of a token — safe to expose for diagnosis."""
+    return hashlib.sha256(value.encode()).hexdigest()[:8] if value else ""
+
+
+def token_info() -> dict:
+    """Where the accepted tokens come from — used by /health and run_cicd.sh."""
+    file_token = ""
+    file_error = None
+    try:
+        with open(_ENV_FILE) as f:
+            for line in f:
+                if line.startswith("CICD_TOKEN="):
+                    file_token = line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError as e:
+        file_error = f"{type(e).__name__}: {e.strerror or e}"
+    return {
+        "repo": REPO,
+        "repo_mounted": os.path.isdir(os.path.join(REPO, ".git")),
+        "env_file": _ENV_FILE,
+        "env_file_readable": file_error is None,
+        "env_file_error": file_error,
+        "file_token_fp": token_fp(file_token),
+        "startup_token_fp": token_fp(TOKEN_ENV),
+        "accepts": [fp for fp in (token_fp(file_token), token_fp(TOKEN_ENV)) if fp],
+    }
+
+
 def current_token() -> str:
     try:
         mtime = os.path.getmtime(_ENV_FILE)
@@ -452,12 +480,21 @@ class H(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _auth(self, q: dict) -> bool:
-        token = current_token()
-        if not token:
-            self._json(503, {"error": "CICD_TOKEN not configured (set it in _CICD/.env and reload)"}); return False
+        # Accept the token from the mounted _CICD/.env (source of truth) OR the
+        # one this container was started with. They differ only while a stale
+        # container is running — accepting both means a freshly generated token
+        # works immediately, and `run_cicd.sh` recreates the container so the
+        # old one stops being accepted.
+        valid = [t for t in (current_token(), TOKEN_ENV) if t]
+        if not valid:
+            self._json(503, {"error": f"no token available: {_ENV_FILE} unreadable and CICD_TOKEN unset"}); return False
         given = self.headers.get("X-CICD-Token") or (q.get("token") or [""])[0]
-        if not hmac.compare_digest(given, token):
-            self._json(401, {"error": "bad token"}); return False
+        if not any(hmac.compare_digest(given, t) for t in valid):
+            info = token_info()
+            self._json(401, {"error": "bad token", "given_fp": token_fp(given), "accepts": info["accepts"],
+                             "env_file": info["env_file"], "env_file_readable": info["env_file_readable"],
+                             "env_file_error": info["env_file_error"], "repo_mounted": info["repo_mounted"]})
+            return False
         return True
 
     def _body(self) -> dict:
@@ -524,7 +561,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         u = urlparse(self.path); p = u.path.rstrip("/") or "/"; q = parse_qs(u.query)
         if p == "/health":
-            return self._json(200, {"ok": True, "uptime_s": int(time.time() - STARTED)})
+            return self._json(200, {"ok": True, "uptime_s": int(time.time() - STARTED), **token_info()})
         if p == "/":
             return self._file(os.path.join(UI_DIR, "index.html"), "text/html; charset=utf-8")
         if not self._auth(q):

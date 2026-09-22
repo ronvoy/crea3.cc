@@ -47,30 +47,42 @@ grep -q '^CICD_WEBHOOK_SECRET=' "$ENV_FILE" || printf '# Optional: GitHub webhoo
 docker compose up -d --build
 
 # ── Verify: the console must be up AND accept the token in ./.env ────────────
-# (A container started earlier can hold a stale token — e.g. .env was replaced
-#  by env.sh afterwards. The service re-reads the file per request, so this
-#  normally passes; if it does not, recreate the container once.)
 TOKEN="$(get CICD_TOKEN)"
 URL="http://localhost:$PORT"
-ok=0
-for _ in $(seq 1 20); do
-  if curl -fsS -m 3 "$URL/health" >/dev/null 2>&1; then ok=1; break; fi
+fp() { printf '%s' "$1" | shasum -a 256 2>/dev/null | cut -c1-8 || printf '%s' "$1" | sha256sum | cut -c1-8; }
+health() { curl -fsS -m 3 "$URL/health" 2>/dev/null; }
+
+up=0
+for _ in $(seq 1 25); do
+  if health >/dev/null; then up=1; break; fi
   sleep 1
 done
-if [[ "$ok" -eq 1 ]] && ! curl -fsS -m 5 -H "X-CICD-Token: $TOKEN" "$URL/api/status" >/dev/null 2>&1; then
-  echo "  token rejected by the running container — recreating it…"
-  docker compose up -d --build --force-recreate
-  sleep 3
+
+check_ok() { curl -fsS -m 5 -H "X-CICD-Token: $TOKEN" "$URL/api/status" >/dev/null 2>&1; }
+
+if [[ "$up" -eq 1 ]] && ! check_ok; then
+  echo "  the running container rejected the token — recreating it…"
+  docker compose up -d --force-recreate >/dev/null
+  for _ in $(seq 1 25); do health >/dev/null && break; sleep 1; done
 fi
 
 echo
-if [[ "$ok" -ne 1 ]]; then
-  echo "⚠ The console did not answer on $URL/health — check: docker compose logs -f" >&2
-elif curl -fsS -m 5 -H "X-CICD-Token: $TOKEN" "$URL/api/status" >/dev/null 2>&1; then
+if [[ "$up" -ne 1 ]]; then
+  echo "⚠ The console did not answer on $URL/health" >&2
+  echo "  docker compose logs --tail=40" >&2
+elif check_ok; then
   echo "✓ CI/CD console ready."
 else
-  echo "⚠ The console is running but rejected the token in ./.env." >&2
-  echo "  Check CICD_TOKEN in $ENV_FILE, then: docker compose up -d --force-recreate" >&2
+  # Precise diagnosis from /health (fingerprints only, never the token itself)
+  H="$(health || echo '{}')"
+  jq_get() { printf '%s' "$H" | python3 -c "import json,sys;print(json.load(sys.stdin).get('$1',''))" 2>/dev/null; }
+  echo "⚠ The console is running but does not accept the token in $ENV_FILE." >&2
+  echo "    token in .env    : $(fp "$TOKEN")" >&2
+  echo "    accepted by it   : $(jq_get accepts)" >&2
+  echo "    repo path in it  : $(jq_get repo)  (mounted: $(jq_get repo_mounted))" >&2
+  echo "    reads .env from  : $(jq_get env_file)  (readable: $(jq_get env_file_readable)) $(jq_get env_file_error)" >&2
+  echo "  Most often the container predates this checkout. Force a clean start:" >&2
+  echo "    docker rm -f crea3-cicd && ./run_cicd.sh" >&2
 fi
 echo "CI/CD console: $URL/?token=$TOKEN"
 echo "  (the platform's admin panel → System → CI/CD embeds it automatically after ./run_be.sh)"

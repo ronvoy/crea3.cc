@@ -339,6 +339,12 @@ class Settings(BaseSettings):
     smtp_tls: bool = Field(default=False, validation_alias=AliasChoices("SMTP_TLS", "SMTP_STARTTLS", "smtp_tls"))
     smtp_ssl: bool = Field(default=False, validation_alias=AliasChoices("SMTP_SSL", "smtp_ssl"))
 
+    # Database connection pool (see db.py). Defaults are sized for LLM-heavy
+    # requests that hold a connection while the model answers.
+    db_pool_size: int = Field(default=20, validation_alias=AliasChoices("DB_POOL_SIZE", "db_pool_size"))
+    db_max_overflow: int = Field(default=40, validation_alias=AliasChoices("DB_MAX_OVERFLOW", "db_max_overflow"))
+    db_pool_timeout: int = Field(default=30, validation_alias=AliasChoices("DB_POOL_TIMEOUT", "db_pool_timeout"))
+
     # CI/CD console (../_CICD); values handed over by run_be.sh from _CICD/.env.
     cicd_url: str = Field(default="", validation_alias=AliasChoices("CICD_URL", "cicd_url"))          # backend → console (server side)
     cicd_port: str = Field(default="", validation_alias=AliasChoices("CICD_PORT", "cicd_port"))       # browser → console (same host)

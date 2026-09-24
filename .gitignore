@@ -10,5 +10,8 @@ backend/rag_store
 _rsc
 generated_reports
 crea3.db-journal
+# SQLite WAL sidecars (journal_mode=WAL, see _CREA3x/backend/app/db.py)
+crea3.db-wal
+crea3.db-shm
 # carries real .env secrets between machines — never commit
 env.sh

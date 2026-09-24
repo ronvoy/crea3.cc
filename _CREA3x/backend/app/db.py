@@ -1,11 +1,52 @@
+import logging
+
+from sqlalchemy import event
 from sqlmodel import SQLModel, create_engine, Session
+
 from .core.config import settings
 
+# ── Engine + connection pool ─────────────────────────────────────────────────
+# Requests that call an LLM (assistant, per-asset estimate, "what if…") keep
+# their DB connection checked out for as long as the model takes, so the stock
+# pool (5 + 10 overflow) can be exhausted by a handful of concurrent users and
+# every later request then fails with "QueuePool limit ... connection timed out".
+# The pool is therefore sized generously — for SQLite a connection is just a file
+# handle — and configurable per deployment.
+_is_sqlite = settings.database_url.startswith("sqlite")
 connect_args = {}
-if settings.database_url.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+if _is_sqlite:
+    # check_same_thread: sessions are used from worker threads;
+    # timeout: wait for a writer's lock instead of raising "database is locked".
+    connect_args = {"check_same_thread": False, "timeout": 30}
 
-engine = create_engine(settings.database_url, echo=False, connect_args=connect_args)
+engine = create_engine(
+    settings.database_url,
+    echo=False,
+    connect_args=connect_args,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_timeout=settings.db_pool_timeout,
+    pool_recycle=1800,        # drop connections idle for 30 min (stale TCP on Postgres)
+    pool_pre_ping=True,       # verify a pooled connection before handing it out
+)
+
+if _is_sqlite:
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, _record):  # pragma: no cover - driver glue
+        """WAL + a busy timeout: readers no longer block on a writer, which is
+        what makes a larger pool safe for a file-based database."""
+        cur = dbapi_connection.cursor()
+        try:
+            cur.execute("PRAGMA busy_timeout=30000")
+            # WAL is unsupported on some network filesystems (NFS): keep the
+            # default journal there rather than failing to open the database.
+            try:
+                cur.execute("PRAGMA journal_mode=WAL")
+                cur.execute("PRAGMA synchronous=NORMAL")
+            except Exception as exc:   # pragma: no cover - filesystem dependent
+                logging.getLogger("crea3.db").warning("SQLite WAL unavailable (%s) — using the default journal", exc)
+        finally:
+            cur.close()
 
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)

@@ -477,6 +477,9 @@ def post_estimate_chat(
         ))
         session.commit()
 
+    # Free the DB connection before the (slow) model call — see assistant_ask.
+    session.commit()
+
     currency = (body.currency or (good.meta or {}).get("currency") or "EUR").upper()[:3]
     system = _system_prompt(good, brief, body.lang, currency)
     history = [{"role": r.role, "content": r.text} for r in history_rows]
@@ -560,6 +563,10 @@ def estimate_draft(
     lang = body.lang
     do_web = _needs_web(question, brief)
     sname, sdesc = stub.name, stub.meta["description"]
+
+    # Return the DB connection to the pool for the duration of the model call
+    # (see assistant_ask): a slow answer must not occupy a pooled connection.
+    session.commit()
 
     def _work() -> dict:
         sys_prompt = system

@@ -230,6 +230,10 @@ def assistant_public(payload: PublicAssistantIn, session: Session = Depends(get_
     """
     _log_query("public", "public", None, "", payload.lang)
     context, _sources = _kb_grounding(session, "workflow", payload.question)
+    # Return the DB connection to the pool for the duration of the model call
+    # (see assistant_ask): a slow answer must not occupy a pooled connection.
+    session.commit()
+
     try:
         result = llm.chat(
             system=PUBLIC_GUIDE + context + _lang_instruction(payload.lang),
@@ -462,6 +466,10 @@ def assistant_for_dispute(
         + context
         + _lang_instruction(payload.lang)
     )
+
+    # Return the DB connection to the pool for the duration of the model call
+    # (see assistant_ask): a slow answer must not occupy a pooled connection.
+    session.commit()
 
     try:
         result = llm.chat(
@@ -1269,6 +1277,11 @@ def assistant_ask(
         files=file_names, transcript=payload.transcript,
         audio_in_b64=payload.audio_in_b64, audio_in_mime=payload.audio_in_mime,
     )
+
+    # Return the DB connection to the pool while the model answers: an LLM call
+    # can take a minute, and holding a connection for that long exhausts the
+    # pool as soon as a few users ask at the same time (QueuePool timeout).
+    session.commit()
 
     try:
         result = llm.chat(

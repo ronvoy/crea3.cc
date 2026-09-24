@@ -54,7 +54,22 @@ export default function AdminDashboardPage() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: c.bg, color: c.text, fontFamily: "system-ui, sans-serif" }}>
+    <div className="admin-root" style={{ minHeight: "100vh", background: c.bg, color: c.text, fontFamily: "system-ui, sans-serif", overflowX: "hidden" }}>
+      {/* Layout rules for the console: tables scroll inside their card instead of
+          widening the page, the tab bar wraps, and paddings shrink on phones. */}
+      <style>{`
+        .admin-root, .admin-root * { min-width: 0 }
+        .admin-root table { width: 100%; border-collapse: collapse }
+        .admin-root td, .admin-root th { overflow-wrap: anywhere }
+        .admin-root main { padding: 22px }
+        @media (max-width: 900px) { .admin-root main { padding: 14px } }
+        @media (max-width: 640px) {
+          .admin-root header { padding: 10px 12px !important }
+          .admin-root main { padding: 10px }
+          .admin-root table { font-size: 12px }
+          .admin-root td, .admin-root th { padding: 6px !important }
+        }
+      `}</style>
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", borderBottom: `1px solid ${c.border}`, flexWrap: "wrap", gap: 10 }}>
         <strong style={{ fontSize: 18 }}>CREA3 — Admin console</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -66,7 +81,7 @@ export default function AdminDashboardPage() {
           <button onClick={logout} style={{ ...tb(false), color: c.danger }}>Sign out</button>
         </div>
       </header>
-      <main style={{ padding: 22 }}>
+      <main>
         {tab === "users" && <UsersTab c={c} refreshTick={refreshTick} />}
         {tab === "stats" && <StatsTab c={c} refreshTick={refreshTick} />}
         {tab === "mail" && <MailTab c={c} refreshTick={refreshTick} />}
@@ -81,7 +96,7 @@ export default function AdminDashboardPage() {
 
 // ── shared style helpers ───────────────────────────────────────────────────────
 const S = (c: C) => ({
-  card: { background: c.panel, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16, marginBottom: 16 } as React.CSSProperties,
+  card: { background: c.panel, border: `1px solid ${c.border}`, borderRadius: 12, padding: 16, marginBottom: 16, minWidth: 0, maxWidth: "100%", overflowX: "auto" } as React.CSSProperties,
   th: { textAlign: "left", padding: "8px 10px", borderBottom: `1px solid ${c.border2}`, color: c.muted, fontWeight: 600, fontSize: 13, cursor: "pointer", userSelect: "none" } as React.CSSProperties,
   td: { padding: "8px 10px", borderBottom: `1px solid ${c.border}`, fontSize: 13, verticalAlign: "top" } as React.CSSProperties,
   input: { background: c.panel2, color: c.text, border: `1px solid ${c.border2}`, borderRadius: 6, padding: "6px 8px", fontSize: 13 } as React.CSSProperties,
@@ -796,7 +811,7 @@ function DatabaseTab({ c, refreshTick }: { c: C; refreshTick: number }) {
                   <button style={s.ghost} disabled={page * data.page_size >= data.total} onClick={() => loadRows(sel!, page + 1)}>next ›</button>
                 </div>
               </div>
-              <table style={{ borderCollapse: "collapse", fontSize: 12 }}>
+              <table style={{ borderCollapse: "collapse", fontSize: 12, width: "100%", minWidth: 520 }}>
                 <thead><tr>{data.columns.map((col: any) => <th key={col.name} style={s.th}>{col.name}</th>)}<th style={s.th}>actions</th></tr></thead>
                 <tbody>
                   {data.rows.map((r: any, i: number) => (
@@ -1322,10 +1337,14 @@ function CicdSection({ c, refreshTick }: { c: C; refreshTick: number }) {
     finally { setBusy(false); }
   }
 
+  // Same-origin by default: the backend reverse-proxies the console at /cicd,
+  // so the embed works through a tunnel where only the platform port is public.
+  // CICD_PUBLIC_URL in _CICD/.env overrides it when the console has its own
+  // public address.
   const url = useMemo(() => {
     if (!link?.configured) return null;
-    const base = link.public_url || `${window.location.protocol}//${window.location.hostname}:${link.port}`;
-    return `${base.replace(/\/$/, "")}/?token=${encodeURIComponent(link.token)}`;
+    const base = link.public_url ? link.public_url.replace(/\/$/, "") : `${window.location.origin}/cicd`;
+    return `${base}/?token=${encodeURIComponent(link.token)}`;
   }, [link]);
 
   if (err) return <div style={s.err}>{err}</div>;
@@ -1361,7 +1380,7 @@ function CicdSection({ c, refreshTick }: { c: C; refreshTick: number }) {
         <span style={{ fontSize: 13, color: link.reachable ? "#16a34a" : "#dc2626", wordBreak: "break-word" }}>
           {link.reachable ? "● console reachable" : `● console not reachable from the backend (${link.error || "?"}) — the embed below may still work from your browser`}
         </span>
-        <span style={{ color: c.faint, fontSize: 12 }}>{link.public_url || `port ${link.port}`}</span>
+        <span style={{ color: c.faint, fontSize: 12, wordBreak: "break-all" }}>{link.public_url || `${window.location.origin}/cicd → port ${link.port}`}</span>
         <div className="cicd-actions">
           <button style={{ ...s.btn, background: "#16a34a", borderColor: "#16a34a" }} disabled={busy || !link.reachable || !!st?.running} onClick={remotePull}
             title="git add . + git stash, then git fetch + pull --ff-only of the current branch">

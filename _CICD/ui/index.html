@@ -154,6 +154,11 @@
 
 <script>
 const LS = 'crea3-cicd-token';
+// Where this page is served from: '' when reached directly (http://host:8088/),
+// '/cicd' when reached through the platform's reverse proxy (works behind a
+// tunnel, where only the platform's port is published). Every request below is
+// made relative to it.
+const BASE = location.pathname.replace(/\/(index\.html)?$/, '');
 let token = new URLSearchParams(location.search).get('token') || localStorage.getItem(LS) || '';
 if (token) { localStorage.setItem(LS, token); if (location.search.includes('token=')) history.replaceState({}, '', location.pathname); }
 let status = null, branches = [], following = null, logLen = 0, pollTimer = null;
@@ -163,7 +168,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'
 const when = (iso) => iso ? new Date(iso).toLocaleString() : '—';
 function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; t.style.borderColor = bad ? 'var(--bad)' : 'var(--border)'; clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 4000); }
 async function api(path, opts = {}) {
-  const r = await fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', 'X-CICD-Token': token, ...(opts.headers || {}) } });
+  const r = await fetch(BASE + path, { ...opts, headers: { 'Content-Type': 'application/json', 'X-CICD-Token': token, ...(opts.headers || {}) } });
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) {
     // Token rejected: forget it and show what the server actually accepts, so

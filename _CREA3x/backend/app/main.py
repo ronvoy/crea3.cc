@@ -168,6 +168,33 @@ async def _kc_resources(kc_path: str, request: Request):
     return await _proxy_keycloak(request, f"/resources/{kc_path}")
 
 
+# ── Reverse-proxy the CI/CD console under this origin (single port) ───────────
+# The console runs in its own container on another port (see ../_CICD). Exposing
+# it directly would not survive a tunnel (only :8000 is published), so the admin
+# panel embeds it as  <origin>/cicd/…  and we relay the request server-side.
+# Authentication is unchanged: the console checks its own token, which the admin
+# panel obtains from /api/admin/cicd/link and puts in the URL.
+@app.api_route("/cicd{cicd_path:path}", methods=["GET", "POST"], include_in_schema=False)
+async def _cicd_console(cicd_path: str, request: Request):
+    if not settings.cicd_url:
+        raise HTTPException(status_code=503, detail="CI/CD console not configured.")
+    target = f"{settings.cicd_url.rstrip('/')}{cicd_path or '/'}"
+    fwd = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length", "accept-encoding")}
+    try:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=60.0) as client:
+            r = await client.request(request.method, target, params=request.query_params,
+                                     content=await request.body(), headers=fwd)
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="CI/CD console is unreachable.")
+    out = Response(content=r.content, status_code=r.status_code)
+    out.raw_headers = [
+        (k.encode("latin-1"), v.encode("latin-1"))
+        for k, v in r.headers.multi_items()
+        if k.lower() not in _KC_HOP_BY_HOP
+    ]
+    return out
+
+
 # ── Serve the built frontend (single origin: app + API on http://localhost:8000)
 # Enabled when FRONTEND_DIST_DIR points at a Vite `dist` build. The SPA calls the
 # API at a relative path (/api) on this same origin. Keycloak stays on :8082.

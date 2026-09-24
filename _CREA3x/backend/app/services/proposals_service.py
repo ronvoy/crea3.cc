@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from ..models import AllocationProposal, AuditEvent, Dispute, DisputeAgent, Good, Preference
 
-ALGO_VERSION = "v13-knaster-proportional-scaling"
+ALGO_VERSION = "v14-knaster-proportional-scaling"
 
 
 def _stable_json(obj: Any) -> str:
@@ -438,10 +438,13 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
         is_div = bool(goods_by_id.get(gid, {}).get("divisible"))
         al["divisible"] = is_div
         if is_div:
+            # 6 decimals: the table multiplies these by the asset price, so the
+            # displayed amounts stay accurate to the cent even for large assets
+            # (4 decimals could drift by several euro on a six-figure asset).
             fr = gt.fractions_by_good.get(gid, {})
-            al["fractions"] = {str(a): round(fr.get(a, 0.0), 4) for a in agent_ids}
+            al["fractions"] = {str(a): round(fr.get(a, 0.0), 6) for a in agent_ids}
             al["fraction_by_name"] = {
-                (agents_by_id[a]["name"] if a in agents_by_id else str(a)): round(fr.get(a, 0.0), 4)
+                (agents_by_id[a]["name"] if a in agents_by_id else str(a)): round(fr.get(a, 0.0), 6)
                 for a in agent_ids
             }
 
@@ -462,8 +465,19 @@ def build_proposal(session: Session, dispute_id: int) -> ProposalBuildResult:
             w = al.get("assigned_agent_id")
             if w is not None:
                 _shown_received[w] += value[(w, gid)]
+    # The displayed fractions are rounded (see above), so the recomputed total may
+    # legitimately differ by that rounding times the asset value. Allow exactly
+    # that much (plus a 50-cent base) — anything beyond it is a real mismatch of
+    # winners/fractions, which is what this guard exists to catch.
+    _frac_eps = 0.5 * 10 ** -6
+    _slack = {aid: 0.5 for aid in agent_ids}
+    for al in allocations:
+        if al.get("divisible"):
+            gid = al.get("good_id")
+            for aid in agent_ids:
+                _slack[aid] += _frac_eps * abs(value[(aid, gid)])
     for aid in agent_ids:
-        if abs(_shown_received[aid] - float(gt.received_by_agent.get(aid, 0.0))) > 0.5:
+        if abs(_shown_received[aid] - float(gt.received_by_agent.get(aid, 0.0))) > _slack[aid]:
             raise RuntimeError(
                 "Allocation pipeline inconsistency: the displayed award for agent "
                 f"{aid} implies received {_shown_received[aid]:.2f} but the settlement engine "

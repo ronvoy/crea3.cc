@@ -186,6 +186,12 @@ export default function DisputeDetail() {
   // Price guardrail per good for THIS party (null = not loaded; applies=false
   // for the good's creator, who sets the reference and is not bound).
   const [guardrails, setGuardrails] = useState<Record<number, any>>({})
+  // Guardrail rejections are shown INLINE, above the price field of the asset
+  // they concern (a page-top banner was easy to miss), and stay until dismissed.
+  const [goodErr, setGoodErr] = useState<Record<number, string>>({})
+  const setGoodError = (goodId: number, msg: string | null) =>
+    setGoodErr((m) => { const n = { ...m }; if (msg) n[goodId] = msg; else delete n[goodId]; return n })
+
   async function loadGuardrail(goodId: number) {
     try {
       const g = await api(`/api/disputes/${disputeId}/goods/${goodId}/guardrail`)
@@ -695,7 +701,8 @@ export default function DisputeDetail() {
       setErr(t('valueMustBeNumber')); return
     }
     const gErr = guardrailError(g.id, value_amount)
-    if (gErr) { setErr(gErr); return }
+    if (gErr) { setGoodError(g.id, gErr); return }
+    setGoodError(g.id, null)
     const divisible = divisibleDraft[g.id] !== undefined ? divisibleDraft[g.id] : myDivisibleFor(g.id)
     try {
       const canEditStructure = canEditWorkflow && !lockStatus.my_locked
@@ -720,6 +727,10 @@ export default function DisputeDetail() {
       setValueEditIds((set) => { const n = new Set(set); n.delete(g.id); return n })
       await loadAll()
     } catch (e: any) {
+      // A guardrail rejection from the server belongs on the asset, not on top.
+      if (/allowed range|intervallo|razpon|vahemik|plage|intervalas|raspon|bereik/i.test(String(e?.message || ''))) {
+        setGoodError(g.id, e.message); return
+      }
       setErr(e?.message || 'Could not save this asset')
     }
   }
@@ -829,7 +840,8 @@ export default function DisputeDetail() {
       setErr(t('valueMustBeNumber')); return
     }
     const gErr = guardrailError(goodId, value_amount)
-    if (gErr) { setErr(gErr); return }
+    if (gErr) { setGoodError(goodId, gErr); return }
+    setGoodError(goodId, null)
     const divisible = divisibleDraft[goodId] !== undefined ? divisibleDraft[goodId] : myDivisibleFor(goodId)
     try {
       await api(`/api/disputes/${disputeId}/goods/${goodId}/valuation`, {
@@ -839,6 +851,9 @@ export default function DisputeDetail() {
       setValueEditIds(s => { const n = new Set(s); n.delete(goodId); return n })
       await loadAll()
     } catch (e: any) {
+      if (/allowed range|intervallo|razpon|vahemik|plage|intervalas|raspon|bereik/i.test(String(e?.message || ''))) {
+        setGoodError(goodId, e.message); return
+      }
       setErr(e.message)
     }
   }
@@ -1498,6 +1513,17 @@ export default function DisputeDetail() {
                                             disabled={!canEditStructure}
                                             className="w-full"
                                           />
+                                        ) : null}
+                                        {/* Guardrail rejection for THIS asset: sits between the
+                                            name and the price field, stays until dismissed. */}
+                                        {goodErr[g.id] ? (
+                                          <div role="alert" className="col-span-full flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
+                                            <span aria-hidden="true">⚠</span>
+                                            <span className="min-w-0 flex-1 break-words">{goodErr[g.id]}</span>
+                                            <button type="button" onClick={() => setGoodError(g.id, null)}
+                                              aria-label={t('close')}
+                                              className="shrink-0 rounded-md px-1.5 leading-none text-red-700 hover:bg-red-100">×</button>
+                                          </div>
                                         ) : null}
                                         {/* This party's own price for the asset */}
                                         <div className="flex flex-wrap items-center gap-2">

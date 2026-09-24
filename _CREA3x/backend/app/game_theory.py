@@ -393,7 +393,11 @@ def allocate_knaster(
 
     return GTResult(
         winner_by_good=winner_by_good,
-        fractions_by_good={g: {a: round(fractions_by_good.get(g, {}).get(a, 0.0), 4) for a in agent_ids} for g in good_ids},
+        # 9 decimals: these fractions are multiplied by six-figure asset values
+        # downstream, so 4 decimals could shift a party's total by several euro
+        # and contradict received_by_agent (which is computed from the exact
+        # fractions). The UI rounds them again for display.
+        fractions_by_good={g: {a: round(fractions_by_good.get(g, {}).get(a, 0.0), 9) for a in agent_ids} for g in good_ids},
         received_by_agent={a: round(received[a], 2) for a in agent_ids},
         perceived_total_by_agent={a: round(perceived_total[a], 2) for a in agent_ids},
         fair_share_by_agent={a: round(fair[a], 2) for a in agent_ids},

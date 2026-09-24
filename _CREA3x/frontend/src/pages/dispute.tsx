@@ -186,11 +186,16 @@ export default function DisputeDetail() {
   // Price guardrail per good for THIS party (null = not loaded; applies=false
   // for the good's creator, who sets the reference and is not bound).
   const [guardrails, setGuardrails] = useState<Record<number, any>>({})
-  // Guardrail rejections are shown INLINE, above the price field of the asset
-  // they concern (a page-top banner was easy to miss), and stay until dismissed.
-  const [goodErr, setGoodErr] = useState<Record<number, string>>({})
-  const setGoodError = (goodId: number, msg: string | null) =>
-    setGoodErr((m) => { const n = { ...m }; if (msg) n[goodId] = msg; else delete n[goodId]; return n })
+
+  // Price-range rejections open a modal (a page-top banner was easy to miss and
+  // scrolled away). Works for both the client-side check and the server's 400.
+  const [priceErr, setPriceErr] = useState<{ good: string; message: string } | null>(null)
+  const GUARDRAIL_RE = /allowed range|out of the allowed|intervallo consentito|dovoljeni razpon|lubatud vahemik|plage autoris|leistinas intervalas|dopušteni raspon|toegestaan bereik|must be between|deve essere tra|mora biti med|peab jääma|comprise entre|turi būti tarp|mora biti između|moet tussen/i
+  function reportValueError(goodName: string, e: any): boolean {
+    const msg = String(e?.detail || e?.message || '')
+    if (GUARDRAIL_RE.test(msg)) { setPriceErr({ good: goodName, message: msg }); return true }
+    return false
+  }
 
   async function loadGuardrail(goodId: number) {
     try {
@@ -264,6 +269,15 @@ export default function DisputeDetail() {
     if (!meParticipation) return true // owner/admin path
     return normalizeStatus(meParticipation.invite_status) === 'joined' || normalizeStatus(meParticipation.invite_status) === 'accepted'
   }, [meParticipation])
+
+  // Price guardrails for every asset this party may value: cards of unvalued
+  // assets open automatically (never through openGoodEdit), so the range hint
+  // and the client-side check need the bands upfront.
+  useEffect(() => {
+    if (!disputeId || !isJoined || isMediator) return
+    goods.forEach((g) => { if (guardrails[g.id] === undefined) loadGuardrail(g.id) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goods, disputeId, isJoined, isMediator])
 
   const canEditWorkflow = useMemo(() => {
     // mediator never edits anything
@@ -428,6 +442,9 @@ export default function DisputeDetail() {
       } catch {
         setMyPrefs([])
       }
+      // Load the price guardrails so the range hint and the client-side check
+      // work on cards that open automatically (unvalued assets).
+      // (fire-and-forget; the server enforces the band regardless)
       // Load my own monetary valuations per good.
       try {
         const vals = await api(`/api/disputes/${disputeId}/goods/my-valuations`)
@@ -580,6 +597,7 @@ export default function DisputeDetail() {
       setDraftEst(null); setDraftText(''); setDraftApplied(null); setDraftFallback(false)
       await loadAll()
     } catch (e: any) {
+      if (reportValueError(gname.trim(), e)) return
       setErr(e.message)
     }
   }
@@ -701,8 +719,7 @@ export default function DisputeDetail() {
       setErr(t('valueMustBeNumber')); return
     }
     const gErr = guardrailError(g.id, value_amount)
-    if (gErr) { setGoodError(g.id, gErr); return }
-    setGoodError(g.id, null)
+    if (gErr) { setPriceErr({ good: g.name, message: gErr }); return }
     const divisible = divisibleDraft[g.id] !== undefined ? divisibleDraft[g.id] : myDivisibleFor(g.id)
     try {
       const canEditStructure = canEditWorkflow && !lockStatus.my_locked
@@ -727,10 +744,7 @@ export default function DisputeDetail() {
       setValueEditIds((set) => { const n = new Set(set); n.delete(g.id); return n })
       await loadAll()
     } catch (e: any) {
-      // A guardrail rejection from the server belongs on the asset, not on top.
-      if (/allowed range|intervallo|razpon|vahemik|plage|intervalas|raspon|bereik/i.test(String(e?.message || ''))) {
-        setGoodError(g.id, e.message); return
-      }
+      if (reportValueError(g.name, e)) return
       setErr(e?.message || 'Could not save this asset')
     }
   }
@@ -840,8 +854,7 @@ export default function DisputeDetail() {
       setErr(t('valueMustBeNumber')); return
     }
     const gErr = guardrailError(goodId, value_amount)
-    if (gErr) { setGoodError(goodId, gErr); return }
-    setGoodError(goodId, null)
+    if (gErr) { setPriceErr({ good: goods.find((x) => x.id === goodId)?.name || '', message: gErr }); return }
     const divisible = divisibleDraft[goodId] !== undefined ? divisibleDraft[goodId] : myDivisibleFor(goodId)
     try {
       await api(`/api/disputes/${disputeId}/goods/${goodId}/valuation`, {
@@ -851,9 +864,7 @@ export default function DisputeDetail() {
       setValueEditIds(s => { const n = new Set(s); n.delete(goodId); return n })
       await loadAll()
     } catch (e: any) {
-      if (/allowed range|intervallo|razpon|vahemik|plage|intervalas|raspon|bereik/i.test(String(e?.message || ''))) {
-        setGoodError(goodId, e.message); return
-      }
+      if (reportValueError(goods.find((x) => x.id === goodId)?.name || '', e)) return
       setErr(e.message)
     }
   }
@@ -1514,17 +1525,6 @@ export default function DisputeDetail() {
                                             className="w-full"
                                           />
                                         ) : null}
-                                        {/* Guardrail rejection for THIS asset: sits between the
-                                            name and the price field, stays until dismissed. */}
-                                        {goodErr[g.id] ? (
-                                          <div role="alert" className="col-span-full flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
-                                            <span aria-hidden="true">⚠</span>
-                                            <span className="min-w-0 flex-1 break-words">{goodErr[g.id]}</span>
-                                            <button type="button" onClick={() => setGoodError(g.id, null)}
-                                              aria-label={t('close')}
-                                              className="shrink-0 rounded-md px-1.5 leading-none text-red-700 hover:bg-red-100">×</button>
-                                          </div>
-                                        ) : null}
                                         {/* This party's own price for the asset */}
                                         <div className="flex flex-wrap items-center gap-2">
                                           <span className="text-xs text-slate-500 whitespace-nowrap">{t('yourValueWord')}:</span>
@@ -1541,25 +1541,6 @@ export default function DisputeDetail() {
                                             inputMode="decimal"
                                           />
                                         </div>
-                                        {/* Price guardrail (non-creators only): the band this
-                                            party's value must stay within. Turns red when the
-                                            draft is outside it. */}
-                                        {guardrails[g.id]?.applies ? (() => {
-                                          const gr = guardrails[g.id]
-                                          const draft = Number((valueDraft[g.id] ?? myValueFor(g.id) ?? '').trim())
-                                          const bad = !Number.isNaN(draft) && (valueDraft[g.id] ?? '') !== '' && (draft < gr.lower || draft > gr.upper)
-                                          return (
-                                            <div className={`mt-1 text-[11px] leading-snug ${bad ? 'text-red-600' : 'text-slate-500'}`}>
-                                              <b>{t('guardrailTitle')}:</b> {fmtMoney(gr.lower)} – {fmtMoney(gr.upper)}{' '}
-                                              <span className="text-slate-400">
-                                                ({t('guardrailHint')
-                                                  .replace('{ref}', fmtMoney(gr.reference))
-                                                  .replace('{ai}', gr.ai_max != null ? t('guardrailAi').replace('{max}', fmtMoney(gr.ai_max)) : '')
-                                                  .replace('{tol}', String(gr.tolerance_pct))})
-                                              </span>
-                                            </div>
-                                          )
-                                        })() : null}
                                       </div>
                                       {isFull ? (
                                         <textarea
@@ -1954,6 +1935,26 @@ export default function DisputeDetail() {
           <MuiButton variant="contained" color="error" onClick={confirmDeleteGood} disabled={deletingGood}>
             {deletingGood ? t('deletingWord') : t('deleteWord')}
           </MuiButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Price out of the allowed range — dismissible modal (client check and
+          the server's 400 both land here, instead of a page-top banner). */}
+      <Dialog open={!!priceErr} onClose={() => setPriceErr(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, pr: 1 }}>
+          <span aria-hidden="true" style={{ color: '#dc2626' }}>⚠</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <div>{t('guardrailModalTitle')}</div>
+            {priceErr?.good ? <div className="truncate text-xs font-normal text-slate-500">{priceErr.good}</div> : null}
+          </span>
+          <button type="button" aria-label={t('close')} onClick={() => setPriceErr(null)}
+            className="shrink-0 rounded-lg px-2 text-lg leading-none text-slate-500 hover:bg-slate-100">×</button>
+        </DialogTitle>
+        <DialogContent>
+          <div className="text-sm text-slate-700" style={{ overflowWrap: 'anywhere' }}>{priceErr?.message}</div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <MuiButton variant="contained" onClick={() => setPriceErr(null)} autoFocus>{t('close')}</MuiButton>
         </DialogActions>
       </Dialog>
     </div>
